@@ -11,7 +11,7 @@ openrouter = OpenAI(
 )
 
 class RequirementTools:
-"""Collection of tools for the planning stage"""
+    """Collection of tools for the planning stage"""
 
     @staticmethod
     def get_tool_definitions() -> List[Dict[str, Any]]:
@@ -88,11 +88,10 @@ class RequirementTools:
         }
 
     @staticmethod
-    def suggest_alternative_projects(numberOfSuggestions: int , avoid_topics: str , userSkills: Dict[str, Any]) -> Dict[str,Any]:
+    def suggest_alternative_projects(numberOfSuggestions: int, avoid_topics: str , userSkills: Dict[str, Any]) -> Dict[str,Any]:
         PROMPT = "TODO"
 
-        full_prompt = PROMPT
-        .replace("**Experience Level:** ...", f"**Experience Level:** {userSkills.get('userExperienceLevel')}") \
+        full_prompt = PROMPT.replace("**Experience Level:** ...", f"**Experience Level:** {userSkills.get('userExperienceLevel')}") \
         .replace("**Python Knowledge:** ...", f"**Python Knowledge:** {userSkills.get('pythonExperience')}") \
         .replace("**Interest Area:** ...", f"**Interest Area:** {userSkills.get('theme', 'general')}")
 
@@ -106,6 +105,6 @@ class RequirementTools:
         )
         return {
             "suggestions": response.choices[0].message.content,
-            "message": f"Here are {args.numberOfSuggestions or 3} tailored project ideas!",
+            "message": f"Here are {numberOfSuggestions or 3} tailored project ideas!",
             "status": "complete"
         }
