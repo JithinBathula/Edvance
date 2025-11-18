@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
 import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, CheckCircle2 } from 'lucide-react';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -41,7 +41,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       console.error("Chat Error:", error);
       toast.error("Connection failed. Please try again.");
     }
-  }) as any;
+  } as any) as any;
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
