@@ -73,7 +73,7 @@ export function ProjectWorkspace({
     // Save progress
     try {
       await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/project/${project.id}/progress`,
+        `https://${projectId}.supabase.co/functions/v1/server/project/${project.id}/progress`,
         {
           method: "POST",
           headers: {
@@ -100,7 +100,7 @@ export function ProjectWorkspace({
   const handleProjectComplete = async () => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/project/${project.id}/complete`,
+        `https://${projectId}.supabase.co/functions/v1/server/project/${project.id}/complete`,
         {
           method: "POST",
           headers: {

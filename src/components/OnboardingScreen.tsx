@@ -40,7 +40,7 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user/${encodeURIComponent(userName)}/onboarding`,
+        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(userName)}/onboarding`,
         {
           method: 'POST',
           headers: {

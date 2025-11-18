@@ -15,12 +15,13 @@ type Props = {
 
 export function ProfilePage({ user, onUpdate, onBack }: Props) {
   const [loading, setLoading] = useState(false);
+
   const [answers, setAnswers] = useState<OnboardingData>(
-    user.onboarding || {
-      pythonExperience: '',
-      experienceLevel: '',
-      goal: '',
-      theme: '',
+    {
+      pythonExperience: user.onboarding?.pythonExperience || '',
+      experienceLevel: user.onboarding?.experienceLevel || '',
+      goal: user.onboarding?.goal || '',
+      theme: user.onboarding?.theme || '',
     }
   );
 
@@ -29,7 +30,7 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user/${encodeURIComponent(user.name)}/onboarding`,
+        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(user.name)}/onboarding`,
         {
           method: 'POST',
           headers: {
@@ -125,7 +126,7 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
 
             <RadioGroup
               value={answers.pythonExperience}
-              onValueChange={(value) => setAnswers({ ...answers, pythonExperience: value })}
+              onValueChange={(value: string) => setAnswers({ ...answers, pythonExperience: value })}
             >
               <div className="grid grid-cols-2 gap-3">
                 {['Just starting out', '1-3 months', '3-6 months', '6+ months'].map((option) => (
@@ -157,7 +158,7 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
 
             <RadioGroup
               value={answers.experienceLevel}
-              onValueChange={(value) => setAnswers({ ...answers, experienceLevel: value })}
+              onValueChange={(value: string) => setAnswers({ ...answers, experienceLevel: value })}
             >
               <div className="space-y-3">
                 {[
@@ -197,7 +198,7 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
 
             <RadioGroup
               value={answers.goal}
-              onValueChange={(value) => setAnswers({ ...answers, goal: value })}
+              onValueChange={(value: string) => setAnswers({ ...answers, goal: value })}
             >
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -234,7 +235,7 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
 
             <RadioGroup
               value={answers.theme}
-              onValueChange={(value) => setAnswers({ ...answers, theme: value })}
+              onValueChange={(value: string) => setAnswers({ ...answers, theme: value })}
             >
               <div className="space-y-3">
                 {[

@@ -256,7 +256,7 @@ export function CoursePage({ user, onBack }: Props) {
     const loadProgress = async () => {
       try {
         const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user/${encodeURIComponent(user.name)}/course-progress`,
+          `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(user.name)}/course-progress`,
           {
             headers: {
               Authorization: `Bearer ${publicAnonKey}`,
@@ -284,7 +284,7 @@ export function CoursePage({ user, onBack }: Props) {
     // Save progress
     try {
       await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user/${encodeURIComponent(user.name)}/course-progress`,
+        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(user.name)}/course-progress`,
         {
           method: "POST",
           headers: {

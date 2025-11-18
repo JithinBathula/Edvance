@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 import { LoginScreen } from "./components/LoginScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { LandingPage } from "./components/LandingPage";
@@ -66,9 +67,21 @@ export default function App() {
     setCurrentScreen("customProjectChat");
   };
 
-  const handleProjectCreated = (project: any) => {
-    setCurrentProject(project);
-    setCurrentScreen("projectWorkspace");
+  const handleProjectCreated = (data: any) => {
+    console.log("📦 Data received from Chat:", data);
+
+    // For planning stage ppl, if tasks exist, open workspace directly
+    if (data.tasks && Array.isArray(data.tasks)) {
+      setCurrentProject(data);
+      setCurrentScreen("projectWorkspace");
+    } else {
+      // Current state (Requirements gathered only).
+      // Just go back to landing and show a success message.
+      toast.success("Requirements gathered successfully!", {
+        description: "Project planning module coming soon."
+      });
+      setCurrentScreen("landing");
+    }
   };
 
   const handleBackToLanding = () => {

@@ -1,281 +1,107 @@
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { User } from '../App';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { ScrollArea } from './ui/scroll-area';
-import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, AlertCircle } from 'lucide-react';
-
-type Message = {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-};
+import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useChat } from 'ai/react';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 
 type Props = {
   user: User;
-  onProjectCreated: (project: any) => void;
+  onProjectCreated: (requirementsData: any) => void;
   onBack: () => void;
 };
 
 export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: `Hi ${user.name}! 👋 I'm here to help you create a custom project. Tell me what you'd like to build, and I'll design a learning path tailored to your skill level (${user.onboarding?.experienceLevel || 'beginner'}).\n\nWhat project idea do you have in mind?`,
-    },
-  ]);
   const [input, setInput] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [projectIdea, setProjectIdea] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { messages, append, isLoading } = useChat({
+    api: `https://${projectId}.supabase.co/functions/v1/server/user/${user.name}/chat`,
+    headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+    body: {
+      userSkills: {
+        userExperienceLevel: user.onboarding?.experienceLevel || 'beginner',
+        pythonExperience: user.onboarding?.pythonExperience || 'Just starting out',
+        theme: user.onboarding?.theme || 'general'
+      }
+    },
+    initialMessages: [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: `Hi ${user.name}! 👋 I'm here to help you create a custom project. Tell me what you'd like to build, and I'll design a learning path tailored to your skill level (${user.onboarding?.experienceLevel || 'beginner'}).\n\nWhat project idea do you have in mind?`,
+      },
+    ],
+    onError: (error: Error) => {
+      console.error("Chat Error:", error);
+      toast.error("Connection failed. Please try again.");
+    }
+  }) as any;
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   const handleSend = async () => {
-    if (!input.trim() || isAnalyzing) return;
-
+    if (!input.trim() || isLoading) return;
     const userMessage = input.trim();
-    setInput('');
-    setProjectIdea(userMessage);
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
-    setIsAnalyzing(true);
-
-    // Simulate AI analysis
-    setTimeout(() => {
-      analyzeProject(userMessage);
-    }, 1500);
+    setInput(''); 
+    try {
+      await append({ role: 'user', content: userMessage });
+    } catch (e) { 
+      console.error(e); 
+    }
   };
 
-  const analyzeProject = (idea: string) => {
-    const userLevel = user.onboarding?.experienceLevel || 'never';
-    const ideaLower = idea.toLowerCase();
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-    // Simple complexity detection
-    let complexity: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
+  // Hand-off Logic
+  useEffect(() => {
+    if (isLoading) return;
+    const lastMessage = messages[messages.length - 1];
     
-    if (
-      ideaLower.includes('api') ||
-      ideaLower.includes('database') ||
-      ideaLower.includes('machine learning') ||
-      ideaLower.includes('ai') ||
-      ideaLower.includes('neural')
-    ) {
-      complexity = 'advanced';
-    } else if (
-      ideaLower.includes('class') ||
-      ideaLower.includes('oop') ||
-      ideaLower.includes('file') ||
-      ideaLower.includes('json')
-    ) {
-      complexity = 'intermediate';
-    }
+    if (lastMessage?.role === 'assistant' && lastMessage.toolInvocations) {
+      const qualityCheck = lastMessage.toolInvocations.find(
+        (t: any) => t.toolName === 'qualityCheckTool' && t.result?.action === 'proceed'
+      );
 
-    const levelMatch =
-      (userLevel === 'never' && complexity === 'beginner') ||
-      (userLevel === 'basic' && complexity === 'beginner') ||
-      (userLevel === 'intermediate' && (complexity === 'beginner' || complexity === 'intermediate')) ||
-      (userLevel === 'advanced');
+      if (qualityCheck) {
+        const techInfo = messages
+          .flatMap((m: any) => m.toolInvocations || [])
+          .find((t: any) => t.toolName === 'webSearchForDependencies')?.result;
 
-    if (!levelMatch && userLevel !== 'advanced') {
-      // Project too complex
-      const recommendation = generateRecommendation(userLevel);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `I love your ambition! However, this project seems ${complexity} level, which might be challenging given your current experience (${userLevel}).\n\nHere's a recommendation that would be perfect for you:\n\n${recommendation}\n\nWould you like to:\n1. Continue with your original idea anyway\n2. Try the recommended project\n3. Tell me a different idea`,
-        },
-      ]);
-      setIsAnalyzing(false);
-    } else if (complexity === 'beginner' && userLevel === 'advanced') {
-      // Too simple
-      const recommendation = generateAdvancedRecommendation();
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `This project might be too simple for your advanced skill level. Here's a more challenging version:\n\n${recommendation}\n\nWould you like to:\n1. Continue with the original idea\n2. Try the enhanced version\n3. Tell me a different idea`,
-        },
-      ]);
-      setIsAnalyzing(false);
-    } else {
-      // Good match!
-      generateProject(idea, complexity);
-    }
-  };
+        const userIdeaMessage = messages.find((m: any) => m.role === 'user');
 
-  const generateRecommendation = (level: string): string => {
-    const recommendations = {
-      never: '🎯 **Simple Calculator**\nBuild a calculator that adds, subtracts, multiplies, and divides numbers. You\'ll learn variables, user input, and basic operations.',
-      basic: '📝 **Todo List Manager**\nCreate a program to add, view, and mark tasks as complete. You\'ll practice lists, loops, and conditionals.',
-      intermediate: '🎮 **Text Adventure Game**\nBuild an interactive story game where player choices matter. You\'ll use functions, classes, and complex logic.',
-    };
-    return recommendations[level as keyof typeof recommendations] || recommendations.basic;
-  };
-
-  const generateAdvancedRecommendation = (): string => {
-    return '🚀 **Enhanced Version with Features**\nAdd data persistence (save/load), error handling, advanced algorithms, or integrate with an API to make it more challenging.';
-  };
-
-  const generateProject = async (idea: string, difficulty: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        content: `Perfect! This project matches your skill level. Let me design the tasks for you...`,
-      },
-    ]);
-
-    // Generate tasks based on the project
-    setTimeout(async () => {
-      const tasks = generateTasks(idea, difficulty);
-      
-      const project = {
-        title: idea,
-        description: `A custom project to build: ${idea}`,
-        difficulty,
-        tasks,
-      };
-
-      // Save to backend
-      try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user/${encodeURIComponent(user.name)}/project`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${publicAnonKey}`,
-            },
-            body: JSON.stringify(project),
-          }
-        );
-
-        const data = await response.json();
-        
-        if (data.success) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'assistant',
-              content: `✅ Your project is ready! I've created ${tasks.length} tasks to guide you through building "${idea}". Let's get started!`,
-            },
-          ]);
-
-          setTimeout(() => {
-            onProjectCreated(data.project);
-          }, 1000);
-        }
-      } catch (err) {
-        console.error('Error creating project:', err);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: `There was an error creating your project. Please try again.`,
-          },
-        ]);
+        setTimeout(() => {
+          onProjectCreated({
+            title: "Custom Project", 
+            idea: userIdeaMessage ? userIdeaMessage.content : "Python Project",
+            techStack: techInfo?.libraries, 
+            complexity: qualityCheck.result, 
+            userContext: { name: user.name }
+          }); 
+        }, 2000);
       }
-
-      setIsAnalyzing(false);
-    }, 2000);
-  };
-
-  const generateTasks = (idea: string, difficulty: string): any[] => {
-    // Generate contextual tasks based on the project idea
-    const ideaLower = idea.toLowerCase();
-    
-    if (ideaLower.includes('calculator')) {
-      return [
-        {
-          id: 'task1',
-          title: 'Set Up Variables',
-          description: 'Create variables to store two numbers for calculation.',
-          hints: ['Use meaningful variable names like num1 and num2', 'You can use input() to get user input'],
-          starterCode: '# Get two numbers from user\nnum1 = 0\nnum2 = 0\n\nprint("Number 1:", num1)\nprint("Number 2:", num2)',
-        },
-        {
-          id: 'task2',
-          title: 'Add Operations',
-          description: 'Implement addition, subtraction, multiplication, and division.',
-          hints: ['Create variables for each operation result', 'Use +, -, *, / operators'],
-          starterCode: '# Previous code here\n\n# Calculations\naddition = num1 + num2\nsubtraction = num1 - num2\n\nprint("Addition:", addition)',
-        },
-        {
-          id: 'task3',
-          title: 'Add User Choice',
-          description: 'Let users choose which operation to perform.',
-          hints: ['Use if/elif statements', 'Compare the user choice to strings like "add"'],
-          starterCode: '# Ask user for operation\noperation = input("Enter operation (add/sub/mul/div): ")\n\nif operation == "add":\n    print(num1 + num2)',
-        },
-      ];
     }
+  }, [messages, isLoading, onProjectCreated, user]);
 
-    if (ideaLower.includes('todo') || ideaLower.includes('task')) {
-      return [
-        {
-          id: 'task1',
-          title: 'Create Task List',
-          description: 'Set up a list to store tasks.',
-          hints: ['Use an empty list: tasks = []', 'Use append() to add items'],
-          starterCode: '# Initialize task list\ntasks = []\n\n# Add a sample task\ntasks.append("Learn Python")\nprint(tasks)',
-        },
-        {
-          id: 'task2',
-          title: 'Add and View Tasks',
-          description: 'Create functions to add and display tasks.',
-          hints: ['Use a for loop to display all tasks', 'Print each task with its index'],
-          starterCode: '# Show all tasks\nfor i, task in enumerate(tasks):\n    print(f"{i + 1}. {task}")',
-        },
-        {
-          id: 'task3',
-          title: 'Complete Tasks',
-          description: 'Mark tasks as complete and remove them.',
-          hints: ['Use remove() or pop() to delete items', 'Ask user which task to complete'],
-          starterCode: '# Remove completed task\nif len(tasks) > 0:\n    tasks.pop(0)\n    print("Task completed!")',
-        },
-      ];
-    }
-
-    // Generic tasks for any project
-    return [
-      {
-        id: 'task1',
-        title: 'Setup and Planning',
-        description: `Plan the basic structure of your ${idea}. Define the main variables and data structures you'll need.`,
-        hints: ['Think about what data you need to store', 'Create variables for the core elements', 'Use print() to test your setup'],
-        starterCode: '# Your project setup\n# Define your main variables here\n\nprint("Project initialized!")',
-      },
-      {
-        id: 'task2',
-        title: 'Core Functionality',
-        description: 'Implement the main features of your project.',
-        hints: ['Break the problem into smaller steps', 'Use functions to organize your code', 'Test each part as you build'],
-        starterCode: '# Core functionality\n# Add your main code here\n\n',
-      },
-      {
-        id: 'task3',
-        title: 'User Interaction',
-        description: 'Add user input and make your project interactive.',
-        hints: ['Use input() to get user data', 'Add if/else for different user choices', 'Provide clear prompts'],
-        starterCode: '# User interaction\nuser_input = input("Enter your choice: ")\nprint("You entered:", user_input)',
-      },
-      {
-        id: 'task4',
-        title: 'Polish and Complete',
-        description: 'Add final touches, error handling, and test thoroughly.',
-        hints: ['Test with different inputs', 'Add helpful messages', 'Handle edge cases'],
-        starterCode: '# Final touches\n# Test your complete project here',
-      },
-    ];
-  };
-
-  const handleContinueAnyway = () => {
-    generateProject(projectIdea, 'custom');
-  };
+  const isThinking = isLoading && messages[messages.length - 1]?.role === 'user';
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">
       {/* Header */}
-      <header className="border-b bg-white px-4 py-3 flex items-center gap-4">
+      <header className="border-b bg-white px-4 py-3 flex items-center gap-4 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -284,17 +110,17 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg">Create Custom Project</h1>
+            <h1 className="text-lg font-semibold">Create Custom Project</h1>
             <p className="text-sm text-gray-600">Let AI design your learning path</p>
           </div>
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4">
-        <ScrollArea className="flex-1 pr-4 -mr-4">
-          <div className="space-y-6 py-4">
-            {messages.map((message, i) => (
+      {/* Chat Area - Full width scroll */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="space-y-6 py-4 pb-32">
+            {messages.map((message: any, i: number) => (
               <div
                 key={i}
                 className={`flex gap-4 ${
@@ -306,15 +132,54 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
-                <Card
-                  className={`p-4 max-w-[80%] ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white border-0'
-                      : 'bg-white'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </Card>
+                
+                <div className={`flex flex-col gap-2 max-w-[80%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  {/* Message Card */}
+                  {message.content && (
+                    <Card
+                      className={`p-4 ${
+                        message.role === 'user'
+                          ? 'bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white border-0'
+                          : 'bg-white'
+                      }`}
+                    >
+                      {message.role === 'assistant' ? (
+                        <div className="text-gray-800 text-sm leading-relaxed">
+                          <ReactMarkdown
+                            components={{
+                              p: ({children}) => <p className="mb-3 last:mb-0">{children}</p>,
+                              ul: ({children}) => <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>,
+                              ol: ({children}) => <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
+                              li: ({children}) => <li className="mb-1">{children}</li>,
+                              strong: ({children}) => <span className="font-bold">{children}</span>,
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Tool Chips */}
+                  {message.toolInvocations?.map((t: any) => {
+                    if (t.state === 'result') {
+                      return (
+                        <div key={t.toolCallId} className="mt-1 flex items-center gap-2 text-xs text-green-600 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>
+                            {t.toolName === 'webSearchForDependencies' ? 'Tech Stack Analyzed' : 
+                             t.toolName === 'qualityCheckTool' ? 'Skill Match Verified' : 'Analysis Complete'}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
                 {message.role === 'user' && (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center flex-shrink-0">
                     <UserIcon className="w-5 h-5 text-white" />
@@ -322,9 +187,11 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                 )}
               </div>
             ))}
-            {isAnalyzing && (
+
+            {/* Loading State */}
+            {isThinking && (
               <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center flex-shrink-0">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
                 <Card className="p-4 bg-white">
@@ -339,50 +206,32 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                 </Card>
               </div>
             )}
+            
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
-
-        {/* Input Area */}
-        <div className="pt-4 border-t bg-white/80 backdrop-blur-sm">
-          <div className="flex gap-3">
+        </div>
+      </div>
+        <div className="border-t bg-white/95 backdrop-blur-sm p-4 flex-shrink-0">
+          <div className="flex gap-3 items-end max-w-4xl mx-auto">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
+              onKeyDown={handleKeyDown}
               placeholder="Describe your project idea... (e.g., 'A calculator app' or 'A password generator')"
-              disabled={isAnalyzing}
-              className="flex-1 min-h-[60px] max-h-[120px]"
+              disabled={isLoading}
+              className="flex-1 min-h-[60px] max-h-[120px] resize-none"
             />
             <Button
               onClick={handleSend}
-              disabled={!input.trim() || isAnalyzing}
+              disabled={!input.trim() || isLoading}
               size="lg"
-              className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+              className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] h-[60px] px-6"
             >
               <Send className="w-5 h-5" />
             </Button>
           </div>
-
-          {messages.length > 1 && messages[messages.length - 1].role === 'assistant' && 
-           messages[messages.length - 1].content.includes('Would you like to') && (
-            <div className="flex gap-2 mt-3">
-              <Button
-                onClick={handleContinueAnyway}
-                variant="outline"
-                size="sm"
-                className="border-[#7622e5] text-[#7622e5] hover:bg-purple-50"
-              >
-                Continue with my idea
-              </Button>
-            </div>
-          )}
         </div>
       </div>
-    </div>
   );
 }

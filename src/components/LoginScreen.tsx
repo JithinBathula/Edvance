@@ -28,7 +28,7 @@ export function LoginScreen({ onLogin }: Props) {
     try {
       // Check if user exists
       const checkResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user/${encodeURIComponent(name)}`,
+        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(name)}`,
         {
           headers: {
             Authorization: `Bearer ${publicAnonKey}`,
@@ -43,7 +43,7 @@ export function LoginScreen({ onLogin }: Props) {
       } else {
         // Create new user
         const createResponse = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-949d056e/user`,
+          `https://${projectId}.supabase.co/functions/v1/server/user`,
           {
             method: 'POST',
             headers: {
