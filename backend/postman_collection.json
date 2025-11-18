@@ -1,0 +1,219 @@
+{
+  "info": {
+    "name": "EdTech Planning API",
+    "description": "Complete API collection for testing the Planning Stage backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Get Available Tools",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/planning/tools",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "tools"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Search Dependencies",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"technologies\": [\"React\", \"Node.js\", \"MongoDB\"],\n  \"skill_level\": \"intermediate\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/dependencies",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "dependencies"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Generate Project Overview",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_name\": \"Todo List Application\",\n  \"project_description\": \"A simple todo list app with CRUD operations and localStorage persistence\",\n  \"technologies\": [\"HTML\", \"CSS\", \"JavaScript\"],\n  \"skill_level\": \"beginner\",\n  \"estimated_duration\": \"4-6 hours\",\n  \"learning_objectives\": [\n    \"Learn DOM manipulation\",\n    \"Understand event handling\",\n    \"Practice localStorage usage\",\n    \"Implement CRUD operations\"\n  ],\n  \"user_id\": \"test_user_001\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/overview",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "overview"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Generate Tasks for Step",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"step\": {\n    \"step_id\": \"step_1\",\n    \"step_number\": 1,\n    \"title\": \"Project Setup and Structure\",\n    \"description\": \"Set up the basic project structure for Todo List Application\",\n    \"objectives\": [\n      \"Create project directory structure\",\n      \"Initialize version control\",\n      \"Install and configure required dependencies\",\n      \"Set up development environment\"\n    ],\n    \"estimated_time\": \"30-45 minutes\"\n  },\n  \"project_context\": {\n    \"project_name\": \"Todo List Application\",\n    \"technologies\": [\"HTML\", \"CSS\", \"JavaScript\"],\n    \"skill_level\": \"beginner\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/tasks",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "tasks"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Quality Check",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_overview\": {\n    \"project_name\": \"Todo List Application\",\n    \"overview_description\": \"A simple todo list app\",\n    \"steps\": [\n      {\n        \"step_id\": \"step_1\",\n        \"step_number\": 1,\n        \"title\": \"Setup\",\n        \"description\": \"Setup project\",\n        \"objectives\": [\"Create files\"],\n        \"tasks\": [\n          {\n            \"task_id\": \"step_1_task_1\",\n            \"title\": \"Create files\",\n            \"description\": \"Create project files\",\n            \"hints\": [\"Use mkdir\", \"Create index.html\"],\n            \"validation_code\": \"// validation code here\",\n            \"order\": 1\n          }\n        ],\n        \"estimated_time\": \"30 min\"\n      }\n    ],\n    \"total_estimated_time\": \"4 hours\"\n  },\n  \"original_requirements\": {\n    \"project_name\": \"Todo List Application\",\n    \"project_description\": \"A simple todo list app\",\n    \"technologies\": [\"HTML\", \"CSS\", \"JavaScript\"],\n    \"skill_level\": \"beginner\",\n    \"estimated_duration\": \"4 hours\",\n    \"learning_objectives\": [\"Learn DOM manipulation\"]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/quality-check",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "quality-check"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Edit Plan",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_overview\": {\n    \"project_name\": \"Todo List Application\",\n    \"overview_description\": \"A simple todo list app\",\n    \"steps\": [\n      {\n        \"step_id\": \"step_1\",\n        \"step_number\": 1,\n        \"title\": \"Setup\",\n        \"description\": \"Setup project\",\n        \"objectives\": [\"Create files\"],\n        \"tasks\": [],\n        \"estimated_time\": \"30 min\"\n      }\n    ],\n    \"total_estimated_time\": \"4 hours\"\n  },\n  \"quality_check_result\": {\n    \"is_valid\": false,\n    \"issues\": [\n      {\n        \"type\": \"missing_tasks\",\n        \"step_id\": \"step_1\",\n        \"message\": \"Step 'Setup' has no tasks defined\"\n      }\n    ],\n    \"suggestions\": [],\n    \"overall_score\": 65.0\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/edit",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "edit"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Create Complete Project Plan (MAIN)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_name\": \"Weather Dashboard\",\n  \"project_description\": \"A weather dashboard that displays current weather and forecast using a weather API\",\n  \"technologies\": [\"HTML\", \"CSS\", \"JavaScript\", \"API Integration\"],\n  \"skill_level\": \"intermediate\",\n  \"estimated_duration\": \"6-8 hours\",\n  \"learning_objectives\": [\n    \"Learn to work with external APIs\",\n    \"Understand asynchronous JavaScript\",\n    \"Practice data visualization\",\n    \"Implement responsive design\"\n  ],\n  \"user_id\": \"test_user_002\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/create",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "create"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9. Error Test - Missing Fields",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_name\": \"Test Project\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/create",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "create"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10. Error Test - Invalid Skill Level",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_name\": \"Test Project\",\n  \"project_description\": \"Test\",\n  \"technologies\": [\"Python\"],\n  \"skill_level\": \"expert\",\n  \"estimated_duration\": \"5 hours\",\n  \"learning_objectives\": [\"Test\"]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/planning/create",
+          "host": ["{{base_url}}"],
+          "path": ["api", "planning", "create"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
+
