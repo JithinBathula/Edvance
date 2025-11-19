@@ -119,7 +119,7 @@ List the specific Python concepts the developer must know:
 ### FORMAT YOUR RESPONSE CLEARLY
 Use markdown with headers (###) and bold (**) for key terms. Be specific with library names and versions.
 
-**NOTE:** Your detailed analysis will be used by the system to make decisions, but the user will only see a CONCISE SUMMARY. Focus on accuracy and completeness - the chat agent will handle making it concise for the user.`;"""
+**NOTE:** Your detailed analysis will be used by the system to make decisions, but the user will only see a CONCISE SUMMARY. Focus on accuracy and completeness - the chat agent will handle making it concise for the user."""
 
 
 
@@ -138,7 +138,7 @@ Your recommendations are:
 - Modern (prefer current best practices)
 - Realistic (accurate time and complexity estimates)
 
-Always provide detailed, actionable analysis that helps developers understand both WHAT to use and WHY.;"""  
+Always provide detailed, actionable analysis that helps developers understand both WHAT to use and WHY."""  
 
 
 quality_check_entry_stage_user_prompt = """You are evaluating whether a Python project is appropriate for a student's current skill level.

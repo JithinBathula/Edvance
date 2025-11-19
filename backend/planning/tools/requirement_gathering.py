@@ -1,14 +1,23 @@
 import json
-import requests
-from typing import Dict, Any, List, Optional, Literal
-
 import os
+from typing import Any, Dict, List
+from backend.planning import tools
 from openai import OpenAI
+from dotenv import load_dotenv
+
+try:
+    from ..prompts import requirements_prompts as prompt_bank
+except Exception:
+    from planning.prompts import requirements_prompts as prompt_bank
+
+load_dotenv()
 
 openrouter = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY")
 )
+
+
 
 class RequirementTools:
     """Collection of tools for the planning stage"""
@@ -19,22 +28,90 @@ class RequirementTools:
         Returns all tool definitions for LLM function calling for the Requirement Gathering Stage
         """
 
+        return [
+            {
+        "type": "function",
+        "name": "web_search",
+        "description": "Analyze the project idea and identify required Python libraries, frameworks, and complexity level. This tool performs comprehensive technology stack analysis.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_idea": {
+                    "type": "string",
+                    "description": "The project idea given by the user.",
+                },
+            },
+            "required": ["project_idea"],
+        },
+        },
+
+        {
+        "type": "function",
+        "name": "quality_check",
+        "description": "Evaluate if the project complexity matches the user\'s Python skill level. Provides detailed assessment and alternative suggestions if there\'s a mismatch.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_idea": {
+                    "type": "string",
+                    "description": "The project idea given by the user.",
+                },
+                "libraries": {
+                    "type": "string",
+                    "description": "The complete tech stack analysis from webSearchForDependencies tool",
+                },
+            },
+            "required": ["project_idea, libraries, user_skills"],
+        },
+        },
+
+        {
+        "type": "function",
+        "name": "suggest_alternative_projects",
+        "description": "Generate completely new Python project suggestions tailored to the user\'s skill level and interests. Use this when the user requests new ideas (Option 2).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "numberOfSuggestions": {
+                    "type": "string",
+                    "description": "The project idea given by the user.",
+                },
+                "avoid_topics": {
+                    "type": "string",
+                    "description": "Topics to be avoided for the user.",
+                },
+            },
+            "required": [""],
+        },
+        }
+        ]
+
     @staticmethod
     def web_search(project_idea: str) -> Dict[str, Any]:    
         """
         Analyze the project idea and identify required Python libraries, frameworks, and complexity level. This tool performs comprehensive technology stack analysis.
         """
 
-        Prompt = "TODO"
+        system_prompt = prompt_bank.web_search_entry_stage_system_prompt
+        user_prompt = prompt_bank.web_search_entry_stage_user_prompt.replace("${projectIdea}", project_idea)
         
-        response = openrouter.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are an expert Python Software Architect..."},
-            {"role": "user", "content": PROMPT.replace("**PROJECT IDEA:** \"...\"", f"**PROJECT IDEA:** \"{args.projectIdea}\"")}
-        ],
-        temperature=0.7)
+        print(system_prompt)
+        print(user_prompt)
 
+        try:
+            response = openrouter.chat.completions.create(
+            model="gpt-5-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ], tools=[{
+                "type": "web_search"
+            }],
+            temperature=0.7)
+        except:
+            print("It is so joever")
+
+        print("Wassup")
 
         text = response.choices[0].message.content
         complexity = "INTERMEDIATE"
@@ -51,19 +128,31 @@ class RequirementTools:
     
     @staticmethod
     def quality_check(project_idea:str, libraries: str, user_skills:Dict[str, Any]) -> Dict[str,Any]:
-        PROMPT = "TODO"
+        """
+        Evaluate if the project complexity matches the user\'s Python skill level. Provides detailed assessment and alternative suggestions if there\'s a mismatch.
+        """
+        
+        system_prompt = prompt_bank.quality_check_entry_stage_system_prompt
+        user_prompt = prompt_bank.quality_check_entry_stage_user_prompt
 
-        full_prompt = PROMPT \
-        .replace("**Original Idea:** \"...\"", f"**Original Idea:** \"{args.projectIdea}\"") \
-        .replace("**Tech Stack Analysis:**\n...", f"**Tech Stack Analysis:**\n{args.libraries}") \
-        .replace("**Overall Experience Level:** ...", f"**Overall Experience Level:** {userSkills.get('userExperienceLevel', 'beginner')}") \
-        .replace("**Python Experience:** ...", f"**Python Experience:** {userSkills.get('pythonExperience', 'none')}") \
-        .replace("**Interest Area/Theme:** ...", f"**Interest Area/Theme:** {userSkills.get('theme', 'general')}")
+        theme = user_skills.get("theme") or "general programming"
+        completed_projects = user_skills.get("completedProjects") or []
+        completed_projects_str = ", ".join(completed_projects) if completed_projects else "None listed"
+
+        full_prompt = (
+            user_prompt
+            .replace("${projectIdea}", project_idea)
+            .replace("${libraries}", str(libraries))
+            .replace("${contextUserSkills.userExperienceLevel}", str(user_skills.get("userExperienceLevel", "beginner")))
+            .replace("${contextUserSkills.pythonExperience}", str(user_skills.get("pythonExperience", "None/Just starting")))
+            .replace("${contextUserSkills.theme || 'general programming'}", str(theme))
+            .replace("${contextUserSkills.completedProjects?.join(', ') || 'None listed'}", completed_projects_str)
+        )
 
         response = openrouter.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an experienced Python coding mentor..."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": full_prompt}
             ],
             temperature=0.8
@@ -71,7 +160,6 @@ class RequirementTools:
 
         text = response.choices[0].message.content
 
-        # Try to extract JSON, fallback gracefully
         try:
             json_str = text[text.find("{"):text.rfind("}")+1]
             result = json.loads(json_str)
@@ -89,22 +177,37 @@ class RequirementTools:
 
     @staticmethod
     def suggest_alternative_projects(numberOfSuggestions: int, avoid_topics: str , userSkills: Dict[str, Any]) -> Dict[str,Any]:
-        PROMPT = "TODO"
+        "Generate completely new Python project suggestions tailored to the user\'s skill level and interests. Use this when the user requests new ideas (Option 2)."
+        
+        system_prompt = prompt_bank.suggest_alternative_projects_system_prompt
+        user_prompt = prompt_bank.suggest_alternative_projects_user_prompt
 
-        full_prompt = PROMPT.replace("**Experience Level:** ...", f"**Experience Level:** {userSkills.get('userExperienceLevel')}") \
-        .replace("**Python Knowledge:** ...", f"**Python Knowledge:** {userSkills.get('pythonExperience')}") \
-        .replace("**Interest Area:** ...", f"**Interest Area:** {userSkills.get('theme', 'general')}")
+        num_suggestions = numberOfSuggestions or 3
+        completed_projects = userSkills.get("completedProjects") or []
+        completed_projects_str = ", ".join(completed_projects) if completed_projects else "none"
+        avoid_topics_str = avoid_topics if avoid_topics else "none"
+        theme = userSkills.get("theme") or "general programming"
+
+        full_prompt = (
+            user_prompt
+            .replace("${numberOfSuggestions}", str(num_suggestions))
+            .replace("${contextUserSkills.userExperienceLevel}", str(userSkills.get("userExperienceLevel", "beginner")))
+            .replace("${contextUserSkills.pythonExperience}", str(userSkills.get("pythonExperience", "None/Just starting")))
+            .replace("${contextUserSkills.theme || 'general programming'}", str(theme))
+            .replace("${contextUserSkills.completedProjects?.join(', ') || 'none'}", completed_projects_str)
+            .replace("${avoidTopics.length > 0 ? avoidTopics.join(', ') : 'none'}", avoid_topics_str)
+        )
 
         response = openrouter.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a creative Python instructor..."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": full_prompt}
             ],
             temperature=0.9
         )
         return {
             "suggestions": response.choices[0].message.content,
-            "message": f"Here are {numberOfSuggestions or 3} tailored project ideas!",
+            "message": f"Here are {num_suggestions} tailored project ideas!",
             "status": "complete"
         }
