@@ -130,8 +130,9 @@ class PlanningTools:
     def generate_steps_for_task(
         project_overview: Dict[str, Any],
         step: str,
+        user_level: Dict[str, Any],
         dependency_info: Dict[str, Any] = None,
-        user_level: Dict[str, Any]
+        
     ) -> List[TaskItem]:
         """
         Generates detailed tasks for a specific step
