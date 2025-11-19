@@ -2,6 +2,9 @@ web_search_entry_stage_user_prompt = """You are analyzing a Python project idea 
 
 **PROJECT IDEA:** "${projectIdea}"
 
+**USER SKILLS CONTEXT:**
+${userSkills}
+
 **YOUR ANALYSIS MUST INCLUDE:**
 
 ### 1. PROJECT CATEGORIZATION

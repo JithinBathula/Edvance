@@ -133,7 +133,7 @@ class PlanningTools:
         user_level: Dict[str, Any],
         dependency_info: Dict[str, Any] = None,
         
-    ) -> List[TaskItem]:
+    ) -> Dict[str, Any]:
         """
         Generates detailed tasks for a specific step
         Each task includes hints and validation code
@@ -156,7 +156,7 @@ class PlanningTools:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.2, # Keep low for code accuracy
+                temperature=0.2,
                 response_format={"type": "json_object"}
         )
 
