@@ -1,0 +1,679 @@
+{
+  "project_title": "HTMX HabitFlow",
+  "project_brief": "A server-side rendered habit tracker that leverages FastAPI for high-performance logic and HTMX for dynamic, SPA-like interactivity without complex JavaScript frameworks. The system will handle user authentication, track daily streaks via SQLite, and provide visual progress insights.",
+  "milestones": [
+    {
+      "subheading_title": "Environment Setup & Database Schema",
+      "description": "Initialize the FastAPI environment and configure SQLAlchemy with SQLite. Define the relational models for `User`, `Habit`, and `HabitLog` to establish one-to-many relationships between users, habits, and their daily completion records.",
+      "tasks": [
+        {
+          "task_id": "1.1",
+          "instruction_theory": "Set up the FastAPI application structure and the SQLAlchemy database connection. In FastAPI, the database connection is typically handled via an engine and a session maker. We will use `declarative_base` to create a base class for our ORM models. This separates database configuration from business logic.",
+          "coding_requirements": [
+            "Create a file named `database.py`.",
+            "Define a `SQLALCHEMY_DATABASE_URL` pointing to `sqlite:///./habitflow.db`.",
+            "Create a SQLAlchemy `engine` using the URL, setting `connect_args={'check_same_thread': False}` (required for SQLite).",
+            "Create a `SessionLocal` class using `sessionmaker`.",
+            "Instantiate a `Base` object using `declarative_base()`."
+          ],
+          "hints": [
+            "The `check_same_thread` argument is specific to SQLite in multithreaded environments like FastAPI.",
+            "Ensure you have `sqlalchemy` installed in your environment.",
+            "Do not initialize the FastAPI app instance in this file; keep it strictly for DB config."
+          ],
+          "test_specification": {
+            "expected_state": "The database configuration objects should be importable and configured for SQLite.",
+            "verification_code": "from database import engine, SessionLocal, Base\nimport sqlalchemy\n\nassert str(engine.url) == 'sqlite:///./habitflow.db'\nassert isinstance(Base, sqlalchemy.orm.decl_api.DeclarativeMeta)\nprint('Database config verified.')"
+          }
+        },
+        {
+          "task_id": "1.2",
+          "instruction_theory": "Define the `User` model. In an ORM, a model is a Python class that maps to a database table. The `User` model will serve as the root of our data relationships. We need to store credentials securely, so we will define a column for a hashed password rather than a plain text one.",
+          "coding_requirements": [
+            "Create a file named `models.py` and import `Base` from `database.py`.",
+            "Define a class `User` inheriting from `Base`.",
+            "Set `__tablename__` to 'users'.",
+            "Add columns: `id` (Integer, primary key, index), `username` (String, unique, index), and `hashed_password` (String)."
+          ],
+          "hints": [
+            "Remember to import `Column`, `Integer`, and `String` from `sqlalchemy`.",
+            "Indexing the `username` column improves lookup speed during login."
+          ],
+          "test_specification": {
+            "expected_state": "The User model should exist with the correct table name and columns.",
+            "verification_code": "from models import User\nfrom sqlalchemy import inspect\n\nmapper = inspect(User)\nassert mapper.persist_selectable.name == 'users'\nassert 'username' in mapper.columns\nassert 'hashed_password' in mapper.columns\nprint('User model verified.')"
+          }
+        },
+        {
+          "task_id": "1.3",
+          "instruction_theory": "Establish a One-to-Many relationship between Users and Habits. A user can have multiple habits, but a habit belongs to a single user. This is achieved using a Foreign Key on the child table (`habits`) and a `relationship` attribute on the ORM classes to allow traversal (e.g., `user.habits`).",
+          "coding_requirements": [
+            "In `models.py`, define a class `Habit` inheriting from `Base`.",
+            "Set `__tablename__` to 'habits'.",
+            "Add columns: `id` (Integer, primary key), `title` (String), `description` (String), and `owner_id` (Integer, ForeignKey to 'users.id').",
+            "Add a `relationship` on `User` named `habits` (back_populates='owner').",
+            "Add a `relationship` on `Habit` named `owner` (back_populates='habits')."
+          ],
+          "hints": [
+            "You need to import `ForeignKey` from `sqlalchemy` and `relationship` from `sqlalchemy.orm`.",
+            "Ensure the `ForeignKey` string argument matches the actual table name ('users.id'), not the class name."
+          ],
+          "test_specification": {
+            "expected_state": "The Habit model should be linked to the User model via a foreign key and ORM relationship.",
+            "verification_code": "from models import User, Habit\nfrom sqlalchemy import inspect\n\nuser_rels = inspect(User).relationships\nhabit_rels = inspect(Habit).relationships\n\nassert 'habits' in user_rels\nassert 'owner' in habit_rels\nassert inspect(Habit).columns['owner_id'].foreign_keys\nprint('User-Habit relationship verified.')"
+          }
+        },
+        {
+          "task_id": "1.4",
+          "instruction_theory": "Create the `HabitLog` model to track daily completions. This forms another One-to-Many relationship: a single Habit has many Logs (one for each date completed). This granular logging allows for streak calculation and analytics later.",
+          "coding_requirements": [
+            "In `models.py`, define a class `HabitLog` inheriting from `Base`.",
+            "Set `__tablename__` to 'habit_logs'.",
+            "Add columns: `id` (Integer, primary key), `habit_id` (Integer, ForeignKey to 'habits.id'), and `completed_date` (Date).",
+            "Establish a relationship: `Habit` should have a list of `logs`, and `HabitLog` should refer to `habit`."
+          ],
+          "hints": [
+            "Import `Date` from `sqlalchemy`.",
+            "The relationship logic is identical to the User-Habit connection, just one level deeper."
+          ],
+          "test_specification": {
+            "expected_state": "The HabitLog model should exist and refer to the Habit table.",
+            "verification_code": "from models import Habit, HabitLog\nfrom sqlalchemy import inspect\n\nassert 'logs' in inspect(Habit).relationships\nassert inspect(HabitLog).columns['habit_id'].foreign_keys\nassert str(inspect(HabitLog).columns['completed_date'].type) == 'DATE'\nprint('HabitLog model verified.')"
+          }
+        },
+        {
+          "task_id": "1.5",
+          "instruction_theory": "Initialize the FastAPI app and generate the database schema. While production apps often use migration tools like Alembic, for this setup we will use `Base.metadata.create_all` to generate the SQLite file immediately upon application startup. We also need a dependency to manage database sessions per request.",
+          "coding_requirements": [
+            "Create a file named `main.py`.",
+            "Initialize a `FastAPI` app instance.",
+            "Import `models`, `engine`, and `SessionLocal`.",
+            "Call `models.Base.metadata.create_all(bind=engine)` to create tables.",
+            "Define a helper function `get_db()` that yields a database session and closes it in a `finally` block."
+          ],
+          "hints": [
+            "The `get_db` function is a generator used for FastAPI Dependency Injection.",
+            "If you don't import `models` in `main.py` before calling `create_all`, SQLAlchemy won't know the tables exist."
+          ],
+          "test_specification": {
+            "expected_state": "Running the code should create a 'habitflow.db' file with the correct schema.",
+            "verification_code": "import os\nfrom database import engine\nfrom models import Base\nimport main\n\n# Force creation if not triggered by import\nBase.metadata.create_all(bind=engine)\n\nassert os.path.exists('./habitflow.db')\nprint('Database file created successfully.')"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Core CRUD & Template Rendering",
+      "description": "Create the base Jinja2 templates and FastAPI endpoints to Create, Read, Update, and Delete habits. Implement the initial HTMX integration to allow adding new habits to the list dynamically without a full page reload.",
+      "tasks": [
+        {
+          "task_id": "2.1",
+          "instruction_theory": "Define the data structure for Habits using SQLAlchemy for database persistence and Pydantic for data validation. In a FastAPI application, separating the database model (ORM) from the schema (Pydantic) ensures a clean architecture where input validation is distinct from database table definitions.",
+          "coding_requirements": [
+            "Create a SQLAlchemy model `Habit` with columns: `id` (Integer, PK), `title` (String), `description` (String), and `created_at` (DateTime).",
+            "Create a Pydantic schema `HabitCreate` containing `title` and `description`.",
+            "Create a Pydantic schema `HabitRead` that extends `HabitCreate` and includes `id` and `created_at`.",
+            "Ensure the database engine creates the tables on startup."
+          ],
+          "hints": [
+            "Use `sqlalchemy.ext.declarative.declarative_base` for the ORM base.",
+            "Remember to set `orm_mode = True` (or `from_attributes = True` in Pydantic v2) in your `HabitRead` config class."
+          ],
+          "test_specification": {
+            "expected_state": "The SQLite database should contain a 'habits' table with the specified columns.",
+            "verification_code": "from sqlalchemy import inspect\nfrom main import engine, Habit\n\ninspector = inspect(engine)\ntables = inspector.get_table_names()\ncolumns = [c['name'] for c in inspector.get_columns('habits')]\nassert 'habits' in tables\nassert 'title' in columns and 'description' in columns"
+          }
+        },
+        {
+          "task_id": "2.2",
+          "instruction_theory": "Set up Server-Side Rendering (SSR) using Jinja2. Unlike a JSON API, we will serve HTML directly. The 'Read' operation involves fetching all habits from the database and rendering them into an `index.html` template.",
+          "coding_requirements": [
+            "Configure `Jinja2Templates` pointing to a `templates` directory.",
+            "Create `templates/base.html` as a layout skeleton (HTML5 boilerplate).",
+            "Create `templates/index.html` that extends `base.html` and loops through a `habits` list to display them.",
+            "Create a GET endpoint `/` that fetches all habits and returns a `TemplateResponse` using `index.html`."
+          ],
+          "hints": [
+            "Install `jinja2` if not already present.",
+            "The `TemplateResponse` requires the `request` object in the context dictionary.",
+            "Use `{% for habit in habits %}` in your template to iterate."
+          ],
+          "test_specification": {
+            "expected_state": "GET request to root URL returns HTML content containing the list of habits.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app\n\nclient = TestClient(app)\nresponse = client.get('/')\nassert response.status_code == 200\nassert 'text/html' in response.headers['content-type']\nassert '<html' in response.text"
+          }
+        },
+        {
+          "task_id": "2.3",
+          "instruction_theory": "Implement the 'Create' operation using HTMX. Instead of a full page reload, the form will submit via AJAX (`hx-post`), and the server will return *only* the HTML for the new list item, which HTMX appends to the list.",
+          "coding_requirements": [
+            "Create a partial template `templates/partials/habit_item.html` that renders a single habit row/card.",
+            "In `index.html`, add a form with `hx-post='/habits'`, `hx-target='#habit-list'`, and `hx-swap='beforeend'`.",
+            "Create a POST endpoint `/habits` that accepts form data (using `Form(...)`), saves the habit, and returns the `habit_item.html` template.",
+            "Ensure the POST endpoint returns the new HTML fragment, not a full page or JSON."
+          ],
+          "hints": [
+            "You need `python-multipart` installed to handle Form data in FastAPI.",
+            "The `hx-target` should match the ID of the container element (e.g., `<ul id='habit-list'>`).",
+            "Do not extend `base.html` in your partial template; it should only contain the element markup."
+          ],
+          "test_specification": {
+            "expected_state": "POST request to /habits creates a record and returns an HTML fragment.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app\n\nclient = TestClient(app)\nresponse = client.post('/habits', data={'title': 'Test Habit', 'description': 'Test Desc'})\nassert response.status_code == 200\nassert 'Test Habit' in response.text\nassert '<html' not in response.text  # Should be a fragment"
+          }
+        },
+        {
+          "task_id": "2.4",
+          "instruction_theory": "Implement the 'Delete' operation. HTMX allows any element to issue a DELETE request via `hx-delete`. The server responds with a 200 OK (and empty content or a swap instruction) to remove the element from the DOM.",
+          "coding_requirements": [
+            "Update `habit_item.html` to include a delete button with `hx-delete='/habits/{id}'` and `hx-target='closest li'` (or tr/div).",
+            "Add `hx-swap='outerHTML'` to the button to ensure the entire element is removed.",
+            "Create a DELETE endpoint `/habits/{habit_id}` that deletes the record from SQLite.",
+            "Return a `Response(status_code=200)` (empty body) from the endpoint to signal HTMX to remove the target."
+          ],
+          "hints": [
+            "Use `hx-confirm='Are you sure?'` to prevent accidental deletions.",
+            "If you return 204 No Content, HTMX might not trigger the swap depending on configuration; returning an empty 200 OK is safer for explicit removal."
+          ],
+          "test_specification": {
+            "expected_state": "DELETE request removes the item from DB and returns success.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app, get_db\n# Assume a habit with ID 1 exists or create one first\nclient = TestClient(app)\nclient.post('/habits', data={'title': 'To Delete', 'description': '...'})\n# Fetch ID logic omitted for brevity, assuming ID 1 for test\nresponse = client.delete('/habits/1')\nassert response.status_code in [200, 204]"
+          }
+        },
+        {
+          "task_id": "2.5",
+          "instruction_theory": "Implement the 'Update' operation using the 'Inline Edit' pattern. This requires two endpoints: one to fetch an edit form (replacing the display row) and one to submit the update (replacing the form back with the display row).",
+          "coding_requirements": [
+            "Create a partial template `templates/partials/habit_edit.html` containing a form with the existing values.",
+            "Create a GET endpoint `/habits/{id}/edit` that returns the `habit_edit.html` partial.",
+            "Create a PUT endpoint `/habits/{id}` that updates the DB and returns the original `habit_item.html` partial with new data.",
+            "Add an 'Edit' button to `habit_item.html` with `hx-get='/habits/{id}/edit'` and `hx-target='closest li'`."
+          ],
+          "hints": [
+            "The edit form must have `hx-put='/habits/{id}'`, `hx-target='this'`, and `hx-swap='outerHTML'`.",
+            "Ensure the PUT endpoint accepts `Form(...)` data just like the Create endpoint."
+          ],
+          "test_specification": {
+            "expected_state": "PUT request updates the database and returns the rendered item HTML.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app\nclient = TestClient(app)\n# Create item\nclient.post('/habits', data={'title': 'Old', 'description': 'Old'})\n# Update item 1\nresponse = client.put('/habits/1', data={'title': 'New', 'description': 'New'})\nassert response.status_code == 200\nassert 'New' in response.text\nassert 'Old' not in response.text"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Interactive Habit Toggling",
+      "description": "Build the logic to mark a habit as 'complete' for the current date. Use HTMX `hx-post` and `hx-swap` to toggle the UI state (unchecked to checked) instantly while updating the database in the background.",
+      "tasks": [
+        {
+          "task_id": "3.1",
+          "instruction_theory": "To track progress, we need a relational link between a Habit and a specific Date. A 'Completion' entity represents a many-to-one relationship with a Habit. By enforcing a unique constraint on the pair `(habit_id, date)`, we ensure a habit can only be marked complete once per day, preventing duplicate data entries.",
+          "coding_requirements": [
+            "Define a SQLAlchemy model named `HabitCompletion` (or similar).",
+            "Include columns: `id` (primary key), `habit_id` (foreign key), and `date` (date object).",
+            "Add a unique constraint or index on `habit_id` and `date` to prevent duplicate entries for the same day.",
+            "Establish the relationship in the parent `Habit` model to access completions."
+          ],
+          "hints": [
+            "In SQLAlchemy, use `UniqueConstraint('habit_id', 'date', name='_habit_date_uc')` in `__table_args__`.",
+            "Ensure your `date` column stores a Python `date` object, not a `datetime`, to avoid timestamp mismatches."
+          ],
+          "test_specification": {
+            "expected_state": "The database schema should support storing habit completions and reject duplicates for the same day.",
+            "verification_code": "from datetime import date\nfrom sqlalchemy.exc import IntegrityError\n\n# Assume session, Habit, HabitCompletion are available\nh = Habit(name='Test', user_id=1)\nsession.add(h)\nsession.commit()\n\nc1 = HabitCompletion(habit_id=h.id, date=date.today())\nsession.add(c1)\nsession.commit()\n\ntry:\n    c2 = HabitCompletion(habit_id=h.id, date=date.today())\n    session.add(c2)\n    session.commit()\n    assert False, 'Should have raised IntegrityError'\nexcept IntegrityError:\n    session.rollback()\n    assert True"
+          }
+        },
+        {
+          "task_id": "3.2",
+          "instruction_theory": "Before connecting the UI, we need a robust service layer function to handle the toggle logic. This function should check the current state of the database: if a completion exists for the given date, delete it (uncheck); if it does not exist, create it (check). This encapsulates the business logic away from the HTTP layer.",
+          "coding_requirements": [
+            "Create a function `toggle_habit_completion(db_session, habit_id, date_obj)`.",
+            "Query the `HabitCompletion` table for the specific `habit_id` and `date_obj`.",
+            "If the record exists, delete it and return `False` (indicating not completed).",
+            "If the record does not exist, create it and return `True` (indicating completed).",
+            "Ensure the transaction is committed within the function."
+          ],
+          "hints": [
+            "Use `.filter_by(habit_id=..., date=...)` and `.first()` to check existence.",
+            "Don't forget `db.refresh()` if you need the object ID, though for a toggle boolean it may not be necessary."
+          ],
+          "test_specification": {
+            "expected_state": "Calling the function twice on the same habit/date pair should flip the state from True to False.",
+            "verification_code": "d = date.today()\n# First call: Create\nstate_1 = toggle_habit_completion(session, habit_id=h.id, date_obj=d)\nassert state_1 is True\nassert session.query(HabitCompletion).count() == 1\n\n# Second call: Delete\nstate_2 = toggle_habit_completion(session, habit_id=h.id, date_obj=d)\nassert state_2 is False\nassert session.query(HabitCompletion).count() == 0"
+          }
+        },
+        {
+          "task_id": "3.3",
+          "instruction_theory": "HTMX allows us to update specific parts of the DOM by returning HTML fragments instead of full pages or JSON. We need a Jinja2 partial template representing a single habit row (or card). This partial will be used both in the main list and as the response to the toggle request, allowing the UI to 'swap' itself with the updated state.",
+          "coding_requirements": [
+            "Create a template file `partials/habit_item.html`.",
+            "The template should render the habit name and a checkbox/button.",
+            "Add `hx-post` pointing to the toggle endpoint (e.g., `/habits/{id}/toggle`).",
+            "Add `hx-swap=\"outerHTML\"` to replace the entire element with the server response.",
+            "Conditionally render the checkbox state (checked/unchecked) based on a `is_completed` context variable."
+          ],
+          "hints": [
+            "Ensure the root element of this partial has a unique ID or distinct structure so HTMX swaps it cleanly.",
+            "You can use a hidden input or simply style a button to look like a checkbox if standard inputs are tricky to style with HTMX triggers."
+          ],
+          "test_specification": {
+            "expected_state": "The rendered HTML string must contain the HTMX attributes and reflect the completion status.",
+            "verification_code": "from jinja2 import Template\ntpl = \"\"\"<div hx-post='/habits/{{h.id}}/toggle' hx-swap='outerHTML'>{% if completed %}DONE{% else %}TODO{% endif %}</div>\"\"\"\n# Verify logic (simplified representation of actual file test)\nrendered = Template(tpl).render(h={'id':1}, completed=True)\nassert \"hx-post='/habits/1/toggle'\" in rendered\nassert \"DONE\" in rendered"
+          }
+        },
+        {
+          "task_id": "3.4",
+          "instruction_theory": "Finally, wire the backend route to the frontend partial. When the user clicks the habit, HTMX sends a POST request. The server processes the toggle using the logic from Task 3.2, then re-renders the `habit_item.html` partial with the new state. This creates a seamless 'SPA-like' feel without writing client-side JavaScript.",
+          "coding_requirements": [
+            "Create a FastAPI route `POST /habits/{habit_id}/toggle`.",
+            "Inject the database session and current user dependencies.",
+            "Call `toggle_habit_completion` logic.",
+            "Return a `templates.TemplateResponse` rendering `partials/habit_item.html`.",
+            "Pass the updated `habit` object and the new `is_completed` boolean to the template context."
+          ],
+          "hints": [
+            "Remember that `TemplateResponse` requires the `request` object in the context.",
+            "Ensure your route verifies that the habit belongs to the current authenticated user before toggling."
+          ],
+          "test_specification": {
+            "expected_state": "The endpoint should return an HTML fragment (Content-Type: text/html), not JSON.",
+            "verification_code": "response = client.post(f'/habits/{h.id}/toggle')\nassert response.status_code == 200\nassert 'text/html' in response.headers['content-type']\n# Check if the response body contains the swapped HTML\nassert 'hx-swap=\"outerHTML\"' in response.text"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Authentication & User Context",
+      "description": "Implement FastAPI's OAuth2 password flow with JWT tokens. Secure the endpoints so users can only access and modify their own habit data, and create login/registration forms handled via HTMX.",
+      "tasks": [
+        {
+          "task_id": "4.1",
+          "instruction_theory": "Authentication begins with a secure user model and password handling. Never store passwords in plain text; instead, store a salted hash. We will use `passlib` with `bcrypt` for hashing and `SQLModel` to define the User table.",
+          "coding_requirements": [
+            "Install `passlib[bcrypt]`. ",
+            "Define a `User` SQLModel with fields: `id` (int, primary key), `username` (str, unique), and `hashed_password` (str).",
+            "Create a utility file `security.py` with two functions: `verify_password(plain, hashed)` and `get_password_hash(password)`.",
+            "Ensure the database engine creates the new `users` table."
+          ],
+          "hints": [
+            "Use `CryptContext` from passlib to manage the hashing schemes.",
+            "Remember to import the User model in your main app file before calling `SQLModel.metadata.create_all` so the table is generated."
+          ],
+          "test_specification": {
+            "expected_state": "A User model exists, and password utilities correctly hash and verify strings.",
+            "verification_code": "from security import verify_password, get_password_hash\n\npwd = 'secret'\nhash_pw = get_password_hash(pwd)\nassert verify_password(pwd, hash_pw) is True\nassert verify_password('wrong', hash_pw) is False"
+          }
+        },
+        {
+          "task_id": "4.2",
+          "instruction_theory": "JWT (JSON Web Tokens) allow stateless authentication. We need an endpoint that accepts a username and password (OAuth2PasswordRequestForm), validates them, and returns a signed token. To support HTMX easily, we will also set this token as an HTTP-only cookie.",
+          "coding_requirements": [
+            "Install `python-jose[cryptography]` and `python-multipart`.",
+            "Implement a `create_access_token` function in `security.py` using a secret key and HS256 algorithm.",
+            "Create a POST endpoint `/auth/token` that accepts `OAuth2PasswordRequestForm = Depends()`.",
+            "If credentials are valid, return a JSON response with `access_token` and `token_type`.",
+            "Crucially, set a cookie named `access_token` on the response containing the JWT string (use `response.set_cookie`)."
+          ],
+          "hints": [
+            "The `OAuth2PasswordRequestForm` dependency expects form data fields named `username` and `password`.",
+            "Set `httponly=True` on the cookie to prevent XSS attacks, though HTMX will handle the request lifecycle."
+          ],
+          "test_specification": {
+            "expected_state": "The /auth/token endpoint returns a valid JWT and sets a cookie when provided correct credentials.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app\n# Assuming a user was created in setup or mocked\nclient = TestClient(app)\n# Mock DB or ensure user exists first for this test to pass fully in integration\n# Here we check structure mainly\nresponse = client.post('/auth/token', data={'username': 'testuser', 'password': 'testpassword'})\n# If user doesn't exist, it returns 401, but we check if endpoint exists\nassert response.status_code in [200, 401]"
+          }
+        },
+        {
+          "task_id": "4.3",
+          "instruction_theory": "To secure routes, we need a dependency that extracts the token from the request (either header or cookie), decodes it, and retrieves the user. This 'current user' dependency will be injected into protected endpoints.",
+          "coding_requirements": [
+            "Create a dependency function `get_current_user`.",
+            "It should attempt to retrieve the token from the `Authorization` header (Bearer scheme) OR the `access_token` cookie.",
+            "Decode the JWT using `python-jose`. If invalid or expired, raise `HTTPException(status_code=401)`.",
+            "Fetch the user from the database using the `sub` (username) from the token payload.",
+            "Return the `User` object."
+          ],
+          "hints": [
+            "FastAPI's `OAuth2PasswordBearer` is a helper for Swagger UI, but for the logic, you might need to manually inspect `request.cookies.get('access_token')` if the header is missing.",
+            "Handle `JWTError` specifically to catch decoding issues."
+          ],
+          "test_specification": {
+            "expected_state": "The dependency successfully resolves a user from a valid token.",
+            "verification_code": "from security import create_access_token\nfrom main import get_current_user\nfrom fastapi import HTTPException\n\n# This is a unit test logic simulation\ntoken = create_access_token(data={'sub': 'testuser'})\n# In a real test, you would mock the DB session and Request object\nassert isinstance(token, str) and len(token) > 10"
+          }
+        },
+        {
+          "task_id": "4.4",
+          "instruction_theory": "Users need a way to sign up. We need a registration endpoint that accepts form data, checks if the username is taken, hashes the password, and saves the new user.",
+          "coding_requirements": [
+            "Create a POST endpoint `/auth/register`.",
+            "Accept form data (username, password).",
+            "Check if `username` already exists in the DB; if so, raise 400.",
+            "Hash the password and save the new `User` instance.",
+            "Return a success message or redirect to the login page."
+          ],
+          "hints": [
+            "You can reuse `OAuth2PasswordRequestForm` for registration or just standard Form parameters.",
+            "Return an HTMX-friendly response, or a simple JSON if testing via API."
+          ],
+          "test_specification": {
+            "expected_state": "Posting to /auth/register creates a new user in the database.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app\nclient = TestClient(app)\nusername = 'new_user_123'\nclient.post('/auth/register', data={'username': username, 'password': 'pw'})\nresp = client.post('/auth/token', data={'username': username, 'password': 'pw'})\nassert resp.status_code == 200\nassert 'access_token' in resp.json()"
+          }
+        },
+        {
+          "task_id": "4.5",
+          "instruction_theory": "Now that we have users, habits must belong to specific users. We need to update the Habit model and ensure CRUD operations are scoped to the currently authenticated user.",
+          "coding_requirements": [
+            "Add a `user_id` field (int, Foreign Key to `user.id`) to the `Habit` model.",
+            "Update the `create_habit` endpoint to inject `user: User = Depends(get_current_user)` and assign `user.id` to the new habit.",
+            "Update `get_habits` and other CRUD routes to filter results by `user_id == current_user.id`.",
+            "Ensure users cannot delete or update habits that do not belong to them."
+          ],
+          "hints": [
+            "If you are using SQLite, adding a column to an existing table might require a migration or deleting the DB file for development reset.",
+            "The dependency `get_current_user` acts as a gatekeeper; if the token is invalid, the route code won't even execute."
+          ],
+          "test_specification": {
+            "expected_state": "Habits created by User A are not visible to User B.",
+            "verification_code": "# Pseudo-code for logic verification\n# 1. Login as User A, create Habit X\n# 2. Login as User B, request /habits\n# 3. Assert Habit X is NOT in the response list\npass # Logic verification assumed via manual test or integration setup"
+          }
+        },
+        {
+          "task_id": "4.6",
+          "instruction_theory": "Finally, provide the UI for these flows. We need Jinja2 templates for Login and Register that use HTMX to submit data without full page reloads.",
+          "coding_requirements": [
+            "Create `login.html` and `register.html` templates.",
+            "Use `hx-post` on the forms to submit to `/auth/token` and `/auth/register` respectively.",
+            "On the Login form, handle the successful response (which sets the cookie) by redirecting to the dashboard (e.g., using `HX-Redirect` header from the backend or client-side logic).",
+            "Add a 'Logout' button that clears the cookie and redirects to login."
+          ],
+          "hints": [
+            "To redirect via HTMX from the backend, return a response with the header `HX-Redirect: /dashboard`.",
+            "Ensure your base template checks if a user is logged in (via context) to toggle between 'Login' and 'Logout' links."
+          ],
+          "test_specification": {
+            "expected_state": "Login and Register pages render, and the forms contain hx-post attributes pointing to the correct endpoints.",
+            "verification_code": "from fastapi.testclient import TestClient\nfrom main import app\nclient = TestClient(app)\nresp = client.get('/auth/login') # Assuming you made a GET route for the page\nassert resp.status_code == 200\nassert 'hx-post' in resp.text"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Analytics Engine & Visualization",
+      "description": "Develop backend logic to calculate current streaks and completion percentages. Create a 'Dashboard' view where these statistics are lazy-loaded using HTMX `hx-trigger='load'` to ensure the UI remains responsive during calculation.",
+      "tasks": [
+        {
+          "task_id": "5.1",
+          "instruction_theory": "Before visualizing data, we must process the raw habit logs into meaningful metrics. A 'streak' is defined as a continuous sequence of days ending on the current date (or yesterday) where a habit was completed. Completion percentage is usually calculated over a fixed window (e.g., the last 30 days). This logic should reside in a service layer or model method to keep the route handlers clean.",
+          "coding_requirements": [
+            "Create a function `calculate_streak(habit_logs: List[date]) -> int` that sorts dates descending and counts consecutive days.",
+            "Create a function `calculate_completion_rate(habit_logs: List[date], window_days: int = 30) -> float`.",
+            "Ensure the streak calculation handles the case where the user hasn't logged today yet but logged yesterday (streak is still active).",
+            "Return 0 for both metrics if no logs exist."
+          ],
+          "hints": [
+            "Use Python's `datetime.date.today()` and `timedelta(days=1)` for date math.",
+            "When iterating backwards, if the difference between `current_date` and `log_date` is > 1 day, the streak is broken.",
+            "For completion rate, filter the logs to only include those within `today - timedelta(days=window_days)`."
+          ],
+          "test_specification": {
+            "expected_state": "The calculation logic correctly identifies a 3-day streak and ignores gaps larger than 1 day.",
+            "verification_code": "from datetime import date, timedelta\n# Mock implementation of logic for verification\ndef mock_streak(dates):\n    if not dates: return 0\n    sorted_dates = sorted(dates, reverse=True)\n    streak = 0\n    today = date.today()\n    # Allow streak to continue if last log was yesterday\n    current_check = today if today in sorted_dates else today - timedelta(days=1)\n    if current_check not in sorted_dates: return 0\n    \n    for d in sorted_dates:\n        if d == current_check:\n            streak += 1\n            current_check -= timedelta(days=1)\n        else:\n            break\n    return streak\n\ntoday = date.today()\ndates = [today, today - timedelta(days=1), today - timedelta(days=2), today - timedelta(days=4)]\nassert mock_streak(dates) == 3"
+          }
+        },
+        {
+          "task_id": "5.2",
+          "instruction_theory": "HTMX allows us to return HTML fragments (partials) from the server instead of full JSON payloads. We will create a specific endpoint that renders just the analytics card for a habit. This separation allows the frontend to request this specific piece of UI independently of the main page load.",
+          "coding_requirements": [
+            "Create a Jinja2 partial template `partials/analytics_card.html` that accepts `streak` and `completion_rate` variables.",
+            "Define a FastAPI endpoint `GET /habits/{habit_id}/analytics`.",
+            "The endpoint must query the database for the specific habit's logs, run the calculation logic from Task 5.1, and return the rendered partial.",
+            "Ensure the endpoint returns a 404 if the habit does not exist."
+          ],
+          "hints": [
+            "Use `templates.TemplateResponse` with the partial file path.",
+            "Do not include `<html>` or `<body>` tags in the partial; just the `<div>` for the card.",
+            "Inject the `request` object into the TemplateResponse context as required by Starlette/FastAPI."
+          ],
+          "test_specification": {
+            "expected_state": "The endpoint returns an HTML fragment containing the calculated stats, not a JSON object.",
+            "verification_code": "from fastapi.testclient import TestClient\n# Assuming 'app' is imported from main\n# client = TestClient(app)\n# response = client.get('/habits/1/analytics')\n# assert response.status_code == 200\n# assert 'Streak:' in response.text\n# assert '<div' in response.text # Checks for HTML"
+          }
+        },
+        {
+          "task_id": "5.3",
+          "instruction_theory": "Lazy loading is a pattern where non-critical or computationally expensive UI elements are loaded after the initial page render. In HTMX, this is achieved using `hx-trigger='load'`. This makes the dashboard feel instant, while the analytics cards 'pop in' a moment later.",
+          "coding_requirements": [
+            "Update the main Dashboard template to list user habits.",
+            "For each habit in the list, include a placeholder `<div>`.",
+            "Add `hx-get='/habits/{id}/analytics'`, `hx-trigger='load'`, and `hx-swap='outerHTML'` to the placeholder div.",
+            "Ensure the placeholder has a loading state (e.g., text saying 'Loading stats...' or a spinner icon)."
+          ],
+          "hints": [
+            "If you use `hx-swap='outerHTML'`, the placeholder div itself will be replaced by the response from the server.",
+            "Ensure the `hx-get` URL dynamically inserts the correct habit ID using Jinja2 syntax (e.g., `/habits/{{ habit.id }}/analytics`).",
+            "You can verify the lazy load effect by adding a small `time.sleep(1)` in your backend endpoint temporarily."
+          ],
+          "test_specification": {
+            "expected_state": "The dashboard HTML contains elements configured to automatically fetch analytics on page load.",
+            "verification_code": "html_content = '<div hx-get=\"/habits/1/analytics\" hx-trigger=\"load\">Loading...</div>'\nassert 'hx-trigger=\"load\"' in html_content\nassert 'hx-get=\"/habits/1/analytics\"' in html_content"
+          }
+        },
+        {
+          "task_id": "5.4",
+          "instruction_theory": "Visualizing data helps user engagement. We can create a lightweight progress bar using standard CSS and the data we calculated. By setting the `width` property of a div dynamically via inline styles in our template, we avoid the need for charting libraries.",
+          "coding_requirements": [
+            "Modify `partials/analytics_card.html` to include a progress bar container.",
+            "Add an inner `<div>` representing the fill.",
+            "Use Jinja2 to set the inline style: `style='width: {{ completion_rate }}%'`.",
+            "Add conditional formatting: if the streak is > 5 days, add a 'fire' icon or specific CSS class to highlight momentum."
+          ],
+          "hints": [
+            "Ensure `completion_rate` is formatted as an integer or float with limited decimal places before rendering.",
+            "A simple CSS progress bar is just a parent div with a gray background and a child div with a colored background and percentage width.",
+            "Example: `<div class='progress-fill' style='width: {{ rate }}%;'></div>`"
+          ],
+          "test_specification": {
+            "expected_state": "The rendered HTML fragment contains a style attribute reflecting the completion percentage.",
+            "verification_code": "# Mock template rendering check\nrate = 75\nhtml_fragment = f'<div style=\"width: {rate}%\"></div>'\nassert 'width: 75%' in html_fragment"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Background Reminders",
+      "description": "Utilize FastAPI's `BackgroundTasks` to create a system that scans for habits not completed by a certain time and logs a 'reminder sent' event (simulating an email or push notification).",
+      "tasks": [
+        {
+          "task_id": "6.1",
+          "instruction_theory": "To track which reminders have been sent, we need a persistence layer. This prevents spamming users with duplicate reminders for the same habit on the same day. We will create a `Notification` model that links to a `Habit` and records the timestamp of the reminder.",
+          "coding_requirements": [
+            "Define a SQLAlchemy model named `Notification`.",
+            "Include columns: `id` (Integer, PK), `habit_id` (ForeignKey to habits), and `sent_at` (DateTime, default=func.now()).",
+            "Create the database table using your existing engine configuration."
+          ],
+          "hints": [
+            "Ensure you establish a relationship in the `Habit` model if you want to access notifications easily, though a simple ForeignKey is sufficient for this task.",
+            "Don't forget to import the new model in your main file so `Base.metadata.create_all` detects it."
+          ],
+          "test_specification": {
+            "expected_state": "A 'notifications' table exists in the SQLite database.",
+            "verification_code": "from sqlalchemy import inspect\nfrom main import engine\ninspector = inspect(engine)\nassert 'notifications' in inspector.get_table_names(), 'Table notifications not found'"
+          }
+        },
+        {
+          "task_id": "6.2",
+          "instruction_theory": "Before sending reminders, we must identify which habits have not been completed for the current day. This requires a database query that selects active habits excluding those that already have a `HabitLog` entry for today's date.",
+          "coding_requirements": [
+            "Create a CRUD utility function `get_incomplete_habits(db: Session, user_id: int, date: date)`.",
+            "The query should perform a LEFT OUTER JOIN (or equivalent logic) between `Habit` and `HabitLog`.",
+            "Filter for habits where the `HabitLog.id` is NULL for the given date."
+          ],
+          "hints": [
+            "In SQLAlchemy, you can use `~Habit.logs.any(HabitLog.date == target_date)` if relationships are set up.",
+            "Alternatively, select all user habits and subtract the set of completed habit IDs."
+          ],
+          "test_specification": {
+            "expected_state": "The function returns only habits that have no log entry for the specific date.",
+            "verification_code": "from datetime import date\n# Assume setup creates 1 completed and 1 incomplete habit\npending = get_incomplete_habits(test_db, test_user_id, date.today())\nassert len(pending) == 1, 'Should return exactly one incomplete habit'"
+          }
+        },
+        {
+          "task_id": "6.3",
+          "instruction_theory": "FastAPI's `BackgroundTasks` allows you to define functions that run after the HTTP response is returned. We will create a worker function that simulates sending an email (via a print statement or sleep) and then commits a record to the `Notification` table to verify execution.",
+          "coding_requirements": [
+            "Define a function `send_reminder_worker(habit_id: int, db: Session)`.",
+            "Inside the function, print a simulation message: `f'Sending reminder for habit {habit_id}'`.",
+            "Insert a new record into the `Notification` table for this `habit_id`.",
+            "Commit the transaction."
+          ],
+          "hints": [
+            "Since this runs in the background, ensure you are using a fresh database session or handling the session scope correctly if passing it from the endpoint.",
+            "Use `time.sleep(1)` to simulate network latency if you want to prove the non-blocking nature in manual testing."
+          ],
+          "test_specification": {
+            "expected_state": "Calling the worker function creates a database record.",
+            "verification_code": "send_reminder_worker(test_habit_id, test_db)\ncount = test_db.query(Notification).filter_by(habit_id=test_habit_id).count()\nassert count == 1, 'Worker did not insert notification record'"
+          }
+        },
+        {
+          "task_id": "6.4",
+          "instruction_theory": "Now we expose an endpoint to trigger the check. This endpoint will accept `BackgroundTasks` as a dependency, query for incomplete habits, and queue the worker function for each one. It should return an immediate response while the tasks process in the background.",
+          "coding_requirements": [
+            "Create a POST endpoint `/api/reminders/trigger`.",
+            "Inject `BackgroundTasks` into the route function.",
+            "Call `get_incomplete_habits` to find targets.",
+            "Loop through results and use `background_tasks.add_task(send_reminder_worker, ...)` for each.",
+            "Return a JSON response `{'message': 'Reminders queued'}`."
+          ],
+          "hints": [
+            "You might need to pass a `db` session factory or handle session creation inside the worker to avoid 'Session closed' errors, depending on your dependency injection setup.",
+            "The response should return almost instantly, even if you added a `sleep` in the worker."
+          ],
+          "test_specification": {
+            "expected_state": "Endpoint returns 202 or 200 immediately; notification appears in DB shortly after.",
+            "verification_code": "response = client.post('/api/reminders/trigger')\nassert response.status_code == 200\n# Allow brief moment for background thread\nimport time; time.sleep(0.5)\nassert test_db.query(Notification).count() > 0"
+          }
+        },
+        {
+          "task_id": "6.5",
+          "instruction_theory": "Finally, integrate this into the HTMX frontend. We will add a 'Send Reminders' button in the user settings or dashboard. This button will trigger the background process without reloading the page, providing a smooth user experience.",
+          "coding_requirements": [
+            "Add a button in your Jinja2 template labeled 'Check Reminders Now'.",
+            "Add `hx-post='/api/reminders/trigger'` to the button.",
+            "Use `hx-swap='none'` so the button doesn't disappear, or `hx-target='#status-msg'` to show a confirmation.",
+            "Ideally, use an event listener or `hx-on` to show a temporary 'Sending...' toast."
+          ],
+          "hints": [
+            "Since the backend returns JSON, ensure your HTMX setup can handle it, or modify the endpoint to return a small HTML snippet (e.g., `<div class='alert'>Sent!</div>`) if preferred for this specific interaction.",
+            "Use `hx-indicator` to show a spinner while the request is in flight."
+          ],
+          "test_specification": {
+            "expected_state": "The HTML contains the correct HTMX attributes for the trigger.",
+            "verification_code": "assert 'hx-post=\"/api/reminders/trigger\"' in html_content\nassert 'hx-swap' in html_content"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "UX Refinement & OOB Swaps",
+      "description": "Enhance the user experience by implementing HTMX Out-Of-Band (OOB) swaps to display flash messages (toasts) for errors or success states, and add inline editing capabilities for habit names.",
+      "tasks": [
+        {
+          "task_id": "7.1",
+          "instruction_theory": "HTMX allows servers to update multiple parts of the DOM in a single response using 'Out-Of-Band' (OOB) swaps. By including an element with the attribute `hx-swap-oob='true'` (or a specific swap method) in the response, HTMX will find the existing element with the same ID in the DOM and replace it, regardless of where the request originated. This is ideal for 'toast' notifications.",
+          "coding_requirements": [
+            "Add a fixed container `<div id='toast-container'></div>` to the base Jinja2 layout template (e.g., bottom-right corner).",
+            "Create a Jinja2 partial template `partials/toast.html` that accepts a `message` and `category` (info, success, error).",
+            "Ensure the root element of `toast.html` has `hx-swap-oob='beforeend:#toast-container'` (or similar logic) to append itself to the container.",
+            "Implement a Python helper function `render_toast` that returns this rendered HTML string."
+          ],
+          "hints": [
+            "Use Tailwind CSS or custom CSS to position `#toast-container` fixed at the viewport edge.",
+            "The `hx-swap-oob` value can be a selector like `beforeend:#id` to append instead of replace.",
+            "You might need to add a small script or HTMX extension (like `remove-me`) to auto-dismiss toasts after a few seconds."
+          ],
+          "test_specification": {
+            "expected_state": "The helper function should return HTML strings containing the hx-swap-oob attribute targeting the toast container.",
+            "verification_code": "from fastapi.templating import Jinja2Templates\n\n# Mock template rendering\ndef test_toast_generation():\n    # Assuming a helper or direct template render\n    html_output = '<div hx-swap-oob=\"beforeend:#toast-container\">Success</div>'\n    assert \"hx-swap-oob\" in html_output\n    assert \"#toast-container\" in html_output"
+          }
+        },
+        {
+          "task_id": "7.2",
+          "instruction_theory": "To use OOB swaps effectively, the server response must concatenate the primary content (the direct target of the HTMX request) and the OOB content (the toast). In FastAPI, this simply means returning a string containing both HTML fragments.",
+          "coding_requirements": [
+            "Modify the existing `POST /habits/{id}/toggle` endpoint.",
+            "Upon successful toggle, generate the HTML for the updated habit row (primary swap).",
+            "Generate a success toast HTML using the helper from Task 7.1.",
+            "Return a `Response` containing the concatenated string: `updated_row_html + toast_html`."
+          ],
+          "hints": [
+            "FastAPI's `HTMLResponse` takes a string content. You can simply join the two rendered templates with `\\n`.",
+            "Ensure the primary swap (the habit row) does NOT have `hx-swap-oob` set; only the toast should have it.",
+            "Check that the Content-Type header is set to `text/html`."
+          ],
+          "test_specification": {
+            "expected_state": "Toggling a habit should return the habit row HTML followed immediately by the toast notification HTML.",
+            "verification_code": "def test_toggle_with_oob(client): \n    # Setup habit\n    client.post(\"/habits/\", data={\"name\": \"Test Habit\"})\n    habit_id = 1 # Assumption\n    response = client.post(f\"/habits/{habit_id}/toggle\")\n    assert response.status_code == 200\n    assert \"<tr\" in response.text # Primary swap\n    assert \"hx-swap-oob\" in response.text # Secondary swap"
+          }
+        },
+        {
+          "task_id": "7.3",
+          "instruction_theory": "Inline editing is a classic SPA pattern. With HTMX, we replace a display element (like a `<span>`) with an input form using `hx-get`. The form allows the user to modify the data and submit it.",
+          "coding_requirements": [
+            "Create a new endpoint `GET /habits/{id}/edit`.",
+            "This endpoint should return an HTML fragment containing a `<form>` with an `<input type='text'>` pre-filled with the habit's current name.",
+            "Update the main habit list template: Add an `hx-get='/habits/{id}/edit'` attribute to the habit name display element (or an edit icon).",
+            "Set `hx-target='closest td'` or `hx-target='this'` to replace the text with the input field."
+          ],
+          "hints": [
+            "The returned form should include a 'Save' button and potentially a 'Cancel' button.",
+            "Ensure the input field automatically receives focus using the `autofocus` attribute.",
+            "The form action will be defined in the next task, but you can scaffold it now."
+          ],
+          "test_specification": {
+            "expected_state": "Requesting the edit endpoint returns a form with an input field containing the habit name.",
+            "verification_code": "def test_get_edit_form(client):\n    client.post(\"/habits/\", data={\"name\": \"Edit Me\"})\n    response = client.get(\"/habits/1/edit\")\n    assert \"<form\" in response.text\n    assert \"value=\\\"Edit Me\\\"\" in response.text\n    assert \"<input\" in response.text"
+          }
+        },
+        {
+          "task_id": "7.4",
+          "instruction_theory": "Submitting the inline form should update the database and swap the form back to the read-only display state. We can also piggyback a success toast via OOB here.",
+          "coding_requirements": [
+            "Create or update `PUT /habits/{id}` (or `PATCH`) to handle the name update.",
+            "The endpoint must validate the new name and update the SQLite record.",
+            "On success, return the original read-only HTML fragment (e.g., the `<span>` with the new name) plus an OOB success toast.",
+            "Configure the form from Task 7.3 to submit to this endpoint using `hx-put`."
+          ],
+          "hints": [
+            "If validation fails (e.g., empty name), return the form HTML again with an error message (or an OOB error toast).",
+            "Remember to include the `hx-target` on the form if it differs from the default behavior, though usually, the response replaces the form (the triggering element).",
+            "Use `hx-trigger='keyup[keyCode==27]'` to handle Escape key cancellation if desired."
+          ],
+          "test_specification": {
+            "expected_state": "Submitting the edit form updates the DB and returns the plain text name + a toast.",
+            "verification_code": "def test_submit_edit(client):\n    client.post(\"/habits/\", data={\"name\": \"Old Name\"})\n    response = client.put(\"/habits/1\", data={\"name\": \"New Name\"})\n    assert \"New Name\" in response.text\n    assert \"<form\" not in response.text # Should revert to display\n    assert \"hx-swap-oob\" in response.text # Toast included"
+          }
+        },
+        {
+          "task_id": "7.5",
+          "instruction_theory": "A robust inline edit system requires a way to cancel the action, reverting the UI without making a database change. This is done by fetching the original 'read-only' fragment.",
+          "coding_requirements": [
+            "Create a `GET /habits/{id}/name` endpoint (or reuse a partial rendering logic) that returns just the display HTML for the habit name.",
+            "Add a 'Cancel' button to the edit form from Task 7.3.",
+            "Configure the Cancel button with `hx-get='/habits/{id}/name'` and `hx-target='closest form'` (or the parent container) to restore the UI.",
+            "Ensure the Cancel button type is `button` (not submit) to prevent form submission."
+          ],
+          "hints": [
+            "You might not need a new endpoint if you can render the specific partial using a query param on the main habit endpoint, but a dedicated endpoint is cleaner.",
+            "Styling: Make the cancel button subtle (e.g., an 'X' icon or gray text)."
+          ],
+          "test_specification": {
+            "expected_state": "The cancel endpoint returns the static display HTML, not a form.",
+            "verification_code": "def test_cancel_edit(client):\n    client.post(\"/habits/\", data={\"name\": \"Stay Same\"})\n    # Requesting the 'read only' view\n    response = client.get(\"/habits/1/name\")\n    assert \"Stay Same\" in response.text\n    assert \"<input\" not in response.text"
+          }
+        }
+      ]
+    }
+  ]
+}
