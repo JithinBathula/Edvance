@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -6,10 +5,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-try:
-    from ..prompts import planning_prompts as prompt_bank
-except Exception:
-    from planning.prompts import planning_prompts as prompt_bank
+from ..prompts import planning_prompts as prompt_bank
 
 load_dotenv()
 
@@ -89,17 +85,11 @@ class CurriculumPlanner:
 
     def __init__(
         self,
-        client: Optional[OpenAI] = None,
         model: str = "anthropic/claude-opus-4.5",
     ) -> None:
-        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")
-        if client:
-            self.client = client
-        else:
-            if not api_key:
-                raise EnvironmentError("OPENAI_API_KEY or OPENROUTER_API_KEY not found; add one to your .env.")
-            base_url = "https://openrouter.ai/api/v1" if os.getenv("OPENROUTER_API_KEY") or api_key.startswith("sk-or-") else None
-            self.client = OpenAI(api_key=api_key, base_url=base_url)
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        base_url = "https://openrouter.ai/api/v1"
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 
     @staticmethod
@@ -116,25 +106,9 @@ class CurriculumPlanner:
             return requirements.strip()
         return "\n".join(r.strip() for r in requirements if r and str(r).strip())
 
-    def _invoke_llm(
-        self,
-        messages: List[Dict[str, str]],
-        *,
-        temperature: float = 0.35,
-    ) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            response_format={"type": "json_object"}
-        )
-        return response.choices[0].message.content
-
-<<<<<<< ours
     def _invoke_llm_structured(
         self,
         messages: List[Dict[str, str]],
-        *,
         schema_name: str,
         schema: Dict[str, Any],
         temperature: float = 0.35,
@@ -152,16 +126,7 @@ class CurriculumPlanner:
                 },
             },
         )
-        if not response or not getattr(response, "choices", None):
-            raise CurriculumGenerationError("LLM returned no choices; check API key and model support for structured outputs.")
-        message = response.choices[0].message
-        # OpenAI SDK surfaces structured outputs on message.parsed when using json_schema
-        if getattr(message, "parsed", None) is not None:
-            return json.dumps(message.parsed)
-        return message.content
-=======
         return response.choices[0].message.content
->>>>>>> theirs
 
     @staticmethod
     def _outline_schema() -> Dict[str, Any]:
@@ -181,7 +146,6 @@ class CurriculumPlanner:
                         "required": ["subheading_title", "description"],
                         "additionalProperties": False,
                     },
-                    "minItems": 1,
                 },
             },
             "required": ["project_title", "project_brief", "milestones"],
@@ -205,12 +169,10 @@ class CurriculumPlanner:
                             "coding_requirements": {
                                 "type": "array",
                                 "items": {"type": "string"},
-                                "minItems": 1,
                             },
                             "hints": {
                                 "type": "array",
                                 "items": {"type": "string"},
-                                "minItems": 1,
                             },
                             "test_specification": {
                                 "type": "object",
@@ -231,16 +193,12 @@ class CurriculumPlanner:
                         ],
                         "additionalProperties": False,
                     },
-                    "minItems": 3,
-                    "maxItems": 7,
                 },
             },
             "required": ["subheading_title", "description", "tasks"],
             "additionalProperties": False,
         }
 
-=======
->>>>>>> theirs
     def generate_outline(
         self,
         *,
@@ -266,7 +224,7 @@ class CurriculumPlanner:
         ]
 
         try:
-            content = self._invoke_llm(messages, temperature=0.25)
+            content = self._invoke_llm_structured(messages, "outline", self._outline_schema(), temperature=0.25)
             return OutlineProject.model_validate_json(content)
         except ValidationError as exc:
             raise CurriculumGenerationError(f"Outline validation failed: {exc}") from exc
@@ -307,7 +265,7 @@ class CurriculumPlanner:
         ]
 
         try:
-            content = self._invoke_llm(messages, temperature=0.35)
+            content = self._invoke_llm_structured(messages, "tasks", self._milestone_schema(), temperature=0.35)
             return Milestone.model_validate_json(content)
         except ValidationError as exc:
             raise CurriculumGenerationError(
@@ -372,8 +330,3 @@ class CurriculumPlanner:
             experience_level=experience_level,
         )
         return curriculum.model_dump()
-
-
-def get_curriculum_planner(client: Optional[OpenAI] = None) -> CurriculumPlanner:
-    """Factory to align with existing agent wiring patterns."""
-    return CurriculumPlanner(client=client)

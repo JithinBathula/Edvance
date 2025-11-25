@@ -1,0 +1,1153 @@
+{
+  "project_title": "Lemonade Stand CLI Manager",
+  "project_brief": "Build a command-line application to run a small snacks and lemonade stand business. You'll create a modular Python program that tracks inventory, processes customer orders with validation, generates receipts, and ranks your best customers\u2014all while saving data to JSON files so nothing gets lost between sessions.",
+  "milestones": [
+    {
+      "subheading_title": "Project Setup and File Structure",
+      "description": "Create your project folder with two empty Python files: 'main.py' and 'store_manager.py'. Think of this like setting up two workstations\u2014one for the cashier (main.py handles talking to customers) and one for the back office (store_manager.py handles all the behind-the-scenes inventory math). You'll also create a blank 'inventory.json' file to understand where your data will live.",
+      "tasks": [
+        {
+          "task_id": "1.1",
+          "instruction_theory": "Every coding project needs a home\u2014a folder where all your files live together. Think of it like creating a drawer for your lemonade stand paperwork. This folder will hold your Python code files and your data files. Having everything in one place keeps you organized and makes sure Python can find all the pieces it needs when running your program.",
+          "coding_requirements": [
+            "Create a new folder named 'lemonade_stand' on your computer",
+            "This folder will be your project root directory where all files will be stored"
+          ],
+          "hints": [
+            "You can create folders using your computer's file explorer, or right-click and select 'New Folder'",
+            "Pick a location you'll remember, like your Desktop or Documents folder",
+            "Avoid spaces in folder names\u2014use underscores instead (lemonade_stand, not lemonade stand)"
+          ],
+          "test_specification": {
+            "expected_state": "A folder named 'lemonade_stand' exists on the filesystem",
+            "verification_code": "import os\nproject_folder = 'lemonade_stand'\nassert os.path.isdir(project_folder), f\"Folder '{project_folder}' does not exist\""
+          }
+        },
+        {
+          "task_id": "1.2",
+          "instruction_theory": "In Python, we split code into separate files called 'modules' to keep things organized. Your 'main.py' file is like the cashier's station\u2014it's where customers interact with your stand. This file will eventually handle the menu, take orders, and chat with users. For now, we just need to create the empty file so it's ready to fill in later.",
+          "coding_requirements": [
+            "Inside your 'lemonade_stand' folder, create an empty file named 'main.py'",
+            "The file should exist but can be completely empty for now"
+          ],
+          "hints": [
+            "In most code editors, you can do File > New File, then Save As 'main.py'",
+            "Make sure the file extension is exactly '.py' (not '.py.txt' or anything else)",
+            "Double-check you're saving inside the lemonade_stand folder, not somewhere else"
+          ],
+          "test_specification": {
+            "expected_state": "A file named 'main.py' exists inside the lemonade_stand folder",
+            "verification_code": "import os\nmain_path = os.path.join('lemonade_stand', 'main.py')\nassert os.path.isfile(main_path), f\"File '{main_path}' does not exist\""
+          }
+        },
+        {
+          "task_id": "1.3",
+          "instruction_theory": "Your 'store_manager.py' file is the back office\u2014it handles all the behind-the-scenes work like tracking inventory, doing math, and saving data. By keeping this logic separate from main.py, your code stays clean and easy to manage. Imagine if the cashier also had to count every cookie in the back room while helping customers\u2014chaos! Separation makes everything smoother.",
+          "coding_requirements": [
+            "Inside your 'lemonade_stand' folder, create an empty file named 'store_manager.py'",
+            "The file should exist but can be completely empty for now"
+          ],
+          "hints": [
+            "Create this file the same way you created main.py",
+            "Both Python files should be at the same level inside your folder (not in subfolders)",
+            "The underscore in 'store_manager' is important\u2014Python module names can't have spaces or dashes"
+          ],
+          "test_specification": {
+            "expected_state": "A file named 'store_manager.py' exists inside the lemonade_stand folder",
+            "verification_code": "import os\nmanager_path = os.path.join('lemonade_stand', 'store_manager.py')\nassert os.path.isfile(manager_path), f\"File '{manager_path}' does not exist\""
+          }
+        },
+        {
+          "task_id": "1.4",
+          "instruction_theory": "JSON (JavaScript Object Notation) is a simple way to store data in a file that both humans and computers can read. Think of it like a digital notebook where you write down your inventory. The '.json' extension tells your computer this file contains structured data. We'll create an empty JSON file now\u2014later, your Python code will read from and write to this file to remember what's in stock.",
+          "coding_requirements": [
+            "Inside your 'lemonade_stand' folder, create a file named 'inventory.json'",
+            "The file should contain an empty JSON array: []",
+            "Save the file with just those two characters inside"
+          ],
+          "hints": [
+            "An empty JSON array is just two square brackets with nothing between them: []",
+            "Make sure there are no extra spaces or characters\u2014just []",
+            "You can create this file in your code editor just like the Python files"
+          ],
+          "test_specification": {
+            "expected_state": "A file named 'inventory.json' exists and contains a valid empty JSON array",
+            "verification_code": "import os\nimport json\ninventory_path = os.path.join('lemonade_stand', 'inventory.json')\nassert os.path.isfile(inventory_path), f\"File '{inventory_path}' does not exist\"\nwith open(inventory_path, 'r') as f:\n    data = json.load(f)\nassert data == [], f\"Expected empty list [], got {data}\""
+          }
+        },
+        {
+          "task_id": "1.5",
+          "instruction_theory": "Let's add a simple 'hello world' message to main.py to verify everything is connected properly. This is like flipping the 'Open' sign on your lemonade stand\u2014a quick test to make sure the lights are on. Running this file confirms Python can find and execute your code from the right location.",
+          "coding_requirements": [
+            "Open 'main.py' and add a single print statement: print('Lemonade Stand is Open!')",
+            "Save the file after adding this line"
+          ],
+          "hints": [
+            "Make sure you use matching quotes\u2014either both single quotes or both double quotes",
+            "The parentheses around the text are required in Python 3",
+            "Check for typos\u2014Python is picky about spelling and capitalization"
+          ],
+          "test_specification": {
+            "expected_state": "main.py contains a print statement that outputs 'Lemonade Stand is Open!'",
+            "verification_code": "import os\nmain_path = os.path.join('lemonade_stand', 'main.py')\nwith open(main_path, 'r') as f:\n    content = f.read()\nassert 'print' in content, \"main.py should contain a print statement\"\nassert 'Lemonade Stand is Open!' in content, \"main.py should print 'Lemonade Stand is Open!'\""
+          }
+        },
+        {
+          "task_id": "1.6",
+          "instruction_theory": "Now let's add a placeholder comment to store_manager.py. Comments are notes for humans that Python ignores\u2014they start with a # symbol. This is like putting a sticky note on your back office door saying 'Inventory logic goes here.' It helps you (and anyone else reading your code) understand what this file is meant to do.",
+          "coding_requirements": [
+            "Open 'store_manager.py' and add a comment on the first line: # Store Manager - Handles inventory and order logic",
+            "Save the file after adding this comment"
+          ],
+          "hints": [
+            "Comments start with # and everything after it on that line is ignored by Python",
+            "This comment is just for organization\u2014it won't make anything happen when you run the code",
+            "Good comments explain the 'why' or 'what' of your code, not the 'how'"
+          ],
+          "test_specification": {
+            "expected_state": "store_manager.py contains a descriptive comment about its purpose",
+            "verification_code": "import os\nmanager_path = os.path.join('lemonade_stand', 'store_manager.py')\nwith open(manager_path, 'r') as f:\n    content = f.read()\nassert content.strip().startswith('#'), \"store_manager.py should start with a comment\"\nassert 'inventory' in content.lower() or 'manager' in content.lower(), \"Comment should describe the file's purpose\""
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Build the InventoryManager Class Foundation",
+      "description": "In 'store_manager.py', create your InventoryManager class with an __init__ method that sets up an empty list to hold inventory items. This is like building an empty filing cabinet before you fill it with folders. You'll learn how a class acts as a blueprint that remembers things (your inventory) and can do tasks (load, save, update).",
+      "tasks": [
+        {
+          "task_id": "2.1",
+          "instruction_theory": "Think of a Python file as a toolbox where you keep related tools together. Right now, you need a dedicated toolbox just for managing your store's inventory. Creating a separate file called 'store_manager.py' keeps your code organized\u2014like having a drawer just for inventory stuff, separate from the drawer where you'll handle customer interactions later. This separation makes your code easier to read and fix when something goes wrong.",
+          "coding_requirements": [
+            "Create a new file named 'store_manager.py' in your project folder",
+            "The file should exist and be empty for now (we'll add code in the next tasks)"
+          ],
+          "hints": [
+            "Make sure the filename is exactly 'store_manager.py' with an underscore, not a hyphen",
+            "Save the file in the same folder where your 'main.py' will eventually live",
+            "If you're using VS Code or another editor, right-click in the file explorer and select 'New File'"
+          ],
+          "test_specification": {
+            "expected_state": "A file named 'store_manager.py' exists in the project directory",
+            "verification_code": "import os\nassert os.path.exists('store_manager.py'), 'store_manager.py file should exist'"
+          }
+        },
+        {
+          "task_id": "2.2",
+          "instruction_theory": "A class in Python is like a blueprint or a cookie cutter. Imagine you want to make lots of identical cookies\u2014you don't reshape each one by hand, you use a cookie cutter! A class defines what something IS and what it CAN DO. Your InventoryManager class will be the blueprint for an object that knows how to handle all your inventory tasks. The 'class' keyword tells Python: 'Hey, I'm defining a new type of thing here!'",
+          "coding_requirements": [
+            "In 'store_manager.py', define a class named 'InventoryManager'",
+            "Use the 'class' keyword followed by the class name and a colon",
+            "Add 'pass' as a placeholder inside the class body for now"
+          ],
+          "hints": [
+            "Class names in Python use CamelCase (each word capitalized, no spaces): InventoryManager, not inventory_manager",
+            "Don't forget the colon after the class name",
+            "'pass' is Python's way of saying 'nothing here yet' so the code doesn't crash"
+          ],
+          "test_specification": {
+            "expected_state": "InventoryManager class is defined and can be referenced without errors",
+            "verification_code": "from store_manager import InventoryManager\nassert InventoryManager is not None, 'InventoryManager class should be defined'"
+          }
+        },
+        {
+          "task_id": "2.3",
+          "instruction_theory": "The __init__ method is like the 'setup instructions' that run automatically when you create a new object from your class. Think of it like this: when you buy a new phone, it goes through a setup process the first time you turn it on. The __init__ method is that setup process for your class. The 'self' parameter is how the object refers to itself\u2014like saying 'my own inventory list' instead of 'someone else's inventory list'. Every method inside a class needs 'self' as its first parameter.",
+          "coding_requirements": [
+            "Replace 'pass' with a method named '__init__'",
+            "The __init__ method must take 'self' as its first (and only) parameter",
+            "Leave the method body with just 'pass' for now"
+          ],
+          "hints": [
+            "The method name has two underscores before AND after 'init': __init__",
+            "Don't forget 'self' in the parentheses\u2014it's required!",
+            "Indentation matters: __init__ should be indented one level inside the class"
+          ],
+          "test_specification": {
+            "expected_state": "InventoryManager class has an __init__ method that accepts self",
+            "verification_code": "from store_manager import InventoryManager\nimport inspect\nassert hasattr(InventoryManager, '__init__'), 'InventoryManager should have __init__ method'\nsig = inspect.signature(InventoryManager.__init__)\nparams = list(sig.parameters.keys())\nassert 'self' in params, '__init__ should have self parameter'"
+          }
+        },
+        {
+          "task_id": "2.4",
+          "instruction_theory": "Now it's time to give your InventoryManager something to remember! Instance attributes are like personal belongings that each object carries around. When you write 'self.inventory = []', you're saying 'this specific InventoryManager object has its own inventory list.' The empty list [] is like an empty filing cabinet\u2014ready to hold inventory items later. This is different from a regular variable because it 'belongs' to the object and sticks around as long as the object exists.",
+          "coding_requirements": [
+            "Inside the __init__ method, remove 'pass' and add a line that creates an instance attribute",
+            "The attribute must be named 'inventory' and assigned to an empty list []",
+            "Use the format: self.inventory = []"
+          ],
+          "hints": [
+            "Make sure this line is indented inside the __init__ method (two levels of indentation from the left)",
+            "The dot in 'self.inventory' connects the attribute to the object itself",
+            "An empty list is written as [] with nothing between the brackets"
+          ],
+          "test_specification": {
+            "expected_state": "Creating an InventoryManager instance results in an object with an empty 'inventory' list attribute",
+            "verification_code": "from store_manager import InventoryManager\nmanager = InventoryManager()\nassert hasattr(manager, 'inventory'), 'InventoryManager instance should have inventory attribute'\nassert manager.inventory == [], 'inventory should be an empty list'\nassert isinstance(manager.inventory, list), 'inventory should be a list type'"
+          }
+        },
+        {
+          "task_id": "2.5",
+          "instruction_theory": "Your InventoryManager will need to know where to find and save the inventory file. By storing the filename as an attribute, you're giving your manager a 'note' that says 'look for inventory data in this file.' This is smart because if you ever need to change the filename, you only change it in one place. Think of it like saving a contact in your phone\u2014you don't memorize the number, you just remember the name and your phone knows the rest.",
+          "coding_requirements": [
+            "Add a second instance attribute in __init__ named 'inventory_file'",
+            "Set this attribute to the string 'inventory.json'",
+            "This line should come after the self.inventory = [] line"
+          ],
+          "hints": [
+            "Remember to use self.inventory_file so it belongs to the object",
+            "The filename is a string, so wrap it in quotes: 'inventory.json'",
+            "Keep both attribute assignments inside __init__, each on their own line"
+          ],
+          "test_specification": {
+            "expected_state": "InventoryManager instance has an 'inventory_file' attribute set to 'inventory.json'",
+            "verification_code": "from store_manager import InventoryManager\nmanager = InventoryManager()\nassert hasattr(manager, 'inventory_file'), 'InventoryManager should have inventory_file attribute'\nassert manager.inventory_file == 'inventory.json', 'inventory_file should be set to inventory.json'"
+          }
+        },
+        {
+          "task_id": "2.6",
+          "instruction_theory": "Let's make sure everything works together! When you write 'manager = InventoryManager()', Python calls your __init__ method automatically and creates a brand new InventoryManager object. This object now has its own inventory list and knows which file to use. You can create multiple managers if you wanted (like having separate filing cabinets for different stores), and each would have its own independent inventory. This is the power of classes\u2014reusable blueprints!",
+          "coding_requirements": [
+            "Verify your complete InventoryManager class has the class definition line, the __init__ method with self parameter, self.inventory set to an empty list, and self.inventory_file set to 'inventory.json'",
+            "Ensure proper indentation throughout: class at column 0, def __init__ indented once, attribute assignments indented twice"
+          ],
+          "hints": [
+            "If you get an IndentationError, check that you're using consistent spaces (4 spaces per indent level is standard)",
+            "You can test your class by adding temporary code at the bottom: manager = InventoryManager() then print(manager.inventory)",
+            "Remember to remove any test code before moving to the next milestone"
+          ],
+          "test_specification": {
+            "expected_state": "InventoryManager class is complete with __init__ method that initializes both inventory (empty list) and inventory_file ('inventory.json') attributes",
+            "verification_code": "from store_manager import InventoryManager\nmanager1 = InventoryManager()\nmanager2 = InventoryManager()\nassert manager1.inventory == [], 'First manager should have empty inventory'\nassert manager2.inventory == [], 'Second manager should have empty inventory'\nassert manager1.inventory_file == 'inventory.json', 'First manager should have correct filename'\nassert manager1.inventory is not manager2.inventory, 'Each manager should have its own inventory list'"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Load Inventory from JSON with Fallback Defaults",
+      "description": "Add a 'load_inventory' method to your class that reads from 'inventory.json'. Here's the clever part: if the file doesn't exist yet, your code creates it with starter items (Lemonade at $2.50, Cookies at $1.00, Chips at $1.50). This prevents crashes and means your stand is never empty on day one. You'll use try/except to handle the 'file not found' situation gracefully.",
+      "tasks": [
+        {
+          "task_id": "3.1",
+          "instruction_theory": "Before we can load anything, we need to know what our 'starter kit' looks like. Think of this like having a backup box of supplies in your garage\u2014if your main inventory is missing, you grab the backup. In Python, we store this as a list of dictionaries. Each dictionary represents one product with its name, price, and how many you have in stock.",
+          "coding_requirements": [
+            "Inside your InventoryManager class in 'store_manager.py', create a class attribute called 'DEFAULT_INVENTORY'",
+            "Set it equal to a list containing three dictionaries",
+            "First dict: {'name': 'Lemonade', 'price': 2.50, 'quantity': 10}",
+            "Second dict: {'name': 'Cookies', 'price': 1.00, 'quantity': 20}",
+            "Third dict: {'name': 'Chips', 'price': 1.50, 'quantity': 15}"
+          ],
+          "hints": [
+            "Class attributes go right under the 'class InventoryManager:' line, before __init__",
+            "Make sure price values are floats (have decimal points like 2.50, not just 2)",
+            "You can access this later with self.DEFAULT_INVENTORY or InventoryManager.DEFAULT_INVENTORY"
+          ],
+          "test_specification": {
+            "expected_state": "The InventoryManager class has a DEFAULT_INVENTORY attribute containing exactly 3 items with correct names, prices, and quantities",
+            "verification_code": "from store_manager import InventoryManager\nim = InventoryManager()\nassert hasattr(InventoryManager, 'DEFAULT_INVENTORY'), 'Missing DEFAULT_INVENTORY'\ndefaults = InventoryManager.DEFAULT_INVENTORY\nassert len(defaults) == 3, 'Should have 3 default items'\nnames = [item['name'] for item in defaults]\nassert 'Lemonade' in names and 'Cookies' in names and 'Chips' in names, 'Missing required items'\nlemonade = next(i for i in defaults if i['name'] == 'Lemonade')\nassert lemonade['price'] == 2.50 and lemonade['quantity'] == 10, 'Lemonade has wrong values'"
+          }
+        },
+        {
+          "task_id": "3.2",
+          "instruction_theory": "Now let's learn how to read JSON files. The 'json' module is like a translator\u2014it converts JSON files (which are just text) into Python lists and dictionaries you can actually work with. The pattern is: open the file, then use json.load() to read and translate it. We'll start by writing the basic file-reading code without error handling first.",
+          "coding_requirements": [
+            "At the top of 'store_manager.py', add 'import json' if not already present",
+            "Inside InventoryManager, create a method called 'load_inventory' that takes only 'self' as parameter",
+            "Inside the method, use 'open()' with the filename 'inventory.json' and mode 'r' (read)",
+            "Use 'json.load()' to read the file contents into a variable",
+            "Store the loaded data in 'self.inventory'"
+          ],
+          "hints": [
+            "The pattern is: with open('filename.json', 'r') as file: data = json.load(file)",
+            "Using 'with open()' automatically closes the file when done\u2014it's the safe way",
+            "json.load(file) is different from json.loads(string)\u2014load is for files, loads is for strings"
+          ],
+          "test_specification": {
+            "expected_state": "The load_inventory method exists and can read from an existing inventory.json file",
+            "verification_code": "import json\nimport os\nfrom store_manager import InventoryManager\ntest_data = [{'name': 'TestItem', 'price': 5.00, 'quantity': 3}]\nwith open('inventory.json', 'w') as f:\n    json.dump(test_data, f)\nim = InventoryManager()\nim.load_inventory()\nassert hasattr(im, 'inventory'), 'inventory attribute not set'\nassert im.inventory[0]['name'] == 'TestItem', 'Did not load correct data'\nos.remove('inventory.json')"
+          }
+        },
+        {
+          "task_id": "3.3",
+          "instruction_theory": "Here's where the magic happens! What if the file doesn't exist? Without protection, Python crashes with a FileNotFoundError. That's like your cash register exploding because someone asked for a receipt before any sales happened\u2014not great! We use try/except to catch this error gracefully. Think of 'try' as saying 'attempt this risky thing' and 'except' as 'if it fails, do this instead'.",
+          "coding_requirements": [
+            "Wrap your existing file-opening code inside a 'try:' block",
+            "Add an 'except FileNotFoundError:' block after the try block",
+            "In the except block, set 'self.inventory' equal to a copy of 'self.DEFAULT_INVENTORY'",
+            "Use 'self.DEFAULT_INVENTORY.copy()' or list slicing '[:]' to make a copy, not a reference"
+          ],
+          "hints": [
+            "The structure is: try: (risky code) except FileNotFoundError: (backup plan)",
+            "Making a copy is important! If you just do self.inventory = self.DEFAULT_INVENTORY, changing one changes both",
+            "You can also use 'import copy' and 'copy.deepcopy()' for nested structures, but .copy() works for our list"
+          ],
+          "test_specification": {
+            "expected_state": "When inventory.json doesn't exist, load_inventory uses DEFAULT_INVENTORY instead of crashing",
+            "verification_code": "import os\nfrom store_manager import InventoryManager\nif os.path.exists('inventory.json'):\n    os.remove('inventory.json')\nim = InventoryManager()\nim.load_inventory()\nassert hasattr(im, 'inventory'), 'inventory not set'\nassert len(im.inventory) == 3, 'Should have 3 default items'\nassert im.inventory[0]['name'] == 'Lemonade', 'First item should be Lemonade'"
+          }
+        },
+        {
+          "task_id": "3.4",
+          "instruction_theory": "When we use the default inventory as a fallback, we should immediately save it to the JSON file. This way, the file gets created for next time, and we have a record of our starting inventory. It's like writing down your backup supplies in your official inventory book so everything stays in sync.",
+          "coding_requirements": [
+            "Inside the 'except FileNotFoundError:' block, after setting self.inventory to defaults",
+            "Call 'self.save_inventory()' to write the defaults to 'inventory.json'",
+            "This assumes you already have a save_inventory method from Milestone 2"
+          ],
+          "hints": [
+            "The save happens AFTER you set self.inventory, so save_inventory has data to save",
+            "If save_inventory doesn't exist yet, you may need to create it first (check Milestone 2)",
+            "This creates the file automatically so next time load_inventory will find it"
+          ],
+          "test_specification": {
+            "expected_state": "When defaults are used, they are automatically saved to inventory.json",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\nif os.path.exists('inventory.json'):\n    os.remove('inventory.json')\nim = InventoryManager()\nim.load_inventory()\nassert os.path.exists('inventory.json'), 'File should be created'\nwith open('inventory.json', 'r') as f:\n    saved = json.load(f)\nassert len(saved) == 3, 'Should save 3 items'\nassert saved[0]['name'] == 'Lemonade', 'Should save Lemonade first'\nos.remove('inventory.json')"
+          }
+        },
+        {
+          "task_id": "3.5",
+          "instruction_theory": "Let's also handle the case where the file exists but contains garbage or corrupted data. If someone accidentally messes up the JSON file (maybe they opened it in Notepad and deleted a bracket), we don't want our program to crash. We catch JSONDecodeError to handle this situation and fall back to defaults.",
+          "coding_requirements": [
+            "Add 'json.JSONDecodeError' to your except clause using a tuple: except (FileNotFoundError, json.JSONDecodeError):",
+            "This makes the same fallback code run for both missing files AND corrupted files",
+            "The rest of the except block stays the same\u2014use defaults and save them"
+          ],
+          "hints": [
+            "Multiple exceptions in one except use parentheses: except (Error1, Error2):",
+            "JSONDecodeError happens when json.load() can't understand the file contents",
+            "You could also write two separate except blocks, but combining them is cleaner here"
+          ],
+          "test_specification": {
+            "expected_state": "Corrupted JSON files trigger the fallback to defaults instead of crashing",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\nwith open('inventory.json', 'w') as f:\n    f.write('this is not valid json {{{')\nim = InventoryManager()\nim.load_inventory()\nassert len(im.inventory) == 3, 'Should fall back to 3 defaults'\nassert im.inventory[0]['name'] == 'Lemonade', 'Should have Lemonade'\nos.remove('inventory.json')"
+          }
+        },
+        {
+          "task_id": "3.6",
+          "instruction_theory": "Finally, let's make sure our InventoryManager automatically loads inventory when it's created. By calling load_inventory() inside __init__, we guarantee that any time someone creates an InventoryManager, it's ready to go with data\u2014either from the file or from defaults. It's like a store that automatically checks its shelves when opening for the day.",
+          "coding_requirements": [
+            "In the __init__ method of InventoryManager, call 'self.load_inventory()' at the end",
+            "This ensures inventory is loaded automatically when creating a new InventoryManager instance",
+            "Remove any manual inventory initialization in __init__ since load_inventory handles it now"
+          ],
+          "hints": [
+            "Put self.load_inventory() as the last line in __init__",
+            "After this change, you can just do 'manager = InventoryManager()' and it's ready to use",
+            "Make sure you don't set self.inventory = [] or similar before calling load_inventory, as load_inventory sets it"
+          ],
+          "test_specification": {
+            "expected_state": "Creating an InventoryManager instance automatically loads inventory without needing to call load_inventory separately",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\nif os.path.exists('inventory.json'):\n    os.remove('inventory.json')\nim = InventoryManager()\nassert hasattr(im, 'inventory'), 'inventory should exist after init'\nassert len(im.inventory) == 3, 'Should auto-load 3 defaults'\nassert im.inventory[1]['name'] == 'Cookies', 'Should have Cookies'\nos.remove('inventory.json')"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Save Inventory Back to JSON",
+      "description": "Create a 'save_inventory' method that writes your current inventory list back to 'inventory.json'. Every time someone buys something, you'll call this method so the stock numbers stay accurate even if you close the program. Think of it like updating your clipboard after each sale so tomorrow's you knows exactly what's left.",
+      "tasks": [
+        {
+          "task_id": "4.1",
+          "instruction_theory": "Before we can save anything, we need to understand how Python writes data to files. Remember how we used 'r' mode to read? Now we'll use 'w' mode (write mode). Here's the cool part: 'w' mode completely replaces whatever was in the file before. It's like erasing your whiteboard and writing fresh info. This is perfect for us because we want to save the CURRENT state of inventory, not add to old data.",
+          "coding_requirements": [
+            "In 'store_manager.py', inside your InventoryManager class, create a new method called 'save_inventory'",
+            "The method should take only 'self' as a parameter (no extra inputs needed)",
+            "Inside the method, open 'inventory.json' using 'with open()' in write mode ('w')"
+          ],
+          "hints": [
+            "Write mode looks like: with open('inventory.json', 'w') as file:",
+            "Make sure this method is indented inside your class, at the same level as load_inventory",
+            "Don't put any code inside the 'with' block yet - we'll do that next"
+          ],
+          "test_specification": {
+            "expected_state": "The InventoryManager class has a save_inventory method that opens inventory.json in write mode",
+            "verification_code": "import ast\nwith open('store_manager.py', 'r') as f:\n    source = f.read()\n    tree = ast.parse(source)\n    class_def = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and node.name == 'InventoryManager'][0]\n    methods = [node.name for node in class_def.body if isinstance(node, ast.FunctionDef)]\n    assert 'save_inventory' in methods, 'save_inventory method not found in InventoryManager'\n    assert \"'w'\" in source or '\"w\"' in source, 'Write mode not found in code'"
+          }
+        },
+        {
+          "task_id": "4.2",
+          "instruction_theory": "Now we need to convert our Python list (self.inventory) back into JSON format and write it to the file. The json.dump() function does exactly this - it takes your Python data and writes it directly to a file as JSON. Think of json.load() as 'JSON to Python' and json.dump() as 'Python to JSON'. They're opposites! The dump() function needs two things: what data to save, and which file to save it to.",
+          "coding_requirements": [
+            "Inside your save_inventory method's 'with' block, use json.dump() to write self.inventory to the file",
+            "Pass self.inventory as the first argument and the file object as the second argument",
+            "Make sure you already have 'import json' at the top of your file from earlier milestones"
+          ],
+          "hints": [
+            "The syntax is: json.dump(data_to_save, file_object)",
+            "Your file object is whatever variable name you used after 'as' in your with statement",
+            "Don't confuse json.dump() with json.dumps() - dump() writes to files, dumps() creates a string"
+          ],
+          "test_specification": {
+            "expected_state": "The save_inventory method uses json.dump to write self.inventory to the file",
+            "verification_code": "with open('store_manager.py', 'r') as f:\n    source = f.read()\n    assert 'json.dump' in source, 'json.dump not found in code'\n    assert 'self.inventory' in source, 'self.inventory not referenced'"
+          }
+        },
+        {
+          "task_id": "4.3",
+          "instruction_theory": "Let's make our saved JSON file look nice and readable! By default, json.dump() squishes everything onto one line, which is hard to read. We can add an 'indent' parameter to make it pretty-print with nice spacing. Setting indent=2 means each nested level gets 2 spaces of indentation. This doesn't change how the data works - it just makes it easier for humans (like you!) to read the file later.",
+          "coding_requirements": [
+            "Modify your json.dump() call to include the parameter indent=2",
+            "This makes the saved JSON file human-readable with proper formatting"
+          ],
+          "hints": [
+            "Add it like this: json.dump(data, file, indent=2)",
+            "You can open inventory.json in a text editor after saving to see the pretty formatting",
+            "This is optional for the program to work, but super helpful for debugging"
+          ],
+          "test_specification": {
+            "expected_state": "The json.dump call includes indent parameter for readable output",
+            "verification_code": "with open('store_manager.py', 'r') as f:\n    source = f.read()\n    assert 'indent' in source, 'indent parameter not found in json.dump call'"
+          }
+        },
+        {
+          "task_id": "4.4",
+          "instruction_theory": "Time to test that your save method actually works! We'll create a simple test: load the inventory, change something, save it, then check if the file updated. This is like checking your work - you wrote something down, now peek at the paper to make sure it's there. We'll manually modify the inventory list, call save_inventory(), then read the file to confirm the changes stuck.",
+          "coding_requirements": [
+            "In a test or at the bottom of store_manager.py (temporarily), create an InventoryManager instance",
+            "Modify one item's quantity in self.inventory (like subtracting 1 from the first item)",
+            "Call the save_inventory() method",
+            "Open and read inventory.json to verify the change was saved"
+          ],
+          "hints": [
+            "You can access the first item like: manager.inventory[0]['quantity'] -= 1",
+            "After saving, you can print the file contents to check: print(open('inventory.json').read())",
+            "Remember to remove test code later or put it inside: if __name__ == '__main__':"
+          ],
+          "test_specification": {
+            "expected_state": "Calling save_inventory writes modified inventory data to inventory.json file",
+            "verification_code": "import json\nimport sys\nsys.path.insert(0, '.')\nfrom store_manager import InventoryManager\nm = InventoryManager()\noriginal_qty = m.inventory[0]['quantity']\nm.inventory[0]['quantity'] = 999\nm.save_inventory()\nwith open('inventory.json', 'r') as f:\n    saved = json.load(f)\nassert saved[0]['quantity'] == 999, 'Save did not persist the change'\nm.inventory[0]['quantity'] = original_qty\nm.save_inventory()"
+          }
+        },
+        {
+          "task_id": "4.5",
+          "instruction_theory": "Now let's create a helper method that does the actual stock deduction AND saves automatically. This is called 'encapsulation' - bundling related actions together. Instead of manually changing quantities and remembering to save every time, we'll make a method called 'deduct_stock' that does both. It's like having a cash register that automatically updates your inventory sheet every time you ring someone up.",
+          "coding_requirements": [
+            "Create a new method in InventoryManager called 'deduct_stock'",
+            "It should accept parameters: self, item_name (string), and quantity (integer)",
+            "The method should find the item in self.inventory by matching the name",
+            "Subtract the quantity from that item's 'quantity' value",
+            "Call self.save_inventory() at the end to persist the change"
+          ],
+          "hints": [
+            "Use a for loop to search through self.inventory for the matching item name",
+            "Compare item['name'] with item_name to find the right one",
+            "Remember: item names might have different capitalization - consider using .lower() for comparison"
+          ],
+          "test_specification": {
+            "expected_state": "deduct_stock method exists, reduces item quantity, and calls save_inventory",
+            "verification_code": "import ast\nwith open('store_manager.py', 'r') as f:\n    source = f.read()\n    tree = ast.parse(source)\n    class_def = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and node.name == 'InventoryManager'][0]\n    methods = [node.name for node in class_def.body if isinstance(node, ast.FunctionDef)]\n    assert 'deduct_stock' in methods, 'deduct_stock method not found'\n    assert 'save_inventory' in source, 'save_inventory should be called in deduct_stock'"
+          }
+        },
+        {
+          "task_id": "4.6",
+          "instruction_theory": "Let's make deduct_stock smarter by having it return True or False to indicate success. This way, the code that calls this method knows if the deduction worked. If the item wasn't found, we return False. If we successfully deducted, we return True. This pattern is super common in programming - methods that 'report back' whether they succeeded. It's like a cashier giving you a thumbs up or thumbs down.",
+          "coding_requirements": [
+            "Modify deduct_stock to return False if the item_name is not found in inventory",
+            "Return True after successfully deducting stock and saving",
+            "Use a flag variable or return statements to handle both cases"
+          ],
+          "hints": [
+            "You can return False right after the for loop if nothing was found",
+            "Or use a 'found' variable that starts as False and becomes True when you find the item",
+            "The return True should come after you've done the deduction and save"
+          ],
+          "test_specification": {
+            "expected_state": "deduct_stock returns True on success and False when item not found",
+            "verification_code": "import sys\nsys.path.insert(0, '.')\nfrom store_manager import InventoryManager\nm = InventoryManager()\nresult_good = m.deduct_stock(m.inventory[0]['name'], 1)\nresult_bad = m.deduct_stock('NonExistentItem12345', 1)\nassert result_good == True, 'Should return True for valid item'\nassert result_bad == False, 'Should return False for invalid item'"
+          }
+        },
+        {
+          "task_id": "4.7",
+          "instruction_theory": "Final step: let's verify the complete save cycle works end-to-end. We'll simulate what happens during a real purchase - deduct some stock, close and reopen the manager (simulating closing the program), and confirm the changes persisted. This proves your save system works like a real database. When you close your lemonade stand for the night and reopen tomorrow, your inventory numbers will be exactly where you left them!",
+          "coding_requirements": [
+            "Create a test that gets an item's current quantity",
+            "Use deduct_stock to remove some amount",
+            "Create a NEW InventoryManager instance (simulating program restart)",
+            "Verify the new instance shows the reduced quantity",
+            "Restore the original quantity for clean testing"
+          ],
+          "hints": [
+            "Creating a new instance forces it to reload from the JSON file",
+            "Compare quantities before and after to make sure the difference matches what you deducted",
+            "Always clean up your test data so future tests start fresh"
+          ],
+          "test_specification": {
+            "expected_state": "Data persists across InventoryManager instances, proving save/load cycle works",
+            "verification_code": "import sys\nsys.path.insert(0, '.')\nfrom store_manager import InventoryManager\nm1 = InventoryManager()\nitem_name = m1.inventory[0]['name']\noriginal = m1.inventory[0]['quantity']\nm1.deduct_stock(item_name, 2)\nm2 = InventoryManager()\nnew_qty = m2.inventory[0]['quantity']\nassert new_qty == original - 2, f'Expected {original - 2}, got {new_qty}'\nm2.inventory[0]['quantity'] = original\nm2.save_inventory()"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Build the Main Menu Loop",
+      "description": "In 'main.py', import your InventoryManager class and create the main while loop that shows the menu: [1. Buy, 2. Manager Report, 3. Exit]. The loop keeps running until someone picks option 3. This is the heartbeat of your app\u2014it's what makes it feel like a real interactive program instead of a script that runs once and quits.",
+      "tasks": [
+        {
+          "task_id": "5.1",
+          "instruction_theory": "When you have code in one Python file and want to use it in another, you use the 'import' statement. Think of it like borrowing a tool from your neighbor's garage\u2014you don't rebuild the tool, you just grab it. Since your InventoryManager class lives in 'store_manager.py', you need to import it into 'main.py' so you can use all its powers (loading inventory, saving data, etc.) without rewriting anything.",
+          "coding_requirements": [
+            "Create a new file called 'main.py' in the same folder as 'store_manager.py'",
+            "At the top of 'main.py', add: from store_manager import InventoryManager",
+            "Create an instance of InventoryManager and store it in a variable called 'manager'"
+          ],
+          "hints": [
+            "Make sure both files are in the exact same folder or Python won't find store_manager",
+            "If you get 'ModuleNotFoundError', double-check your spelling\u2014Python is case-sensitive",
+            "The instance creation looks like: manager = InventoryManager()"
+          ],
+          "test_specification": {
+            "expected_state": "main.py exists, imports InventoryManager from store_manager, and creates an instance called 'manager'",
+            "verification_code": "import ast\nwith open('main.py', 'r') as f:\n    content = f.read()\n    tree = ast.parse(content)\nimport_found = any(isinstance(node, ast.ImportFrom) and node.module == 'store_manager' for node in ast.walk(tree))\nassert import_found, 'Must import from store_manager'\nassert 'manager' in content and 'InventoryManager()' in content, 'Must create manager instance'"
+          }
+        },
+        {
+          "task_id": "5.2",
+          "instruction_theory": "A 'while True' loop is like a store that never closes on its own\u2014it keeps running forever until you explicitly tell it to stop with 'break'. This is perfect for menu-driven programs because you want the menu to keep showing up after each action. Without this loop, your program would show the menu once and immediately quit, which isn't very useful for running a lemonade stand!",
+          "coding_requirements": [
+            "After creating the manager instance, add a 'while True:' loop",
+            "Inside the loop, print an empty line for spacing, then print 'Welcome to the Lemonade Stand!'",
+            "The loop should be the main structure where all menu logic will live"
+          ],
+          "hints": [
+            "Remember to indent everything inside the while loop by 4 spaces",
+            "'while True:' with a capital T\u2014Python booleans are capitalized",
+            "Don't add a break statement yet\u2014we'll do that in a later task"
+          ],
+          "test_specification": {
+            "expected_state": "main.py contains a while True loop with a welcome message printed inside it",
+            "verification_code": "with open('main.py', 'r') as f:\n    content = f.read()\nassert 'while True:' in content, 'Must have while True loop'\nassert 'Welcome to the Lemonade Stand!' in content, 'Must print welcome message'"
+          }
+        },
+        {
+          "task_id": "5.3",
+          "instruction_theory": "A menu is just a list of options printed to the screen. Each option has a number so users can easily pick what they want. Think of it like a restaurant menu\u2014you see the choices, pick a number, and tell the waiter. We print each option on its own line so it's easy to read. Clear formatting makes your program feel professional and user-friendly.",
+          "coding_requirements": [
+            "Inside the while loop, after the welcome message, print the menu options on separate lines",
+            "Print '1. Buy' on one line",
+            "Print '2. Manager Report' on one line",
+            "Print '3. Exit' on one line"
+          ],
+          "hints": [
+            "Each print() statement automatically adds a new line at the end",
+            "Keep the exact text as specified\u2014tests will check for these exact strings",
+            "You can use multiple print() calls or one print with \\n characters"
+          ],
+          "test_specification": {
+            "expected_state": "The menu displays three options: 1. Buy, 2. Manager Report, 3. Exit",
+            "verification_code": "with open('main.py', 'r') as f:\n    content = f.read()\nassert '1. Buy' in content, 'Must show option 1. Buy'\nassert '2. Manager Report' in content, 'Must show option 2. Manager Report'\nassert '3. Exit' in content, 'Must show option 3. Exit'"
+          }
+        },
+        {
+          "task_id": "5.4",
+          "instruction_theory": "The input() function pauses your program and waits for the user to type something. Whatever they type becomes a string that you can store in a variable. It's like asking a customer 'What would you like?' and waiting for their answer. We'll store their choice so we can figure out what to do next based on what number they picked.",
+          "coding_requirements": [
+            "After printing the menu, use input() to ask 'Choose an option: '",
+            "Store the user's response in a variable called 'choice'",
+            "The input prompt must be exactly 'Choose an option: ' (with the space after the colon)"
+          ],
+          "hints": [
+            "input() always returns a string, even if the user types a number",
+            "The space after the colon makes it look nicer when the user types their answer",
+            "Example: choice = input('Choose an option: ')"
+          ],
+          "test_specification": {
+            "expected_state": "Program prompts user with 'Choose an option: ' and stores response in 'choice' variable",
+            "verification_code": "with open('main.py', 'r') as f:\n    content = f.read()\nassert \"input('Choose an option: ')\" in content or 'input(\"Choose an option: \")' in content, 'Must prompt with exact text'\nassert 'choice' in content, 'Must store input in choice variable'"
+          }
+        },
+        {
+          "task_id": "5.5",
+          "instruction_theory": "Conditional statements (if/elif/else) let your program make decisions based on what the user typed. It's like a fork in the road\u2014depending on which path the user picks, different things happen. We check if choice equals '1', '2', or '3' and respond accordingly. For now, we'll just print placeholder messages; the real functionality comes in later milestones.",
+          "coding_requirements": [
+            "Add an if statement that checks if choice equals '1'",
+            "Inside the if block, print 'Buy flow coming soon...' as a placeholder",
+            "Add an elif that checks if choice equals '2'",
+            "Inside the elif block, print 'Manager Report coming soon...' as a placeholder"
+          ],
+          "hints": [
+            "Compare choice to strings like '1', not integers like 1, because input() returns strings",
+            "Use == for comparison, not = (that's for assignment)",
+            "elif is short for 'else if'\u2014it checks another condition if the first was false"
+          ],
+          "test_specification": {
+            "expected_state": "Program has if/elif structure checking for choices '1' and '2' with placeholder messages",
+            "verification_code": "with open('main.py', 'r') as f:\n    content = f.read()\nassert \"choice == '1'\" in content or 'choice == \"1\"' in content, 'Must check for choice 1'\nassert \"choice == '2'\" in content or 'choice == \"2\"' in content, 'Must check for choice 2'\nassert 'Buy flow coming soon' in content, 'Must have placeholder for buy'\nassert 'Manager Report coming soon' in content, 'Must have placeholder for report'"
+          }
+        },
+        {
+          "task_id": "5.6",
+          "instruction_theory": "The 'break' statement is like hitting the emergency stop button\u2014it immediately exits the loop it's inside. When the user picks option 3 (Exit), we want to stop the infinite loop and end the program gracefully. Without break, the while True loop would run forever! We also print a goodbye message so the user knows the program ended on purpose, not because of a crash.",
+          "coding_requirements": [
+            "Add an elif that checks if choice equals '3'",
+            "Inside this elif block, print 'Goodbye! Thanks for visiting the Lemonade Stand!'",
+            "After the print statement, add 'break' to exit the while loop"
+          ],
+          "hints": [
+            "break must be inside the if/elif block for choice '3', not outside it",
+            "After break executes, any code after the while loop will run (if there is any)",
+            "The goodbye message should print before break, so the user sees it"
+          ],
+          "test_specification": {
+            "expected_state": "Selecting option 3 prints a goodbye message and breaks out of the loop, ending the program",
+            "verification_code": "with open('main.py', 'r') as f:\n    content = f.read()\nassert \"choice == '3'\" in content or 'choice == \"3\"' in content, 'Must check for choice 3'\nassert 'Goodbye' in content, 'Must print goodbye message'\nassert 'break' in content, 'Must have break statement to exit loop'"
+          }
+        },
+        {
+          "task_id": "5.7",
+          "instruction_theory": "What happens if the user types '7' or 'banana' instead of 1, 2, or 3? Without handling this, your program would just ignore it and loop back silently, which is confusing. Adding an 'else' clause catches any input that doesn't match our valid options and tells the user to try again. Good programs guide users when they make mistakes instead of leaving them confused.",
+          "coding_requirements": [
+            "Add an else clause after your elif for choice '3'",
+            "Inside the else block, print 'Invalid option. Please choose 1, 2, or 3.'",
+            "This ensures any unrecognized input gets a helpful error message"
+          ],
+          "hints": [
+            "else doesn't need a condition\u2014it catches everything that didn't match the if/elif checks",
+            "This else goes at the same indentation level as your if and elif statements",
+            "The loop will automatically continue after printing the error, showing the menu again"
+          ],
+          "test_specification": {
+            "expected_state": "Invalid menu choices display an error message and the loop continues showing the menu",
+            "verification_code": "with open('main.py', 'r') as f:\n    content = f.read()\nassert 'else:' in content, 'Must have else clause for invalid input'\nassert 'Invalid option' in content or 'Please choose 1, 2, or 3' in content, 'Must show error for invalid choice'"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Create the Buy Flow with Customer Input",
+      "description": "Build the purchase sequence: ask for the customer's name, display all available items with their prices and quantities, then prompt for which item they want and how many. You're creating the 'conversation' between your program and the customer, step by step, just like a real cashier would.",
+      "tasks": [
+        {
+          "task_id": "6.1",
+          "instruction_theory": "When a customer walks up to your lemonade stand, the first thing you do is greet them and ask their name. In code, we use the `input()` function to pause the program and wait for the user to type something. Whatever they type gets stored in a variable so you can use it later\u2014like writing their name on a receipt. This is the starting point of every purchase: knowing WHO is buying.",
+          "coding_requirements": [
+            "In main.py, when user selects option 1 (Buy), prompt with 'Enter your name: '",
+            "Store the user's response in a variable called customer_name",
+            "Print a greeting that includes their name, like 'Welcome, {customer_name}!'"
+          ],
+          "hints": [
+            "Remember that input() always returns a string, so you don't need to convert it",
+            "Use an f-string to easily insert the customer_name into your greeting message",
+            "Make sure this code runs inside your existing menu option 1 block"
+          ],
+          "test_specification": {
+            "expected_state": "When option 1 is selected, the program asks for a name and greets the customer using that name",
+            "verification_code": "import io\nimport sys\nfrom unittest.mock import patch\n\nwith patch('builtins.input', side_effect=['1', 'Alex', '3']):\n    captured = io.StringIO()\n    sys.stdout = captured\n    try:\n        exec(open('main.py').read())\n    except (StopIteration, SystemExit):\n        pass\n    sys.stdout = sys.__stdout__\n    output = captured.getvalue()\n    assert 'Enter your name' in output or 'name' in output.lower()\n    assert 'Alex' in output or 'Welcome' in output"
+          }
+        },
+        {
+          "task_id": "6.2",
+          "instruction_theory": "Now that you know the customer's name, you need to show them what's for sale\u2014like pointing at your menu board. You already have an InventoryManager class that loads items from inventory.json. Now you'll create a method that loops through all items and prints each one nicely formatted. Think of it like reading off your menu: 'Lemonade - $2.50 (10 in stock)'. This helps customers know what they can buy and how much is left.",
+          "coding_requirements": [
+            "In store_manager.py, add a method called display_inventory() to your InventoryManager class",
+            "This method should loop through all items in the inventory",
+            "For each item, print in this format: '{name} - ${price} ({quantity} available)'",
+            "Price should show 2 decimal places (e.g., $2.50 not $2.5)"
+          ],
+          "hints": [
+            "Use a for loop to iterate through your inventory list",
+            "Format the price with f'{price:.2f}' to get exactly 2 decimal places",
+            "If your inventory is stored as a list of dictionaries, access values with item['name'], item['price'], etc."
+          ],
+          "test_specification": {
+            "expected_state": "The InventoryManager class has a display_inventory method that prints all items with name, price (2 decimals), and quantity",
+            "verification_code": "import sys\nsys.path.insert(0, '.')\nfrom store_manager import InventoryManager\nimport io\n\nmgr = InventoryManager()\ncaptured = io.StringIO()\nsys.stdout = captured\nmgr.display_inventory()\nsys.stdout = sys.__stdout__\noutput = captured.getvalue()\nassert '$' in output\nassert 'available' in output.lower() or 'quantity' in output.lower() or 'stock' in output.lower()\nassert '.00' in output or '.50' in output or '.99' in output or '.25' in output"
+          }
+        },
+        {
+          "task_id": "6.3",
+          "instruction_theory": "After greeting the customer and showing the menu, it's time to call that display method from main.py. This is where your two files work together: main.py handles the conversation with the user, and store_manager.py does the heavy lifting behind the scenes. You'll call the display_inventory() method right after the greeting so customers can see their options before ordering.",
+          "coding_requirements": [
+            "In main.py, after greeting the customer, call the display_inventory() method on your InventoryManager instance",
+            "Add a header line before displaying items, like '--- Available Items ---'",
+            "Make sure this happens inside the Buy flow (option 1)"
+          ],
+          "hints": [
+            "You should already have an InventoryManager instance created at the top of main.py or inside the loop",
+            "Call it like: manager.display_inventory() where 'manager' is your instance name",
+            "The header print statement goes right before the method call"
+          ],
+          "test_specification": {
+            "expected_state": "When Buy option is selected, after greeting, the program displays a header and lists all inventory items",
+            "verification_code": "import io\nimport sys\nfrom unittest.mock import patch\n\nwith patch('builtins.input', side_effect=['1', 'TestUser', '3']):\n    captured = io.StringIO()\n    sys.stdout = captured\n    try:\n        exec(open('main.py').read())\n    except (StopIteration, SystemExit):\n        pass\n    sys.stdout = sys.__stdout__\n    output = captured.getvalue()\n    assert 'Available' in output or 'Items' in output or '---' in output\n    assert '$' in output"
+          }
+        },
+        {
+          "task_id": "6.4",
+          "instruction_theory": "Now comes the actual ordering part! Just like a cashier asking 'What would you like?', you'll prompt the customer for the item name they want to buy. The input() function captures their answer as a string. Store this in a variable so you can later check if that item actually exists in your inventory. Keep it simple for now\u2014we'll add validation in the next milestone.",
+          "coding_requirements": [
+            "After displaying inventory, prompt with 'Enter item name: '",
+            "Store the response in a variable called item_name",
+            "The prompt should clearly indicate what input is expected"
+          ],
+          "hints": [
+            "Use input('Enter item name: ') to both display the prompt and capture the response",
+            "Store it in a descriptive variable name like item_name or selected_item",
+            "This should come right after display_inventory() is called"
+          ],
+          "test_specification": {
+            "expected_state": "The program prompts for an item name after displaying the inventory",
+            "verification_code": "import io\nimport sys\nfrom unittest.mock import patch\n\nwith patch('builtins.input', side_effect=['1', 'Alex', 'Lemonade', '3']):\n    captured = io.StringIO()\n    sys.stdout = captured\n    try:\n        exec(open('main.py').read())\n    except (StopIteration, SystemExit):\n        pass\n    sys.stdout = sys.__stdout__\n    output = captured.getvalue().lower()\n    assert 'item' in output or 'name' in output or 'enter' in output"
+          }
+        },
+        {
+          "task_id": "6.5",
+          "instruction_theory": "After knowing WHAT they want, you need to know HOW MANY. This is like asking 'How many lemonades?' at the stand. Here's the tricky part: input() always gives you a string, but quantity needs to be a number so you can do math with it (like calculating totals). You'll use int() to convert the string to an integer. For now, just get the basic input working\u2014we'll handle errors in the next milestone.",
+          "coding_requirements": [
+            "After getting the item name, prompt with 'Enter quantity: '",
+            "Store the response and convert it to an integer using int()",
+            "Store the result in a variable called quantity"
+          ],
+          "hints": [
+            "You can do this in one line: quantity = int(input('Enter quantity: '))",
+            "Or split it into two lines if that's clearer for you",
+            "Remember: int('5') gives you the number 5, not the text '5'"
+          ],
+          "test_specification": {
+            "expected_state": "The program prompts for quantity and converts the input to an integer",
+            "verification_code": "import io\nimport sys\nfrom unittest.mock import patch\n\nwith patch('builtins.input', side_effect=['1', 'Alex', 'Lemonade', '2', '3']):\n    captured = io.StringIO()\n    sys.stdout = captured\n    try:\n        exec(open('main.py').read())\n    except (StopIteration, SystemExit):\n        pass\n    sys.stdout = sys.__stdout__\n    output = captured.getvalue().lower()\n    assert 'quantity' in output or 'how many' in output"
+          }
+        },
+        {
+          "task_id": "6.6",
+          "instruction_theory": "Let's confirm the order back to the customer before processing it. This is like a cashier repeating 'So that's 3 Lemonades, right?' It's good practice to echo back what the user entered so they can catch any mistakes. Print a summary showing the customer name, item they selected, and quantity. This also helps YOU debug\u2014you can see if your variables are storing the right values!",
+          "coding_requirements": [
+            "After collecting all inputs, print a confirmation message",
+            "Include the customer_name, item_name, and quantity in the message",
+            "Format it clearly, like 'Order: {quantity}x {item_name} for {customer_name}'"
+          ],
+          "hints": [
+            "Use an f-string to combine all three variables into one message",
+            "This print statement goes after you've collected both item_name and quantity",
+            "Example format: f'Order: {quantity}x {item_name} for {customer_name}'"
+          ],
+          "test_specification": {
+            "expected_state": "The program displays a confirmation message showing customer name, item, and quantity",
+            "verification_code": "import io\nimport sys\nfrom unittest.mock import patch\n\nwith patch('builtins.input', side_effect=['1', 'Alex', 'Lemonade', '2', '3']):\n    captured = io.StringIO()\n    sys.stdout = captured\n    try:\n        exec(open('main.py').read())\n    except (StopIteration, SystemExit):\n        pass\n    sys.stdout = sys.__stdout__\n    output = captured.getvalue()\n    assert 'Alex' in output\n    assert '2' in output\n    has_order_context = 'order' in output.lower() or 'x' in output or 'Lemonade' in output\n    assert has_order_context"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Add Input Validation and Error Handling",
+      "description": "Make your buy flow bulletproof with three checks: (1) use try/except to catch when someone types 'five' instead of '5' and print 'Error: Invalid Quantity', (2) check if the item name exists or print 'Error: Item not found', (3) verify there's enough stock or print 'Error: Insufficient Stock'. Good programs don't crash when users make mistakes\u2014they guide them to try again.",
+      "tasks": [
+        {
+          "task_id": "7.1",
+          "instruction_theory": "When users type input, they can make mistakes\u2014like typing 'five' instead of '5'. Python's try/except blocks are like safety nets that catch errors before they crash your program. You wrap the risky code (like converting input to an integer) inside 'try:', and if something goes wrong, the code inside 'except:' runs instead of crashing. Think of it like a goalie catching a bad throw\u2014the game keeps going!",
+          "coding_requirements": [
+            "In main.py, wrap the quantity input conversion (int()) inside a try/except block",
+            "When a ValueError is caught (user typed non-numeric input), print exactly: 'Error: Invalid Quantity'",
+            "After printing the error, use 'continue' to restart the input loop so the user can try again"
+          ],
+          "hints": [
+            "The pattern is: try: quantity = int(input(...)) except ValueError: print('Error: Invalid Quantity')",
+            "Make sure your try/except is inside a loop so 'continue' has somewhere to go back to",
+            "Only wrap the int() conversion, not your entire buy flow"
+          ],
+          "test_specification": {
+            "expected_state": "When a non-integer like 'five' or 'abc' is entered for quantity, the program prints 'Error: Invalid Quantity' and does not crash",
+            "verification_code": "import sys\nfrom io import StringIO\nfrom unittest.mock import patch\n\n# Simulate user entering 'five' then '3' for a valid exit\ntest_inputs = ['TestUser', 'Lemonade', 'five', '3']\nwith patch('builtins.input', side_effect=test_inputs + ['3']):\n    try:\n        # Import would run the code, so we check the validation logic exists\n        with open('main.py', 'r') as f:\n            code = f.read()\n        assert 'try:' in code and 'except' in code, 'try/except block not found'\n        assert 'Error: Invalid Quantity' in code, 'Error message not found'\n        print('PASS: try/except validation implemented')\n    except Exception as e:\n        print(f'FAIL: {e}')"
+          }
+        },
+        {
+          "task_id": "7.2",
+          "instruction_theory": "Before processing an order, you need to check if the item actually exists in your inventory. This is like a waiter checking the menu before taking an order\u2014if someone asks for 'Pizza' at your lemonade stand, you need to politely tell them it's not available. You can check if a name exists by searching through your inventory list and comparing item names.",
+          "coding_requirements": [
+            "Create a method in InventoryManager called 'find_item(self, item_name)' that searches for an item by name",
+            "The method should return the item dictionary if found, or None if not found",
+            "Make the search case-insensitive by comparing lowercase versions of both names"
+          ],
+          "hints": [
+            "Loop through self.inventory and check if item['name'].lower() == item_name.lower()",
+            "Return the item immediately when found; return None after the loop if nothing matched",
+            "This method will be useful for both validation AND getting item details later"
+          ],
+          "test_specification": {
+            "expected_state": "InventoryManager has a find_item method that returns the item dict when found or None when not found, with case-insensitive matching",
+            "verification_code": "import sys\nsys.path.insert(0, '.')\nfrom store_manager import InventoryManager\n\nmgr = InventoryManager()\nmgr.inventory = [{'name': 'Lemonade', 'price': 2.50, 'quantity': 10}]\n\nresult1 = mgr.find_item('Lemonade')\nresult2 = mgr.find_item('lemonade')\nresult3 = mgr.find_item('Pizza')\n\nassert result1 is not None, 'Should find Lemonade'\nassert result2 is not None, 'Should find lemonade (case-insensitive)'\nassert result3 is None, 'Should return None for Pizza'\nprint('PASS: find_item method works correctly')"
+          }
+        },
+        {
+          "task_id": "7.3",
+          "instruction_theory": "Now use your new find_item method in the buy flow. After the user enters an item name, check if it exists before doing anything else. If find_item returns None, that means the item doesn't exist in your inventory. This validation should happen BEFORE you even ask about quantity\u2014no point asking how many pizzas they want if you don't sell pizza!",
+          "coding_requirements": [
+            "In main.py, after getting the item name input, call inventory_manager.find_item(item_name)",
+            "If the result is None, print exactly: 'Error: Item not found'",
+            "After printing the error, use 'continue' to let the user try again"
+          ],
+          "hints": [
+            "Store the result: found_item = inventory_manager.find_item(item_name)",
+            "Check with: if found_item is None:",
+            "This check should come before asking for quantity"
+          ],
+          "test_specification": {
+            "expected_state": "When a user enters an item name that doesn't exist in inventory, the program prints 'Error: Item not found' and allows retry",
+            "verification_code": "with open('main.py', 'r') as f:\n    code = f.read()\n\nassert 'find_item' in code, 'find_item method not being called in main.py'\nassert 'Error: Item not found' in code, 'Error message for item not found is missing'\nassert 'None' in code or 'is None' in code, 'Should check if find_item returns None'\nprint('PASS: Item existence validation implemented')"
+          }
+        },
+        {
+          "task_id": "7.4",
+          "instruction_theory": "The final validation checks if you have enough stock to fulfill the order. Even if an item exists, you might only have 3 left when someone wants 10. This is like checking your actual shelf before promising a customer\u2014you don't want to sell what you don't have! Compare the requested quantity against the item's current quantity in inventory.",
+          "coding_requirements": [
+            "After confirming the item exists and getting a valid quantity, check if quantity > found_item['quantity']",
+            "If there's not enough stock, print exactly: 'Error: Insufficient Stock'",
+            "After printing the error, use 'continue' to restart the order process"
+          ],
+          "hints": [
+            "You already have found_item from the previous check, so use found_item['quantity']",
+            "The check is: if requested_quantity > found_item['quantity']:",
+            "This validation comes AFTER the try/except for quantity and AFTER the item exists check"
+          ],
+          "test_specification": {
+            "expected_state": "When a user requests more items than available in stock, the program prints 'Error: Insufficient Stock' and allows retry",
+            "verification_code": "with open('main.py', 'r') as f:\n    code = f.read()\n\nassert 'Error: Insufficient Stock' in code, 'Insufficient stock error message not found'\nassert 'quantity' in code.lower(), 'Should be checking quantity values'\nprint('PASS: Stock validation implemented')"
+          }
+        },
+        {
+          "task_id": "7.5",
+          "instruction_theory": "Good validation means organizing your checks in the right order. Think of it like a bouncer at a club with a checklist: first check the ID format (valid number?), then check if they're on the list (item exists?), then check capacity (enough stock?). Each check acts as a gate\u2014only if you pass all three do you get through to the actual purchase. This order prevents wasted work and gives users the most helpful error message.",
+          "coding_requirements": [
+            "Ensure validations happen in this exact order: (1) try/except for quantity, (2) item existence check, (3) stock availability check",
+            "Only proceed to deduct stock and create the order if ALL three validations pass",
+            "Each validation failure should print its specific error and continue the loop"
+          ],
+          "hints": [
+            "The order matters because you can't check stock on an item that doesn't exist",
+            "Structure: try to get quantity -> check item exists -> check stock -> process order",
+            "Use 'continue' after each error to skip the rest of the loop iteration"
+          ],
+          "test_specification": {
+            "expected_state": "All three validations are implemented in the correct order, and only valid orders proceed to processing",
+            "verification_code": "with open('main.py', 'r') as f:\n    code = f.read()\n\n# Check all three error messages exist\nassert 'Error: Invalid Quantity' in code, 'Missing invalid quantity error'\nassert 'Error: Item not found' in code, 'Missing item not found error'\nassert 'Error: Insufficient Stock' in code, 'Missing insufficient stock error'\n\n# Check try/except exists\nassert 'try:' in code and 'except' in code, 'Missing try/except block'\n\nprint('PASS: All three validations are implemented')"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Process Orders and Generate Receipts",
+      "description": "When a valid purchase happens, deduct the quantity from your InventoryManager, save the updated inventory immediately, and print a nice receipt showing '--- Receipt ---', the items purchased, and 'Total: $X.XX' formatted to exactly two decimal places. This is the satisfying moment where everything comes together.",
+      "tasks": [
+        {
+          "task_id": "8.1",
+          "instruction_theory": "Think of deducting stock like crossing items off a physical inventory sheet. When someone buys 3 cookies, you need to subtract 3 from your cookie count. In code, this means finding the right item in your inventory list and reducing its 'quantity' value. You'll add a method to your InventoryManager class that takes an item name and the amount to subtract, then updates that item's quantity in your internal data.",
+          "coding_requirements": [
+            "Add a method called 'deduct_stock' to your InventoryManager class in store_manager.py",
+            "The method should accept two parameters: item_name (string) and amount (integer)",
+            "Find the matching item in self.inventory by comparing names (case-insensitive)",
+            "Subtract the amount from that item's 'quantity' value",
+            "The method should return True if successful, False if item not found"
+          ],
+          "hints": [
+            "Loop through self.inventory and use .lower() on both the stored name and the input name to compare",
+            "Remember: you're modifying the dictionary inside the list, so changes stick around",
+            "You already validated stock availability in earlier milestones, so you can assume the amount is valid here"
+          ],
+          "test_specification": {
+            "expected_state": "The deduct_stock method exists and correctly reduces an item's quantity when called",
+            "verification_code": "from store_manager import InventoryManager\nimport json\nwith open('inventory.json', 'w') as f:\n    json.dump([{'name': 'Lemonade', 'price': 2.50, 'quantity': 10}], f)\nim = InventoryManager()\nresult = im.deduct_stock('lemonade', 3)\nassert result == True\nassert im.inventory[0]['quantity'] == 7, 'Quantity should be 7 after deducting 3 from 10'"
+          }
+        },
+        {
+          "task_id": "8.2",
+          "instruction_theory": "After deducting stock, you need to save those changes immediately so they don't get lost. Imagine if your lemonade stand notebook got erased every time you closed it\u2014customers could buy the same lemonade twice! By calling your save method right after deducting, you're writing the updated numbers back to inventory.json. This is called 'persisting' data\u2014making sure it sticks around.",
+          "coding_requirements": [
+            "After deduct_stock modifies the quantity, call self.save_inventory() to persist changes",
+            "Ensure save_inventory writes the current self.inventory list to inventory.json",
+            "The save should happen inside the deduct_stock method, right after the quantity is reduced"
+          ],
+          "hints": [
+            "You already built save_inventory in an earlier milestone\u2014just call it with self.save_inventory()",
+            "Put the save call inside the if block where you found and updated the item",
+            "Test by checking inventory.json after running deduct_stock to see if the file changed"
+          ],
+          "test_specification": {
+            "expected_state": "After deduct_stock runs, inventory.json reflects the reduced quantity immediately",
+            "verification_code": "from store_manager import InventoryManager\nimport json\nwith open('inventory.json', 'w') as f:\n    json.dump([{'name': 'Cookies', 'price': 1.50, 'quantity': 20}], f)\nim = InventoryManager()\nim.deduct_stock('Cookies', 5)\nwith open('inventory.json', 'r') as f:\n    saved = json.load(f)\nassert saved[0]['quantity'] == 15, 'inventory.json should show quantity 15 after deducting 5'"
+          }
+        },
+        {
+          "task_id": "8.3",
+          "instruction_theory": "A receipt is like a summary note you hand to a customer after they buy something. It lists what they got and how much they paid. In Python, you'll create a function that takes the purchased items (a list of dictionaries with name, price, quantity) and the total cost, then prints it in a nice format. The key is using formatted strings to make the output look clean and professional.",
+          "coding_requirements": [
+            "Create a function called 'print_receipt' in store_manager.py",
+            "The function accepts two parameters: items (list of dicts) and total (float)",
+            "Each item dict has keys: 'name', 'price', 'quantity'",
+            "First print exactly: '--- Receipt ---'",
+            "For each item, print the name, quantity, and line total (price \u00d7 quantity)"
+          ],
+          "hints": [
+            "Use a for loop to go through each item in the items list",
+            "Calculate line total as item['price'] * item['quantity']",
+            "You can use f-strings like f\"{item['name']} x{item['quantity']}\" for clean output"
+          ],
+          "test_specification": {
+            "expected_state": "print_receipt function exists and prints the receipt header followed by item details",
+            "verification_code": "from store_manager import print_receipt\nimport io\nimport sys\ncaptured = io.StringIO()\nsys.stdout = captured\nprint_receipt([{'name': 'Lemonade', 'price': 2.50, 'quantity': 2}], 5.00)\nsys.stdout = sys.__stdout__\noutput = captured.getvalue()\nassert '--- Receipt ---' in output, 'Receipt must start with --- Receipt ---'\nassert 'Lemonade' in output, 'Receipt must show item name'"
+          }
+        },
+        {
+          "task_id": "8.4",
+          "instruction_theory": "The total line at the bottom of a receipt needs to look professional\u2014always showing exactly two decimal places for the dollar amount. Python's f-string formatting lets you control this precisely. Using :.2f tells Python to format a number as a float with exactly 2 digits after the decimal point. So 5 becomes 5.00, and 12.5 becomes 12.50. This makes your receipt look like it came from a real cash register!",
+          "coding_requirements": [
+            "At the end of print_receipt, print the total in this exact format: 'Total: $X.XX'",
+            "Use f-string formatting with :.2f to ensure exactly two decimal places",
+            "The total should appear on its own line after all items are listed"
+          ],
+          "hints": [
+            "The syntax is f'Total: ${total:.2f}' where total is your float variable",
+            "Test with values like 5, 5.5, and 5.123 to make sure they all show two decimal places",
+            "Make sure there's no extra spaces\u2014match the format exactly"
+          ],
+          "test_specification": {
+            "expected_state": "The receipt ends with Total: $X.XX formatted to exactly two decimal places",
+            "verification_code": "from store_manager import print_receipt\nimport io\nimport sys\ncaptured = io.StringIO()\nsys.stdout = captured\nprint_receipt([{'name': 'Cookies', 'price': 1.50, 'quantity': 3}], 4.5)\nsys.stdout = sys.__stdout__\noutput = captured.getvalue()\nassert 'Total: $4.50' in output, 'Total must be formatted as Total: $4.50 with two decimal places'"
+          }
+        },
+        {
+          "task_id": "8.5",
+          "instruction_theory": "Now it's time to wire everything together in main.py! When a customer completes a valid purchase, you need to: (1) deduct the stock using your InventoryManager, (2) build the order data structure, and (3) print the receipt. Think of this as the checkout counter moment\u2014scanning items, updating the register, and handing over the receipt all happen in sequence.",
+          "coding_requirements": [
+            "In main.py, after validating a purchase, call inventory_manager.deduct_stock(item_name, quantity)",
+            "Build a purchased_items list containing dicts with 'name', 'price', and 'quantity' for each item bought",
+            "Calculate the total_cost by multiplying price \u00d7 quantity for each item and summing them",
+            "Call print_receipt(purchased_items, total_cost) to display the receipt"
+          ],
+          "hints": [
+            "You can get the item's price from your inventory display or by adding a get_price method",
+            "Start with supporting single-item purchases\u2014you can expand to multiple items later",
+            "Store the item info in a dict like {'name': item_name, 'price': price, 'quantity': qty}"
+          ],
+          "test_specification": {
+            "expected_state": "A complete purchase flow deducts stock and prints a properly formatted receipt",
+            "verification_code": "import json\nwith open('inventory.json', 'w') as f:\n    json.dump([{'name': 'Lemonade', 'price': 2.50, 'quantity': 10}], f)\nfrom store_manager import InventoryManager, print_receipt\nim = InventoryManager()\nim.deduct_stock('Lemonade', 2)\nitems = [{'name': 'Lemonade', 'price': 2.50, 'quantity': 2}]\ntotal = 2.50 * 2\nimport io, sys\ncaptured = io.StringIO()\nsys.stdout = captured\nprint_receipt(items, total)\nsys.stdout = sys.__stdout__\noutput = captured.getvalue()\nassert '--- Receipt ---' in output and 'Total: $5.00' in output"
+          }
+        },
+        {
+          "task_id": "8.6",
+          "instruction_theory": "The final piece is saving each completed order to orders.json so you have a record of all sales. This is like keeping a sales ledger for your lemonade stand. Each order should include the customer's name, what they bought, and how much they spent. You'll load existing orders, append the new one, and save the file back\u2014just like adding a new page to your ledger without erasing the old ones.",
+          "coding_requirements": [
+            "Create a function called 'save_order' in store_manager.py",
+            "The function accepts customer_name (str), items (list), and total_cost (float)",
+            "Load existing orders from orders.json (or start with empty list if file doesn't exist)",
+            "Append a new order dict with keys: 'customer_name', 'items', 'total_cost'",
+            "Save the updated orders list back to orders.json"
+          ],
+          "hints": [
+            "Use try/except with FileNotFoundError to handle when orders.json doesn't exist yet",
+            "The order dict structure is {'customer_name': name, 'items': items, 'total_cost': total}",
+            "Remember to open the file in write mode 'w' when saving, not append mode"
+          ],
+          "test_specification": {
+            "expected_state": "save_order creates/updates orders.json with the new order appended to existing orders",
+            "verification_code": "import json\nimport os\nif os.path.exists('orders.json'):\n    os.remove('orders.json')\nfrom store_manager import save_order\nsave_order('Alex', [{'name': 'Lemonade', 'price': 2.50, 'quantity': 2}], 5.00)\nwith open('orders.json', 'r') as f:\n    orders = json.load(f)\nassert len(orders) == 1\nassert orders[0]['customer_name'] == 'Alex'\nassert orders[0]['total_cost'] == 5.00"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Persist Orders to orders.json",
+      "description": "Create logic to append each completed order to 'orders.json' with the customer's name, list of items they bought, and total cost. If the file doesn't exist, start a fresh list. This builds your sales history\u2014essential for the manager report and for understanding your business over time.",
+      "tasks": [
+        {
+          "task_id": "9.1",
+          "instruction_theory": "Before you can save orders, you need a way to load any existing orders from a file. Think of 'orders.json' like a notebook where you've written down all past sales. When you open the store each day, you want to read that notebook first so you know what happened before. If the notebook doesn't exist yet (maybe it's your first day!), you just start with a blank page\u2014an empty list. We'll use the same pattern you learned with inventory: try to open and read the file, and if it doesn't exist, return an empty list instead of crashing.",
+          "coding_requirements": [
+            "In 'store_manager.py', add a method called 'load_orders' to your InventoryManager class",
+            "The method should try to open 'orders.json' and return the list of orders using json.load()",
+            "If the file doesn't exist (FileNotFoundError), return an empty list []",
+            "Store the filename 'orders.json' as a class attribute called 'orders_file' in __init__"
+          ],
+          "hints": [
+            "Use the same try/except pattern you used for loading inventory",
+            "Remember to use 'r' mode when opening a file for reading",
+            "An empty list [] is valid JSON and a perfect starting point for no orders"
+          ],
+          "test_specification": {
+            "expected_state": "The InventoryManager class has a load_orders method that returns a list (empty if file doesn't exist, or populated if it does)",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\n\n# Clean up first\nif os.path.exists('orders.json'):\n    os.remove('orders.json')\n\nmgr = InventoryManager()\norders = mgr.load_orders()\nassert isinstance(orders, list), 'load_orders must return a list'\nassert orders == [], 'Should return empty list when file does not exist'\nassert hasattr(mgr, 'orders_file'), 'Should have orders_file attribute'\nprint('Task 9.1 passed!')"
+          }
+        },
+        {
+          "task_id": "9.2",
+          "instruction_theory": "Now you need a way to save orders back to the file. This is like writing in your sales notebook after each transaction. The key insight here is that you're saving the ENTIRE list of orders each time, not just one order. So the process is: load all existing orders, add the new one to the list, then save the whole list back. This method will take the complete orders list and write it to 'orders.json'. We use 'w' mode which overwrites the file completely\u2014that's okay because we're writing ALL orders, not just new ones.",
+          "coding_requirements": [
+            "Add a method called 'save_orders' to InventoryManager that takes one parameter: 'orders' (a list)",
+            "The method should open 'orders.json' in write mode ('w')",
+            "Use json.dump() to write the orders list to the file",
+            "Add indent=2 to json.dump() for readable formatting"
+          ],
+          "hints": [
+            "The method signature looks like: def save_orders(self, orders):",
+            "Don't forget to close the file or use 'with' statement",
+            "indent=2 makes the JSON file human-readable with nice spacing"
+          ],
+          "test_specification": {
+            "expected_state": "The save_orders method writes a list of orders to orders.json in proper JSON format",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\n\nmgr = InventoryManager()\ntest_orders = [{'customer_name': 'Test', 'items': [], 'total_cost': 0.0}]\nmgr.save_orders(test_orders)\n\nassert os.path.exists('orders.json'), 'orders.json should be created'\nwith open('orders.json', 'r') as f:\n    loaded = json.load(f)\nassert loaded == test_orders, 'Saved orders should match input'\nos.remove('orders.json')\nprint('Task 9.2 passed!')"
+          }
+        },
+        {
+          "task_id": "9.3",
+          "instruction_theory": "Here's where the magic happens! You need a method that handles the full 'append an order' workflow. Think of it like this: you make a sale, and now you need to record it. You open your notebook (load existing orders), write down the new sale at the end (append to list), then close the notebook (save everything back). This method will take the order details, package them into a dictionary with the right structure, add it to the existing orders, and save. The order dictionary needs three things: customer_name, items (what they bought), and total_cost.",
+          "coding_requirements": [
+            "Add a method called 'add_order' to InventoryManager",
+            "It should accept three parameters: customer_name (str), items (list), and total_cost (float)",
+            "Inside, call load_orders() to get existing orders",
+            "Create an order dictionary with keys: 'customer_name', 'items', 'total_cost'",
+            "Append the new order dictionary to the orders list",
+            "Call save_orders() with the updated list"
+          ],
+          "hints": [
+            "The order dict structure: {'customer_name': customer_name, 'items': items, 'total_cost': total_cost}",
+            "Make sure to use self.load_orders() and self.save_orders() since they're methods of the same class",
+            "The items parameter will be a list of dictionaries describing what was purchased"
+          ],
+          "test_specification": {
+            "expected_state": "The add_order method creates a properly structured order and appends it to orders.json",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\n\nif os.path.exists('orders.json'):\n    os.remove('orders.json')\n\nmgr = InventoryManager()\nmgr.add_order('Alex', [{'name': 'Lemonade', 'quantity': 2, 'price': 1.50}], 3.00)\n\nwith open('orders.json', 'r') as f:\n    orders = json.load(f)\nassert len(orders) == 1, 'Should have one order'\nassert orders[0]['customer_name'] == 'Alex', 'Customer name should match'\nassert orders[0]['total_cost'] == 3.00, 'Total cost should match'\nassert 'items' in orders[0], 'Order should have items key'\nos.remove('orders.json')\nprint('Task 9.3 passed!')"
+          }
+        },
+        {
+          "task_id": "9.4",
+          "instruction_theory": "Now let's make sure multiple orders stack up correctly. Your lemonade stand will have many customers throughout the day, and each sale needs to be added to the history without erasing previous ones. This is why we load first, then append, then save\u2014it preserves all the history. Let's verify that calling add_order multiple times builds up a proper sales history, just like pages filling up in your notebook.",
+          "coding_requirements": [
+            "Test that calling add_order multiple times appends each order without losing previous ones",
+            "Each order should maintain its own customer_name, items list, and total_cost",
+            "The orders in the file should appear in the order they were added (first sale first)"
+          ],
+          "hints": [
+            "You don't need to write new code here\u2014just verify your add_order works for multiple calls",
+            "If orders are being overwritten instead of appended, check that you're loading before saving",
+            "The list should grow: 1 order after first call, 2 orders after second call, etc."
+          ],
+          "test_specification": {
+            "expected_state": "Multiple calls to add_order accumulate orders in orders.json without data loss",
+            "verification_code": "import os\nimport json\nfrom store_manager import InventoryManager\n\nif os.path.exists('orders.json'):\n    os.remove('orders.json')\n\nmgr = InventoryManager()\nmgr.add_order('Customer1', [{'name': 'Lemonade', 'quantity': 1}], 1.50)\nmgr.add_order('Customer2', [{'name': 'Cookies', 'quantity': 2}], 2.00)\nmgr.add_order('Customer3', [{'name': 'Lemonade', 'quantity': 3}], 4.50)\n\nwith open('orders.json', 'r') as f:\n    orders = json.load(f)\nassert len(orders) == 3, 'Should have three orders'\nassert orders[0]['customer_name'] == 'Customer1', 'First order preserved'\nassert orders[2]['customer_name'] == 'Customer3', 'Third order is last'\nos.remove('orders.json')\nprint('Task 9.4 passed!')"
+          }
+        },
+        {
+          "task_id": "9.5",
+          "instruction_theory": "Time to connect everything! In your main.py buy flow, after a successful purchase (stock deducted, inventory saved, receipt printed), you need to record this sale in your order history. You already have all the pieces: the customer's name from when you asked them, the items they bought (with name, quantity, and price for each), and the total cost you calculated for the receipt. Now just call your new add_order method to save it all. This is the final step that makes your business data persistent!",
+          "coding_requirements": [
+            "In main.py, after a successful purchase is completed and receipt is printed, call the add_order method",
+            "Pass the customer_name variable you collected at the start of the buy flow",
+            "Pass the items list containing dictionaries with item details (name, quantity, price per item)",
+            "Pass the total_cost that was calculated for the receipt"
+          ],
+          "hints": [
+            "You should already have customer_name stored from Buy Flow Step 1",
+            "The items list format should match what you displayed in the receipt",
+            "Make sure this call happens AFTER you've confirmed the purchase is valid and stock is deducted",
+            "This goes in main.py, not store_manager.py\u2014you're calling the method you already created"
+          ],
+          "test_specification": {
+            "expected_state": "Completing a purchase in the buy flow automatically saves the order to orders.json with correct customer name, items, and total",
+            "verification_code": "import os\nimport json\n\n# This test verifies the integration exists by checking orders.json structure\nif os.path.exists('orders.json'):\n    with open('orders.json', 'r') as f:\n        orders = json.load(f)\n    if len(orders) > 0:\n        order = orders[-1]\n        assert 'customer_name' in order, 'Order must have customer_name'\n        assert 'items' in order, 'Order must have items list'\n        assert 'total_cost' in order, 'Order must have total_cost'\n        assert isinstance(order['items'], list), 'Items must be a list'\n        assert isinstance(order['total_cost'], (int, float)), 'Total must be numeric'\n        print('Task 9.5 passed! Order structure is correct.')\n    else:\n        print('Task 9.5: No orders yet - make a purchase to test!')\nelse:\n    print('Task 9.5: orders.json not found - complete a purchase first!')"
+          }
+        }
+      ]
+    },
+    {
+      "subheading_title": "Build the Manager Report with Sorted Rankings",
+      "description": "For menu option 2, load all orders from 'orders.json' and use Python's sorted() function to rank customers by total_cost in descending order (biggest spenders first). Display a clean list showing each customer's name and how much they spent. This is your 'VIP customer' leaderboard\u2014a real business insight from the data you've been collecting.",
+      "tasks": [
+        {
+          "task_id": "10.1",
+          "instruction_theory": "Before you can rank your customers, you need to grab all the order data from your JSON file. Think of 'orders.json' as your sales logbook\u2014every purchase ever made is written there. You'll create a method in your InventoryManager class that opens this file and reads all the orders into a Python list. If the file doesn't exist yet (maybe no one has bought anything!), you should return an empty list instead of crashing. This is defensive programming\u2014always expect the unexpected.",
+          "coding_requirements": [
+            "Add a method called 'load_orders' to your InventoryManager class in 'store_manager.py'",
+            "The method should open 'orders.json' and return its contents as a Python list",
+            "If the file doesn't exist, return an empty list [] instead of raising an error",
+            "Use a try/except block to handle FileNotFoundError"
+          ],
+          "hints": [
+            "Use json.load() to read the file, not json.loads()\u2014they're different!",
+            "Wrap your file opening in try/except FileNotFoundError to catch missing files",
+            "Remember to use 'with open()' so the file closes automatically"
+          ],
+          "test_specification": {
+            "expected_state": "The InventoryManager class has a load_orders method that returns a list of orders from orders.json, or an empty list if the file doesn't exist",
+            "verification_code": "import os, json\nfrom store_manager import InventoryManager\nim = InventoryManager()\n# Test with no file\nif os.path.exists('orders.json'): os.rename('orders.json', 'orders_backup.json')\nresult = im.load_orders()\nassert isinstance(result, list), 'load_orders must return a list'\nassert result == [], 'Should return empty list when file missing'\n# Restore if backup exists\nif os.path.exists('orders_backup.json'): os.rename('orders_backup.json', 'orders.json')"
+          }
+        },
+        {
+          "task_id": "10.2",
+          "instruction_theory": "Now comes the fun part\u2014sorting! Python's sorted() function is like having a helper who can arrange any list in order. The trick is telling it HOW to sort. Since your orders are dictionaries, you need to specify which key to sort by using the 'key' parameter. Think of it like telling someone 'sort these report cards by grade'\u2014you're specifying what to look at. The 'reverse=True' parameter flips the order so biggest numbers come first (descending order). This gives you your VIP leaderboard with top spenders at the top!",
+          "coding_requirements": [
+            "Add a method called 'get_ranked_orders' to your InventoryManager class",
+            "This method should call load_orders() to get all orders",
+            "Use sorted() with a key parameter to sort by 'total_cost'",
+            "Set reverse=True to get descending order (highest first)",
+            "Return the sorted list"
+          ],
+          "hints": [
+            "The key parameter takes a function\u2014use a lambda like: key=lambda x: x['total_cost']",
+            "Don't forget reverse=True or your lowest spenders will be on top!",
+            "You can test sorting with a simple list first: sorted([3,1,2], reverse=True) gives [3,2,1]"
+          ],
+          "test_specification": {
+            "expected_state": "The get_ranked_orders method returns orders sorted by total_cost in descending order",
+            "verification_code": "import json, os\nfrom store_manager import InventoryManager\ntest_orders = [{'customer_name': 'Alice', 'items': [], 'total_cost': 5.00}, {'customer_name': 'Bob', 'items': [], 'total_cost': 15.00}, {'customer_name': 'Carol', 'items': [], 'total_cost': 10.00}]\nwith open('orders.json', 'w') as f: json.dump(test_orders, f)\nim = InventoryManager()\nranked = im.get_ranked_orders()\nassert ranked[0]['customer_name'] == 'Bob', 'Highest spender should be first'\nassert ranked[1]['customer_name'] == 'Carol', 'Second highest should be second'\nassert ranked[2]['customer_name'] == 'Alice', 'Lowest spender should be last'"
+          }
+        },
+        {
+          "task_id": "10.3",
+          "instruction_theory": "Time to make your report look professional! When displaying the rankings, you want it to be easy to read\u2014like a scoreboard at a game. You'll print a header so users know what they're looking at, then loop through each order and display the customer's name alongside their total spent. Using enumerate() gives you automatic numbering (1st place, 2nd place, etc.), which makes the leaderboard feel official. Format the money to 2 decimal places so $5 shows as $5.00\u2014it looks more polished.",
+          "coding_requirements": [
+            "Add a method called 'display_report' to your InventoryManager class",
+            "Print a header line: '--- Manager Report: Top Customers ---'",
+            "Call get_ranked_orders() to get the sorted list",
+            "Use a for loop with enumerate() to display each customer with their rank number",
+            "Format each line as: '{rank}. {customer_name} - Total: ${total_cost:.2f}'"
+          ],
+          "hints": [
+            "enumerate() starts at 0 by default, so use enumerate(list, 1) to start counting from 1",
+            "The :.2f format specifier gives you exactly 2 decimal places for money",
+            "If the list is empty, you might want to print a message like 'No orders yet!'"
+          ],
+          "test_specification": {
+            "expected_state": "The display_report method prints a formatted leaderboard with ranked customers and their totals",
+            "verification_code": "import json, sys\nfrom io import StringIO\nfrom store_manager import InventoryManager\ntest_orders = [{'customer_name': 'TestUser', 'items': [], 'total_cost': 12.50}]\nwith open('orders.json', 'w') as f: json.dump(test_orders, f)\nim = InventoryManager()\nold_stdout = sys.stdout\nsys.stdout = StringIO()\nim.display_report()\noutput = sys.stdout.getvalue()\nsys.stdout = old_stdout\nassert '--- Manager Report: Top Customers ---' in output, 'Missing header'\nassert 'TestUser' in output, 'Customer name should appear'\nassert '$12.50' in output, 'Total should be formatted with 2 decimals'"
+          }
+        },
+        {
+          "task_id": "10.4",
+          "instruction_theory": "Your InventoryManager now has all the report logic, but it's not connected to your menu yet! In main.py, when the user picks option 2, you need to call the display_report() method. This is the beauty of modular code\u2014all the complex sorting and formatting lives in store_manager.py, and main.py just says 'hey, show me the report.' It keeps your main file clean and easy to read, like a restaurant menu that doesn't include all the recipes.",
+          "coding_requirements": [
+            "In main.py, locate the menu handling code for option 2",
+            "When user selects option 2, call the display_report() method on your InventoryManager instance",
+            "Ensure the report displays and then returns to the main menu (the while loop continues)"
+          ],
+          "hints": [
+            "Make sure you're calling the method on your existing InventoryManager instance, not creating a new one",
+            "The method handles all the printing, so you just need one line to call it",
+            "After displaying, the while loop naturally continues to show the menu again"
+          ],
+          "test_specification": {
+            "expected_state": "Selecting menu option 2 triggers the display_report method and shows the customer rankings",
+            "verification_code": "import subprocess\nimport json\ntest_orders = [{'customer_name': 'VIPCustomer', 'items': [], 'total_cost': 99.99}]\nwith open('orders.json', 'w') as f: json.dump(test_orders, f)\nresult = subprocess.run(['python', 'main.py'], input='2\\n3\\n', capture_output=True, text=True, timeout=5)\nassert 'Manager Report' in result.stdout or 'Top Customers' in result.stdout, 'Report header should display'\nassert 'VIPCustomer' in result.stdout, 'Customer from orders should appear in report'"
+          }
+        },
+        {
+          "task_id": "10.5",
+          "instruction_theory": "Edge cases are situations that might break your code if you don't plan for them. What if no one has bought anything yet? Your report would try to display an empty list, which isn't very helpful. Good programs handle these gracefully\u2014instead of showing nothing or crashing, display a friendly message like 'No orders yet!' This makes your app feel polished and user-friendly, like a store that says 'Sorry, we just opened!' instead of leaving you confused.",
+          "coding_requirements": [
+            "Modify display_report() to check if the orders list is empty",
+            "If empty, print: 'No orders yet!'",
+            "If not empty, display the normal ranked report",
+            "The header should still print regardless"
+          ],
+          "hints": [
+            "Check the length of your list with len() or just use 'if not orders_list:'",
+            "An empty list is 'falsy' in Python, so 'if orders:' is True only when there are orders",
+            "Test this by temporarily renaming or deleting orders.json"
+          ],
+          "test_specification": {
+            "expected_state": "When orders.json is empty or missing, the report displays 'No orders yet!' instead of an empty list",
+            "verification_code": "import json, sys, os\nfrom io import StringIO\nfrom store_manager import InventoryManager\nwith open('orders.json', 'w') as f: json.dump([], f)\nim = InventoryManager()\nold_stdout = sys.stdout\nsys.stdout = StringIO()\nim.display_report()\noutput = sys.stdout.getvalue()\nsys.stdout = old_stdout\nassert 'No orders yet!' in output, 'Should show friendly message for empty orders'"
+          }
+        }
+      ]
+    }
+  ]
+}
