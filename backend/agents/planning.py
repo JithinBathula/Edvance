@@ -90,7 +90,7 @@ class CurriculumPlanner:
     def __init__(
         self,
         client: Optional[OpenAI] = None,
-        model: str = "google/gemini-3-pro-preview",
+        model: str = "anthropic/claude-opus-4.5",
     ) -> None:
         api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")
         if client:
@@ -110,6 +110,12 @@ class CurriculumPlanner:
             return tech_stack
         return ", ".join(tech_stack) if tech_stack else "Not specified"
 
+    @staticmethod
+    def _format_requirements(requirements: Sequence[str] | str) -> str:
+        if isinstance(requirements, str):
+            return requirements.strip()
+        return "\n".join(r.strip() for r in requirements if r and str(r).strip())
+
     def _invoke_llm(
         self,
         messages: List[Dict[str, str]],
@@ -120,15 +126,125 @@ class CurriculumPlanner:
             model=self.model,
             messages=messages,
             temperature=temperature,
-            response_format={"type": "json_object"},
-            extra_body={"reasoning": {"enabled": True}}
+            response_format={"type": "json_object"}
         )
         return response.choices[0].message.content
 
+<<<<<<< ours
+    def _invoke_llm_structured(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        schema_name: str,
+        schema: Dict[str, Any],
+        temperature: float = 0.35,
+    ) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=temperature,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "schema": schema,
+                    "strict": True,
+                },
+            },
+        )
+        if not response or not getattr(response, "choices", None):
+            raise CurriculumGenerationError("LLM returned no choices; check API key and model support for structured outputs.")
+        message = response.choices[0].message
+        # OpenAI SDK surfaces structured outputs on message.parsed when using json_schema
+        if getattr(message, "parsed", None) is not None:
+            return json.dumps(message.parsed)
+        return message.content
+=======
+        return response.choices[0].message.content
+>>>>>>> theirs
+
+    @staticmethod
+    def _outline_schema() -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "project_title": {"type": "string"},
+                "project_brief": {"type": "string"},
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "subheading_title": {"type": "string"},
+                            "description": {"type": "string"},
+                        },
+                        "required": ["subheading_title", "description"],
+                        "additionalProperties": False,
+                    },
+                    "minItems": 1,
+                },
+            },
+            "required": ["project_title", "project_brief", "milestones"],
+            "additionalProperties": False,
+        }
+
+    @staticmethod
+    def _milestone_schema() -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "subheading_title": {"type": "string"},
+                "description": {"type": "string"},
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "task_id": {"type": "string"},
+                            "instruction_theory": {"type": "string"},
+                            "coding_requirements": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "minItems": 1,
+                            },
+                            "hints": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "minItems": 1,
+                            },
+                            "test_specification": {
+                                "type": "object",
+                                "properties": {
+                                    "expected_state": {"type": "string"},
+                                    "verification_code": {"type": "string"},
+                                },
+                                "required": ["expected_state", "verification_code"],
+                                "additionalProperties": False,
+                            },
+                        },
+                        "required": [
+                            "task_id",
+                            "instruction_theory",
+                            "coding_requirements",
+                            "hints",
+                            "test_specification",
+                        ],
+                        "additionalProperties": False,
+                    },
+                    "minItems": 3,
+                    "maxItems": 7,
+                },
+            },
+            "required": ["subheading_title", "description", "tasks"],
+            "additionalProperties": False,
+        }
+
+=======
+>>>>>>> theirs
     def generate_outline(
         self,
         *,
-        requirements: str,
+        requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
         experience_level: str,
     ) -> OutlineProject:
@@ -136,12 +252,13 @@ class CurriculumPlanner:
         Pass 1: Generates the project title, brief, and milestone list.
         """
         tech_stack_text = self._stringify_stack(tech_stack)
+        requirements_text = self._format_requirements(requirements)
         messages = [
             {"role": "system", "content": prompt_bank.outline_system_prompt},
             {
                 "role": "user",
                 "content": prompt_bank.outline_user_prompt.format(
-                    requirements=requirements.strip(),
+                    requirements=requirements_text,
                     tech_stack=tech_stack_text,
                     experience_level=experience_level.strip(),
                 ),
@@ -161,7 +278,7 @@ class CurriculumPlanner:
         *,
         project_title: str,
         project_brief: str,
-        requirements: str,
+        requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
         experience_level: str,
         milestone: OutlineMilestone,
@@ -171,6 +288,7 @@ class CurriculumPlanner:
         Pass 2: Expands a single milestone into detailed TaskItems (3-7 items).
         """
         tech_stack_text = self._stringify_stack(tech_stack)
+        requirements_text = self._format_requirements(requirements)
         messages = [
             {"role": "system", "content": prompt_bank.task_generation_system_prompt},
             {
@@ -178,7 +296,7 @@ class CurriculumPlanner:
                 "content": prompt_bank.task_generation_user_prompt.format(
                     project_title=project_title,
                     project_brief=project_brief,
-                    requirements=requirements.strip(),
+                    requirements=requirements_text,
                     tech_stack=tech_stack_text,
                     experience_level=experience_level.strip(),
                     milestone_position=milestone_position,
@@ -203,7 +321,7 @@ class CurriculumPlanner:
     def generate_curriculum(
         self,
         *,
-        requirements: str,
+        requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
         experience_level: str,
     ) -> ProjectCurriculum:
@@ -241,7 +359,7 @@ class CurriculumPlanner:
     def generate_curriculum_json(
         self,
         *,
-        requirements: str,
+        requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
         experience_level: str,
     ) -> Dict[str, Any]:
