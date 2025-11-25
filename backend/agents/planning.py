@@ -1,95 +1,18 @@
 import os
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
-
+from pydantic import ValidationError
 from ..prompts import planning_prompts as prompt_bank
-
+from ..pydantic_classes.planning import CurriculumGenerationError, Milestone, ProjectCurriculum, OutlineMilestone, OutlineProject
+from ..schemas.planning import OUTLINE_SCHEMA,  MILESTONE_SCHEMA
 load_dotenv()
 
-
-class CurriculumGenerationError(RuntimeError):
-    """Raised when curriculum generation fails or violates the enforced schema."""
-
-
-class TestSpecification(BaseModel):
-    expected_state: str
-    verification_code: str
-
-
-class TaskItem(BaseModel):
-    task_id: str
-    instruction_theory: str
-    coding_requirements: List[str] = Field(default_factory=list)
-    hints: List[str] = Field(default_factory=list)
-    test_specification: TestSpecification
-
-    @field_validator("coding_requirements", "hints")
-    @classmethod
-    def ensure_non_empty(cls, value: List[str], info) -> List[str]:
-        if not value:
-            raise ValueError(f"{info.field_name} must not be empty")
-        return value
-
-
-class Milestone(BaseModel):
-    subheading_title: str
-    description: str
-    tasks: List[TaskItem] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_tasks(self) -> "Milestone":
-        if not 3 <= len(self.tasks) <= 7:
-            raise ValueError("tasks must contain between 3 and 7 TaskItem entries")
-        return self
-
-
-class ProjectCurriculum(BaseModel):
-    project_title: str
-    project_brief: str
-    milestones: List[Milestone] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_milestones(self) -> "ProjectCurriculum":
-        if not self.milestones:
-            raise ValueError("milestones must not be empty")
-        return self
-
-
-class OutlineMilestone(BaseModel):
-    subheading_title: str
-    description: str
-
-
-class OutlineProject(BaseModel):
-    project_title: str
-    project_brief: str
-    milestones: List[OutlineMilestone] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_outline(self) -> "OutlineProject":
-        if not self.milestones:
-            raise ValueError("outline must contain at least one milestone")
-        return self
-
-
 class CurriculumPlanner:
-    """
-    Implements the two-pass curriculum generation pipeline:
-    1) Outline generation (Pass 1).
-    2) Task expansion per milestone (Pass 2).
-    Aggregates everything into a validated ProjectCurriculum object.
-    """
-
-    def __init__(
-        self,
-        model: str = "anthropic/claude-opus-4.5",
-    ) -> None:
+    def __init__(self,model: str = "anthropic/claude-opus-4.5") -> None:
         api_key = os.getenv("OPENROUTER_API_KEY")
-        base_url = "https://openrouter.ai/api/v1"
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
         self.model = model
 
     @staticmethod
@@ -128,77 +51,6 @@ class CurriculumPlanner:
         )
         return response.choices[0].message.content
 
-    @staticmethod
-    def _outline_schema() -> Dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "project_title": {"type": "string"},
-                "project_brief": {"type": "string"},
-                "milestones": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "subheading_title": {"type": "string"},
-                            "description": {"type": "string"},
-                        },
-                        "required": ["subheading_title", "description"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            "required": ["project_title", "project_brief", "milestones"],
-            "additionalProperties": False,
-        }
-
-    @staticmethod
-    def _milestone_schema() -> Dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "subheading_title": {"type": "string"},
-                "description": {"type": "string"},
-                "tasks": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "task_id": {"type": "string"},
-                            "instruction_theory": {"type": "string"},
-                            "coding_requirements": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            },
-                            "hints": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            },
-                            "test_specification": {
-                                "type": "object",
-                                "properties": {
-                                    "expected_state": {"type": "string"},
-                                    "verification_code": {"type": "string"},
-                                },
-                                "required": ["expected_state", "verification_code"],
-                                "additionalProperties": False,
-                            },
-                        },
-                        "required": [
-                            "task_id",
-                            "instruction_theory",
-                            "coding_requirements",
-                            "hints",
-                            "test_specification",
-                        ],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            "required": ["subheading_title", "description", "tasks"],
-            "additionalProperties": False,
-        }
-
     def generate_outline(
         self,
         *,
@@ -224,7 +76,7 @@ class CurriculumPlanner:
         ]
 
         try:
-            content = self._invoke_llm_structured(messages, "outline", self._outline_schema(), temperature=0.25)
+            content = self._invoke_llm_structured(messages, "outline", OUTLINE_SCHEMA, temperature=0.25)
             return OutlineProject.model_validate_json(content)
         except ValidationError as exc:
             raise CurriculumGenerationError(f"Outline validation failed: {exc}") from exc
@@ -265,7 +117,7 @@ class CurriculumPlanner:
         ]
 
         try:
-            content = self._invoke_llm_structured(messages, "tasks", self._milestone_schema(), temperature=0.35)
+            content = self._invoke_llm_structured(messages, "tasks", MILESTONE_SCHEMA, temperature=0.35)
             return Milestone.model_validate_json(content)
         except ValidationError as exc:
             raise CurriculumGenerationError(
