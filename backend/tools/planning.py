@@ -5,13 +5,15 @@ from typing import Dict, Any, List
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .models import TaskItem
+from prompts import planning_prompts as prompt_bank
 
 
-try:
-    from ..prompts import planning_prompts as prompt_bank
-except Exception:
-    from planning.prompts import planning_prompts as prompt_bank
+# Simple TaskItem model definition
+class TaskItem:
+    """Represents a task item in the project plan"""
+    def __init__(self, description: str, status: str = "pending"):
+        self.description = description
+        self.status = status
 
 
 load_dotenv()

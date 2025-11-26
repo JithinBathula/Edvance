@@ -1,17 +1,13 @@
-import { Hono, Context } from "npm:hono";
-import { cors } from "npm:hono/cors";
-import { logger } from "npm:hono/logger";
-// import { openai } from "npm:@ai-sdk/openai@latest";
-// import { streamText, convertToCoreMessages } from "npm:ai@latest";
-// import { openai } from "npm:@ai-sdk/openai@1.0.11";
-// import { streamText, convertToCoreMessages } from "npm:ai@4.0.22";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { Hono, Context } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 import * as kv from "./kv_store.ts";
-// import { openai } from "npm:@ai-sdk/openai@0.0.66";
-import { streamText, convertToCoreMessages } from "npm:ai@3.4.33";
-import { createOpenAI } from "npm:@ai-sdk/openai@1.0.11";
-
-
+import { streamText, convertToCoreMessages } from "ai";
 import { createTools } from "./requirementGatheringAgent.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { z } from "npm:zod@3.23.8";
+import { createOpenAI } from "npm:@ai-sdk/openai@1.0.11";
 
 const app = new Hono();
 

@@ -4,6 +4,7 @@ import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Code2 } from 'lucide-react';
+import React from 'react';
 
 type Props = {
   onLogin: (user: User) => void;

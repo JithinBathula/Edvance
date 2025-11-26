@@ -1,1 +1,5 @@
-"""Backend package root."""
+"""
+Backend package for Edvance Custom Project Chat
+"""
+
+

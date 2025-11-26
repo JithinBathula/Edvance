@@ -5,10 +5,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from openai import OpenAI
 
-try:
-    from ..prompts import requirements_prompts as prompt_bank
-except Exception:
-    from planning.prompts import requirements_prompts as prompt_bank
+from prompts import requirements_prompts as prompt_bank
 
 load_dotenv()
 
@@ -113,7 +110,8 @@ class RequirementTools:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7
+                temperature=0.7,
+                tools=[{"type": "web_search"}]
             )
         except Exception as exc:
             return {

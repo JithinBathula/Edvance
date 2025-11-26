@@ -8,6 +8,7 @@ import { useChat } from '@ai-sdk/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import React from "react";
 
 type Props = {
   user: User;

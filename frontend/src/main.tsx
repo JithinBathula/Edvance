@@ -1,14 +1,15 @@
 import { createRoot } from "react-dom/client";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import App from "./App.tsx";
+import React from "react";
 import { CustomProjectNew } from "./components/CustomProjectNew";
 import "./index.css";
 
-const path = window.location.pathname;
-const normalizedPath =
-  path !== "/" && path.endsWith("/") ? path.slice(0, -1) : path;
-const isCustomProjectRoute = normalizedPath === "/custom-project";
-
 createRoot(document.getElementById("root")!).render(
-  isCustomProjectRoute ? <CustomProjectNew /> : <App />
+  <Router>
+    <Routes>
+      <Route path="/" element={<App />} />
+      <Route path="/custom-project" element={<CustomProjectNew />} />
+    </Routes>
+  </Router>
 );
-  

@@ -1,37 +1,36 @@
 """
-Flask Backend for EdTech Platform - Planning Stage
+Flask Backend for Custom Project Chat - Requirement Gathering
 """
 from flask import Flask
 from flask_cors import CORS
+import os
+from dotenv import load_dotenv
 
-from config import Config
-from routes import planning_bp, register_error_handlers
+from routes import chat_bp
 
+load_dotenv()
 
-def create_app():
-    """Application factory pattern"""
-    app = Flask(__name__)
-    CORS(app)
-    
-    # Configure app
-    app.config['JSON_SORT_KEYS'] = False
-    
-    # Register blueprints
-    app.register_blueprint(planning_bp)
-    
-    # Register error handlers
-    register_error_handlers(app)
-    
-    return app
+app = Flask(__name__)
+CORS(app)
+
+# Register blueprints
+app.register_blueprint(chat_bp)
 
 
-# Create app instance
-app = create_app()
+@app.errorhandler(404)
+def not_found(error):
+    return {'error': 'Not found'}, 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return {'error': 'Internal server error'}, 500
 
 
 if __name__ == '__main__':
-    port = Config.PORT
-    debug = Config.FLASK_DEBUG
-    print(f"Starting EdTech Planning Service on port {port}")
+    port = int(os.getenv('CLIENT_PORT', 8001))
+    debug = os.getenv('FLASK_DEBUG', '1') == '1'
+    print(f"Starting Custom Project Chat Service on port {port}")
     print(f"Debug mode: {debug}")
     app.run(host='0.0.0.0', port=port, debug=debug)
+
