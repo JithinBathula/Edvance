@@ -6,13 +6,7 @@ from openai import OpenAI
 
 from backend.tools.requirement import RequirementTools
 
-try:
-    from ..prompts.requirements_prompts import requirements_agent_prompt
-except Exception:
-    try:
-        from backend.prompts.requirements_prompts import requirements_agent_prompt
-    except Exception:
-        from prompts.requirements_prompts import requirements_agent_prompt
+from backend.prompts.requirements_prompts import requirements_agent_prompt
 
 
 class RequirementsAgent:

@@ -134,15 +134,11 @@ class CurriculumPlanner:
         requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
         experience_level: str,
+        outline: OutlineProject | None = None,
     ) -> ProjectCurriculum:
         """
-        Orchestrates the two-pass pipeline and returns a validated ProjectCurriculum.
+        Orchestrates the project pipeline and returns a validated ProjectCurriculum.
         """
-        outline = self.generate_outline(
-            requirements=requirements,
-            tech_stack=tech_stack,
-            experience_level=experience_level,
-        )
 
         milestones: List[Milestone] = []
         for idx, outline_milestone in enumerate(outline.milestones, start=1):
