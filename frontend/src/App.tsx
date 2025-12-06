@@ -17,6 +17,7 @@ export type OnboardingData = {
 };
 
 export type User = {
+  id : string;
   name: string;
   onboarding: OnboardingData | null;
   createdAt: string;
@@ -110,7 +111,7 @@ export default function App() {
         )}
         {currentScreen === "onboarding" && user && (
           <OnboardingScreen
-            userName={user.name}
+            user={user}
             onComplete={handleOnboardingComplete}
           />
         )}

@@ -1,19 +1,22 @@
 import { useState } from 'react';
-import { OnboardingData } from '../App';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { OnboardingData, User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+// Import the necessary BACKEND_URL constant
+import { BACKEND_URL } from '../utils/constants'; 
 
 type Props = {
-  userName: string;
+  // CORRECTED: Accept the full User object, which contains the unique ID
+  user: User; 
   onComplete: (data: OnboardingData) => void;
 };
 
-export function OnboardingScreen({ userName, onComplete }: Props) {
+// NOTE: Component now uses 'user' from props
+export function OnboardingScreen({ user, onComplete }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<Partial<OnboardingData>>({});
@@ -38,26 +41,38 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
   const handleSubmit = async () => {
     setLoading(true);
 
+    if (!isStepComplete()) {
+        console.error("Attempted submission before all steps were complete.");
+        setLoading(false);
+        return;
+    }
+
     try {
+      // --- REVISED: Call Flask Backend /api/onboarding using BACKEND_URL ---
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(userName)}/onboarding`,
+        `${BACKEND_URL}/onboarding`, // Uses BACKEND_URL and the /onboarding endpoint
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${publicAnonKey}`,
           },
-          body: JSON.stringify(answers),
+          body: JSON.stringify({
+            userId: user.id, // CRUCIAL: Send the user's generated ID
+            onboardingData: answers,
+          }),
         }
       );
 
       const data = await response.json();
       
       if (data.success) {
+        // If the backend confirms success, update frontend state
         onComplete(answers as OnboardingData);
+      } else {
+         console.error('Backend failed to save onboarding data:', data.error || 'Unknown error');
       }
     } catch (err) {
-      console.error('Onboarding error:', err);
+      console.error('Onboarding network error:', err);
     } finally {
       setLoading(false);
     }
@@ -83,7 +98,8 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
       <div className="w-full max-w-2xl">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl">Let's personalize your learning</h1>
+            {/* Use user.name from the user object */}
+            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your learning</h1> 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Sparkles className="w-4 h-4" />
               Step {step} of {totalSteps}
@@ -102,7 +118,8 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
 
               <RadioGroup
                 value={answers.pythonExperience}
-                onValueChange={(value) => setAnswers({ ...answers, pythonExperience: value })}
+                // FIX: Explicitly type 'value' as string
+                onValueChange={(value: string) => setAnswers({ ...answers, pythonExperience: value })}
               >
                 <div className="space-y-3">
                   {['Just starting out', '1-3 months', '3-6 months', '6+ months'].map((option) => (
@@ -130,7 +147,8 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
 
               <RadioGroup
                 value={answers.experienceLevel}
-                onValueChange={(value) => setAnswers({ ...answers, experienceLevel: value })}
+                // FIX: Explicitly type 'value' as string
+                onValueChange={(value: string) => setAnswers({ ...answers, experienceLevel: value })}
               >
                 <div className="space-y-3">
                   {[
@@ -166,7 +184,8 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
 
               <RadioGroup
                 value={answers.goal}
-                onValueChange={(value) => setAnswers({ ...answers, goal: value })}
+                // FIX: Explicitly type 'value' as string
+                onValueChange={(value: string) => setAnswers({ ...answers, goal: value })}
               >
                 <div className="space-y-3">
                   {[
@@ -199,7 +218,8 @@ export function OnboardingScreen({ userName, onComplete }: Props) {
 
               <RadioGroup
                 value={answers.theme}
-                onValueChange={(value) => setAnswers({ ...answers, theme: value })}
+                // FIX: Explicitly type 'value' as string
+                onValueChange={(value: string) => setAnswers({ ...answers, theme: value })}
               >
                 <div className="space-y-3">
                   {[

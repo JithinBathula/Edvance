@@ -1,167 +1,161 @@
 import json
 import os
-from typing import Any, Dict, List
+import re
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import ValidationError
 
-from prompts import requirements_prompts as prompt_bank
+# --- ASSUMED IMPORTS ---
+from prompts import requirements_prompts as prompt_bank 
+from pydantic_classes.chat import WebSearchResult, QualityCheckResult, SuggestionResult
+# -----------------------
 
 load_dotenv()
 
-openrouter = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY")
-)
-
 
 class RequirementTools:
-    """Collection of tools for the planning stage"""
+    """Collection of tools for the planning stage, enforcing Pydantic output schemas."""
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv("OPENROUTER_API_KEY")
+    )
+    
+    # --- UTILITY FUNCTION FOR KEY CONVERSION ---
+    @staticmethod
+    def _to_snake_case(name):
+        """Converts PascalCase or camelCase string to snake_case."""
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+    
+    @staticmethod
+    def _convert_keys_to_snake_case(data: Any) -> Any:
+        """Recursively converts all keys in dictionaries within a data structure to snake_case."""
+        if isinstance(data, dict):
+            return {
+                RequirementTools._to_snake_case(k): RequirementTools._convert_keys_to_snake_case(v)
+                for k, v in data.items()
+            }
+        elif isinstance(data, list):
+            return [RequirementTools._convert_keys_to_snake_case(item) for item in data]
+        else:
+            return data
+    # --- END UTILITY FUNCTION ---
 
     @staticmethod
     def get_tool_definitions() -> List[Dict[str, Any]]:
-        """
-        Returns all tool definitions for LLM function calling for the Requirement Gathering Stage
-        """
-
+        # Tool definitions remain structurally unchanged
         return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": "Analyze the project idea and identify required Python libraries, frameworks, and complexity level. This tool performs comprehensive technology stack analysis.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "project_idea": {
-                                "type": "string",
-                                "description": "The project idea given by the user."
-                            }
-                        },
-                        "required": ["project_idea"]
-                    }
+        {
+            "type": "function",
+            "function": {
+                "name": "web_search",
+                "description": "Analyze the project idea and identify required Python libraries and complexity.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_idea": {"type": "string"}
+                    },
+                    "required": ["project_idea"]
                 }
-            },
-
-            {
-                "type": "function",
-                "function": {
-                    "name": "quality_check",
-                    "description": "Evaluate if the project complexity matches the user's Python skill level. Provides detailed assessment and alternative suggestions if there's a mismatch.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "project_idea": {
-                                "type": "string",
-                                "description": "The project idea given by the user."
-                            },
-                            "libraries": {
-                                "type": "string",
-                                "description": "The complete tech stack analysis output from the web_search tool."
-                            }
-                        },
-                        "required": ["project_idea", "libraries"]
-                    }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "quality_check",
+                "description": "Evaluate if the project matches the user's skill level.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_idea": {"type": "string"},
+                        "libraries": {"type": "string"}
+                    },
+                    "required": ["project_idea", "libraries"]
                 }
-            },
-
-            {
-                "type": "function",
-                "function": {
-                    "name": "suggest_alternative_projects",
-                    "description": "Generate completely new Python project suggestions tailored to the user's skill level and interests. Use this when the user requests new ideas (Option 2).",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "numberOfSuggestions": {
-                                "type": "integer",
-                                "description": "How many project ideas to generate."
-                            },
-                            "avoid_topics": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Topics to avoid when brainstorming projects."
-                            }
-                        },
-                        "required": []
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "suggest_alternative_projects",
+                "description": "Generate new Python project ideas.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "numberOfSuggestions": {"type": "integer"},
+                        "avoid_topics": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        }
                     }
                 }
             }
-        ]
+        }
+    ]
+
 
     @staticmethod
     def web_search(project_idea: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analyze the project idea and identify required Python libraries, frameworks, and complexity level. This tool performs comprehensive technology stack analysis.
-        """
-
         user_skills = user_skills or {}
         system_prompt = prompt_bank.web_search_entry_stage_system_prompt
-        user_prompt = (
-            prompt_bank.web_search_entry_stage_user_prompt
-            .replace("${projectIdea}", project_idea)
-            .replace("${userSkills}", json.dumps(user_skills, indent=2))
+        
+        user_prompt = prompt_bank.web_search_entry_stage_user_prompt.format(
+            projectIdea=project_idea,
+            userSkills=json.dumps(user_skills, indent=2)
         )
 
         try:
-            response = openrouter.chat.completions.create(
-                model="gpt-5-mini",
+            response = RequirementTools.client.chat.completions.create(
+                model="gpt-4o", 
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.7,
-                tools=[{"type": "web_search"}]
+                response_format={"type": "json_object"}
             )
-        except Exception as exc:
+
+            raw_json = json.loads(response.choices[0].message.content)
+            
+            # CRITICAL FIX 1: Convert ALL keys to snake_case before Pydantic validation
+            standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
+
+            validated_output = WebSearchResult(**standardized_json) 
+            
+            return validated_output.model_dump()
+            
+        except (Exception, ValidationError) as exc:
+            print(f"Web Search Tool Error (Pydantic/API): {exc}")
             return {
-                "libraries": "",
-                "complexity": "UNKNOWN",
-                "message": f"Tech stack analysis failed: {exc}",
+                "project_title": project_idea,
+                "required_technologies": [], 
+                "complexity_score": 0.0,     
+                "summary": f"Tech stack analysis failed due to error: {exc}", 
                 "status": "failed"
             }
 
-        text = response.choices[0].message.content
-        complexity = "INTERMEDIATE"
-        lowered_text = text.lower()
-        if "beginner" in lowered_text:
-            complexity = "BEGINNER"
-        if "advanced" in lowered_text:
-            complexity = "ADVANCED"
-
-        return {
-            "libraries": text,
-            "complexity": complexity,
-            "message": "Tech stack analyzed",
-            "status": "complete"
-        }
-
     @staticmethod
     def quality_check(project_idea: str, libraries: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Evaluate if the project complexity matches the user's Python skill level. Provides detailed assessment and alternative suggestions if there's a mismatch.
-        """
-
         user_skills = user_skills or {}
         system_prompt = prompt_bank.quality_check_entry_stage_system_prompt
-        user_prompt = prompt_bank.quality_check_entry_stage_user_prompt
+        
+        theme = user_skills.get("theme", "general programming")
+        completed_projects_str = ", ".join(user_skills.get("completedProjects", []) or []) or "None listed"
 
-        theme = user_skills.get("theme") or "general programming"
-        completed_projects = user_skills.get("completedProjects") or []
-        completed_projects_str = ", ".join(completed_projects) if completed_projects else "None listed"
-
-        full_prompt = (
-            user_prompt
-            .replace("${projectIdea}", project_idea)
-            .replace("${libraries}", str(libraries))
-            .replace("${contextUserSkills.userExperienceLevel}", str(user_skills.get("userExperienceLevel", "beginner")))
-            .replace("${contextUserSkills.pythonExperience}", str(user_skills.get("pythonExperience", "None/Just starting")))
-            .replace("${contextUserSkills.theme || 'general programming'}", str(theme))
-            .replace("${contextUserSkills.completedProjects?.join(', ') || 'None listed'}", completed_projects_str)
+        full_prompt = prompt_bank.quality_check_entry_stage_user_prompt.format(
+            projectIdea=project_idea,
+            libraries=str(libraries),
+            userExperienceLevel=user_skills.get("userExperienceLevel", "beginner"),
+            pythonExperience=user_skills.get("pythonExperience", "None/Just starting"),
+            theme=theme,
+            completedProjects=completed_projects_str
         )
 
         try:
-            response = openrouter.chat.completions.create(
+            response = RequirementTools.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -170,60 +164,89 @@ class RequirementTools:
                 temperature=0.8,
                 response_format={"type": "json_object"}
             )
-            result = json.loads(response.choices[0].message.content)
-        except Exception as exc:
-            result = {"match": "TOO_COMPLEX", "reasoning": f"Parsing failed: {exc}", "alternatives": []}
+            
+            raw_json = json.loads(response.choices[0].message.content)
+            
+            # CRITICAL FIX 2: Convert ALL keys to snake_case before Pydantic validation
+            standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
 
-        needs_decision = result.get("match") != "WELL_MATCHED"
-        return {
-            "match": result.get("match"),
-            "feedback": result.get("reasoning"),
-            "alternatives": result.get("alternatives", []),
-            "action": "choose_option" if needs_decision else "proceed",
-            "status": "complete"
-        }
+            # --- ERROR TOLERANCE FOR QUALITY CHECK ---
+            # Handle LLM returning 'match' (old key) instead of 'action' (new key)
+            if 'match' in standardized_json and 'action' not in standardized_json:
+                standardized_json['action'] = standardized_json.pop('match')
+            
+            # Ensure 'suggested_modifications' is present if LLM omits it
+            if 'suggested_modifications' not in standardized_json:
+                standardized_json['suggested_modifications'] = []
+            # --- END ERROR TOLERANCE ---
+
+
+            validated_output = QualityCheckResult(**standardized_json)
+            
+            final_action = validated_output.action.lower()
+
+            return {
+                **validated_output.model_dump(),
+                "action": final_action,
+                "status": "complete"
+            }
+            
+        except (Exception, ValidationError) as exc:
+            print(f"Quality Check Tool Error (Pydantic/API): {exc}")
+            return {
+                "action": "choose_option", 
+                "reasoning": f"Parsing failed (error: {exc})", 
+                "suggested_modifications": ["Check API connection or try simplifying the idea."],
+                "status": "failed"
+            }
 
     @staticmethod
     def suggest_alternative_projects(
-        numberOfSuggestions: int,
-        avoid_topics,
-        userSkills: Dict[str, Any]
+        numberOfSuggestions: int = 3,
+        avoid_topics: Optional[List[str]] = None,
+        userSkills: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        "Generate completely new Python project suggestions tailored to the user's skill level and interests. Use this when the user requests new ideas (Option 2)."
-
-        system_prompt = prompt_bank.suggest_alternative_projects_system_prompt
-        user_prompt = prompt_bank.suggest_alternative_projects_user_prompt
-
-        num_suggestions = numberOfSuggestions or 3
         userSkills = userSkills or {}
-        completed_projects = userSkills.get("completedProjects") or []
-        completed_projects_str = ", ".join(completed_projects) if completed_projects else "none"
-        if isinstance(avoid_topics, list):
-            avoid_topics_str = ", ".join(avoid_topics) if avoid_topics else "none"
-        else:
-            avoid_topics_str = avoid_topics if avoid_topics else "none"
-        theme = userSkills.get("theme") or "general programming"
+        avoid_topics = avoid_topics or []
+        system_prompt = prompt_bank.suggest_alternative_projects_system_prompt
+        
+        avoid_topics_str = ", ".join(avoid_topics) or "none"
+        completed_projects_str = ", ".join(userSkills.get("completedProjects", []) or []) or "none"
 
-        full_prompt = (
-            user_prompt
-            .replace("${numberOfSuggestions}", str(num_suggestions))
-            .replace("${contextUserSkills.userExperienceLevel}", str(userSkills.get("userExperienceLevel", "beginner")))
-            .replace("${contextUserSkills.pythonExperience}", str(userSkills.get("pythonExperience", "None/Just starting")))
-            .replace("${contextUserSkills.theme || 'general programming'}", str(theme))
-            .replace("${contextUserSkills.completedProjects?.join(', ') || 'none'}", completed_projects_str)
-            .replace("${avoidTopics.length > 0 ? avoidTopics.join(', ') : 'none'}", avoid_topics_str)
+        full_prompt = prompt_bank.suggest_alternative_projects_user_prompt.format(
+            numberOfSuggestions=numberOfSuggestions,
+            userExperienceLevel=userSkills.get("userExperienceLevel", "beginner"),
+            theme=userSkills.get("theme", "general programming"),
+            avoidTopics=avoid_topics_str,
+            completedProjects=completed_projects_str
         )
 
-        response = openrouter.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": full_prompt}
-            ],
-            temperature=0.9
-        )
-        return {
-            "suggestions": response.choices[0].message.content,
-            "message": f"Here are {num_suggestions} tailored project ideas!",
-            "status": "complete"
-        }
+        try:
+            response = RequirementTools.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": full_prompt}
+                ],
+                temperature=0.9,
+                response_format={"type": "json_object"}
+            )
+
+            raw_json = json.loads(response.choices[0].message.content)
+            
+            # CRITICAL FIX 3: Convert ALL keys to snake_case before Pydantic validation
+            standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
+
+            validated_output = SuggestionResult(**standardized_json)
+            
+            return {
+                **validated_output.model_dump(),
+                "status": "complete"
+            }
+
+        except (Exception, ValidationError) as exc:
+            print(f"Suggestion Tool Error (Pydantic/API): {exc}")
+            return {
+                "suggestions": [],
+                "status": "failed"
+            }

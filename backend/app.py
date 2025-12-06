@@ -6,7 +6,7 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 
-from routes import chat_bp
+from routes import chat_bp, user_bp
 
 load_dotenv()
 
@@ -15,6 +15,7 @@ CORS(app)
 
 # Register blueprints
 app.register_blueprint(chat_bp)
+app.register_blueprint(user_bp)
 
 
 @app.errorhandler(404)

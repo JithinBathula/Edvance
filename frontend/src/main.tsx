@@ -1,15 +1,13 @@
 import { createRoot } from "react-dom/client";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// Removed BrowserRouter and Routes/Route as internal navigation is state-driven
 import App from "./App.tsx";
 import React from "react";
-import { CustomProjectNew } from "./components/CustomProjectNew";
 import "./index.css";
+// import { CustomProjectChat } from "./components/CustomProjectChat.tsx"; // Not needed here
 
 createRoot(document.getElementById("root")!).render(
-  <Router>
-    <Routes>
-      <Route path="/" element={<App />} />
-      <Route path="/custom-project" element={<CustomProjectNew />} />
-    </Routes>
-  </Router>
+  <React.StrictMode>
+    {/* App component handles all internal screen rendering and state */}
+    <App />
+  </React.StrictMode>
 );
