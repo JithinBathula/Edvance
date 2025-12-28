@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState, useRef, useEffect } from "react";
 import { ArrowUp, Loader2 } from "lucide-react";
 import React from "react";
+import { BACKEND_URL } from "@/utils/constants";
 
 type Message = {
   role: "user" | "assistant";
@@ -10,8 +11,6 @@ type Message = {
 type Props = {
   onFirstMessage?: (message: string) => void;
 };
-
-const BACKEND_URL = "http://localhost:8001";
 
 export function CustomProjectNew({ onFirstMessage }: Props) {
   const [message, setMessage] = useState("");
@@ -56,7 +55,7 @@ export function CustomProjectNew({ onFirstMessage }: Props) {
       }));
 
       // Make streaming request
-      const response = await fetch(`${BACKEND_URL}/api/chat`, {
+      const response = await fetch(`${BACKEND_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -155,16 +154,14 @@ export function CustomProjectNew({ onFirstMessage }: Props) {
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[85%] md:max-w-[75%] rounded-3xl px-5 py-3.5 border-2 backdrop-blur-xl ${
-                    msg.role === "user"
-                      ? "bg-indigo-600/80 text-black border-indigo-400/50 shadow-lg"
-                      : "bg-white/70 text-gray-800 border-white/60 shadow-lg"
-                  }`}
+                  className={`max-w-[85%] md:max-w-[75%] rounded-3xl px-5 py-3.5 border-2 backdrop-blur-xl ${msg.role === "user"
+                    ? "bg-indigo-600/80 text-black border-indigo-400/50 shadow-lg"
+                    : "bg-white/70 text-gray-800 border-white/60 shadow-lg"
+                    }`}
                   style={{
                     backdropFilter: "blur(20px) saturate(180%)",
                     WebkitBackdropFilter: "blur(20px) saturate(180%)",
@@ -180,7 +177,7 @@ export function CustomProjectNew({ onFirstMessage }: Props) {
             {/* Streaming message */}
             {streamingContent && (
               <div className="flex justify-start">
-                <div 
+                <div
                   className="max-w-[85%] md:max-w-[75%] rounded-3xl px-5 py-3.5 border-2 bg-white/70 text-gray-800 border-white/60 shadow-lg backdrop-blur-xl"
                   style={{
                     backdropFilter: "blur(20px) saturate(180%)",
@@ -198,7 +195,7 @@ export function CustomProjectNew({ onFirstMessage }: Props) {
             {/* Loading indicator */}
             {isLoading && !streamingContent && (
               <div className="flex justify-start">
-                <div 
+                <div
                   className="max-w-[85%] md:max-w-[75%] rounded-3xl px-5 py-3.5 border-2 bg-white/70 text-gray-800 border-white/60 shadow-lg backdrop-blur-xl"
                   style={{
                     backdropFilter: "blur(20px) saturate(180%)",
@@ -260,48 +257,48 @@ export function CustomProjectNew({ onFirstMessage }: Props) {
       <div className="absolute inset-0 pointer-events-none" />
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-[1200px] text-center">
-  <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-4xl md:text-5xl font-semibold text-gray-900 leading-tight mb-12 md:mb-20">
-    <span>Let's build!</span>
-  </div>
+        <div className="w-full max-w-[1200px] text-center">
+          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-4xl md:text-5xl font-semibold text-gray-900 leading-tight mb-12 md:mb-20">
+            <span>Let's build!</span>
+          </div>
 
-  <form
-    onSubmit={handleSubmit}
-    className="mx-auto w-full max-w-5xl mt-16 md:mt-24"  
-  >
-    <div
-      className="w-full rounded-full border border-[#f0ebe3] bg-white/95 backdrop-blur-sm 
+          <form
+            onSubmit={handleSubmit}
+            className="mx-auto w-full max-w-5xl mt-16 md:mt-24"
+          >
+            <div
+              className="w-full rounded-full border border-[#f0ebe3] bg-white/95 backdrop-blur-sm 
                  px-6 md:px-8 py-5 md:py-6 flex items-center gap-4
-                 shadow-xl"   
-      style={{
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15)",
-        minHeight: "120px",
-      }}
-    >
-      <input
-        type="text"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit();
-          }
-        }}
-        placeholder="Type what to build..."
-        className="flex-1 bg-transparent text-left text-gray-700 text-lg md:text-xl placeholder:text-[#666] focus:outline-none"
-        aria-label="Chat prompt"
-      />
-      <button
-        type="submit"
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        aria-label="Send message"
-      >
-        <ArrowUp className="h-5 w-5" />
-      </button>
-    </div>
-  </form>
-</div>
+                 shadow-xl"
+              style={{
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15)",
+                minHeight: "120px",
+              }}
+            >
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                placeholder="Type what to build..."
+                className="flex-1 bg-transparent text-left text-gray-700 text-lg md:text-xl placeholder:text-[#666] focus:outline-none"
+                aria-label="Chat prompt"
+              />
+              <button
+                type="submit"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                aria-label="Send message"
+              >
+                <ArrowUp className="h-5 w-5" />
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
