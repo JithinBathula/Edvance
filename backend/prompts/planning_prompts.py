@@ -19,9 +19,10 @@ USER EXPERIENCE LEVEL:
 {experience_level}
 
 STRUCTURE & CONSTRAINTS:
-- Enforce incremental complexity: start with environment/setup, proceed to core logic, then UX/presentation/refinement.
+- Enforce incremental complexity: start with basic setup, proceed to core logic, then UX/presentation/refinement.
 - Milestones must be non-generic, outcome-focused, and ordered logically (no duplicates).
 - Provide 6-10 milestones unless the scope demands fewer; each should have a crisp description of the intended learning outcome.
+- No need to talk about the environment setup.
 
 RESPONSE FORMAT (JSON ONLY):
 {{
