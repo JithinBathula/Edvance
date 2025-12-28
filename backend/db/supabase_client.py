@@ -373,3 +373,53 @@ def get_user_progress_for_project(user_id: str, project_id: str) -> List[Dict[st
     result = supabase.table("user_progress").select("*").eq("user_id", user_id).in_("task_id", task_ids).execute()
     
     return result.data or []
+
+
+# =============================================================================
+# CODE VERSION OPERATIONS
+# =============================================================================
+
+def save_code_version(user_id: str, task_id: str, code: str) -> Dict[str, Any]:
+    """
+    Save a new code version for a user-task pair.
+    Auto-increments version number.
+    """
+    # Get current max version
+    result = supabase.table("code_versions").select("version_number").eq("user_id", user_id).eq("task_id", task_id).order("version_number", desc=True).limit(1).execute()
+    
+    next_version = 1
+    if result.data:
+        next_version = result.data[0]["version_number"] + 1
+    
+    # Insert new version
+    version_data = {
+        "user_id": user_id,
+        "task_id": task_id,
+        "code": code,
+        "version_number": next_version
+    }
+    
+    result = supabase.table("code_versions").insert(version_data).execute()
+    
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to save code version")
+
+
+def get_latest_code(user_id: str, task_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get the latest saved code for a user-task pair.
+    """
+    result = supabase.table("code_versions").select("*").eq("user_id", user_id).eq("task_id", task_id).order("version_number", desc=True).limit(1).execute()
+    
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all projects for a user with basic info for listing.
+    """
+    result = supabase.table("projects").select("id, title, brief, status, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    return result.data or []

@@ -7,6 +7,7 @@ import { SignupScreen } from "./components/SignupScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { LandingPage } from "./components/LandingPage";
 import { CoursePage } from "./components/CoursePage";
+import { ProjectList } from "./components/ProjectList";
 import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
@@ -195,7 +196,7 @@ export default function App() {
                 <LandingPage
                   user={user!}
                   onStartCourse={() => navigate("/course")}
-                  onStartCustomProject={() => navigate("/custom-project")}
+                  onStartCustomProject={() => navigate("/projects")}
                   onOpenProfile={() => navigate("/profile")}
                   onLogout={handleLogout}
                 />
@@ -211,13 +212,26 @@ export default function App() {
             }
           />
           <Route
+            path="/projects"
+            element={
+              <RequireUser>
+                <ProjectList
+                  user={user!}
+                  onSelectProject={handleProjectReady}
+                  onCreateNew={() => navigate("/custom-project")}
+                  onBack={handleBackToLanding}
+                />
+              </RequireUser>
+            }
+          />
+          <Route
             path="/custom-project"
             element={
               <RequireUser>
                 <CustomProjectChat
                   user={user!}
                   onProjectCreated={handleRequirementsReady}
-                  onBack={handleBackToLanding}
+                  onBack={() => navigate("/projects")}
                 />
               </RequireUser>
             }

@@ -110,6 +110,24 @@ CREATE INDEX IF NOT EXISTS idx_user_progress_task_id ON user_progress(task_id);
 CREATE INDEX IF NOT EXISTS idx_user_progress_status ON user_progress(status);
 
 -- =============================================================================
+-- CODE_VERSIONS TABLE
+-- Stores versioned code snapshots for each user-task pair
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS code_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    version_number INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, task_id, version_number)
+);
+
+-- Indexes for code version queries
+CREATE INDEX IF NOT EXISTS idx_code_versions_user_task ON code_versions(user_id, task_id);
+CREATE INDEX IF NOT EXISTS idx_code_versions_version ON code_versions(user_id, task_id, version_number DESC);
+
+-- =============================================================================
 -- HELPER FUNCTION: Update updated_at timestamp
 -- =============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

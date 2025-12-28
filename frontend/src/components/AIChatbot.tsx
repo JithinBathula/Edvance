@@ -3,7 +3,8 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { MessageCircle, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, AlertTriangle } from 'lucide-react';
+import { BACKEND_URL } from '../utils/constants';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -13,9 +14,23 @@ type Message = {
 type Props = {
   context?: string;
   userProgress?: any;
+  taskId?: string;
+  userCode?: string;
+  taskDescription?: string;
+  testSpec?: {
+    expected_state?: string;
+    verification_code?: string;
+  };
 };
 
-export function AIChatbot({ context, userProgress }: Props) {
+export function AIChatbot({
+  context,
+  userProgress,
+  taskId,
+  userCode,
+  taskDescription,
+  testSpec
+}: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -24,6 +39,7 @@ export function AIChatbot({ context, userProgress }: Props) {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,51 +53,49 @@ export function AIChatbot({ context, userProgress }: Props) {
 
     const userMessage = input.trim();
     setInput('');
+    setError(null);
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
-    // Simulate AI response (in production, this would call an AI API)
-    setTimeout(() => {
-      const response = generateResponse(userMessage, context);
-      setMessages((prev) => [...prev, { role: 'assistant', content: response }]);
+    try {
+      // Call the backend assistant API
+      const response = await fetch(`${BACKEND_URL}/assistant/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: userMessage,
+          task_id: taskId,
+          code: userCode || '',
+          history: messages.slice(-10).map(m => ({
+            role: m.role,
+            content: m.content
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.response) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
+      } else {
+        // Fallback to a helpful message if API fails
+        setError('Failed to get response. Please try again.');
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          content: "I'm having trouble connecting right now. Could you try asking again?"
+        }]);
+      }
+    } catch (err) {
+      console.error('Assistant chat error:', err);
+      setError('Connection error. Please try again.');
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: "I couldn't connect to the server. Please check your connection and try again."
+      }]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  };
-
-  const generateResponse = (question: string, context?: string): string => {
-    const lowerQuestion = question.toLowerCase();
-
-    // Basic responses based on common questions
-    if (lowerQuestion.includes('variable')) {
-      return "Variables are like containers that store data. In Python, you create them by assigning a value: `name = 'John'` or `age = 25`. The variable name goes on the left, and the value on the right. You can then use the variable name to access that value later!";
     }
-
-    if (lowerQuestion.includes('print')) {
-      return "The `print()` function displays output to the console. You can print text in quotes like `print('Hello')` or print variables like `print(age)`. You can also combine them: `print('My name is', name)`. Try it out!";
-    }
-
-    if (lowerQuestion.includes('loop') || lowerQuestion.includes('for')) {
-      return "Loops let you repeat code multiple times. A `for` loop iterates over a sequence:\n```python\nfor i in range(5):\n    print(i)\n```\nThis prints numbers 0 to 4. The `range(5)` creates a sequence of 5 numbers starting from 0.";
-    }
-
-    if (lowerQuestion.includes('if') || lowerQuestion.includes('condition')) {
-      return "An `if` statement lets you execute code only when a condition is true:\n```python\nif age > 18:\n    print('Adult')\nelse:\n    print('Minor')\n```\nThe code checks if age is greater than 18 and runs different code based on the result.";
-    }
-
-    if (lowerQuestion.includes('list')) {
-      return "Lists store multiple items in a single variable. Create them with square brackets: `fruits = ['apple', 'banana', 'orange']`. Access items by index: `fruits[0]` gives 'apple'. You can add items with `append()`: `fruits.append('grape')`.";
-    }
-
-    if (lowerQuestion.includes('error') || lowerQuestion.includes('bug')) {
-      return "Debugging tip: Read error messages carefully - they tell you what went wrong and often where. Common issues include:\n- Typos in variable names\n- Forgetting colons after if/for statements\n- Indentation errors (Python uses spaces/tabs to organize code)\n- Using quotes inconsistently\n\nWhat specific error are you seeing?";
-    }
-
-    if (lowerQuestion.includes('help') || lowerQuestion.includes('stuck')) {
-      return "I'm here to help! Try these strategies:\n1. Break the problem into smaller steps\n2. Print variables to see their values\n3. Check your syntax (colons, parentheses, quotes)\n4. Test small pieces of code separately\n\nTell me more about what you're working on and I can give specific guidance!";
-    }
-
-    // Default response
-    return "That's a great question! " + (context ? `Based on your current lesson, ` : '') + "I can help you understand this better. Could you provide more details about what you're trying to do or what's confusing you?";
   };
 
   return (
@@ -102,9 +116,8 @@ export function AIChatbot({ context, userProgress }: Props) {
             {messages.map((message, i) => (
               <div
                 key={i}
-                className={`flex gap-3 ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
               >
                 {message.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center flex-shrink-0">
@@ -112,11 +125,10 @@ export function AIChatbot({ context, userProgress }: Props) {
                   </div>
                 )}
                 <div
-                  className={`rounded-2xl px-4 py-2 max-w-[80%] ${
-                    message.role === 'user'
+                  className={`rounded-2xl px-4 py-2 max-w-[80%] ${message.role === 'user'
                       ? 'bg-gradient-to-r from-[#7622e5] to-[#b480f8] text-white'
                       : 'bg-gray-100 text-gray-900'
-                  }`}
+                    }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
@@ -143,6 +155,13 @@ export function AIChatbot({ context, userProgress }: Props) {
             )}
           </div>
         </ScrollArea>
+
+        {error && (
+          <div className="flex items-center gap-2 text-orange-600 text-sm px-2 py-1">
+            <AlertTriangle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
 
         <div className="flex gap-2 pt-4 border-t">
           <Input

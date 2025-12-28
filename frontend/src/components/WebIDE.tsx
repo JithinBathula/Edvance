@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Play, RotateCcw, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Loader2, Save } from 'lucide-react';
 
 type Props = {
   initialCode?: string;
   onCodeChange?: (code: string) => void;
+  onSave?: (code: string) => void;
   readOnly?: boolean;
+  saving?: boolean;
 };
 
-export function WebIDE({ initialCode = '', onCodeChange, readOnly = false }: Props) {
+export function WebIDE({ initialCode = '', onCodeChange, onSave, readOnly = false, saving = false }: Props) {
   const [code, setCode] = useState(initialCode);
   const [output, setOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -41,10 +43,10 @@ export function WebIDE({ initialCode = '', onCodeChange, readOnly = false }: Pro
       // Parse and execute code line by line
       for (const line of lines) {
         const trimmed = line.trim();
-        
+
         // Skip comments and empty lines
         if (!trimmed || trimmed.startsWith('#')) continue;
-        
+
         // Handle variable assignments
         const assignMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/);
         if (assignMatch) {
@@ -70,7 +72,7 @@ export function WebIDE({ initialCode = '', onCodeChange, readOnly = false }: Pro
           }
           continue;
         }
-        
+
         // Handle print statements
         if (trimmed.startsWith('print(')) {
           const match = trimmed.match(/print\((.*?)\)/);
@@ -121,7 +123,7 @@ export function WebIDE({ initialCode = '', onCodeChange, readOnly = false }: Pro
       const end = e.currentTarget.selectionEnd;
       const newCode = code.substring(0, start) + '    ' + code.substring(end);
       setCode(newCode);
-      
+
       // Set cursor position after the inserted tab
       setTimeout(() => {
         if (textareaRef.current) {
@@ -147,6 +149,22 @@ export function WebIDE({ initialCode = '', onCodeChange, readOnly = false }: Pro
             <RotateCcw className="w-4 h-4 mr-1" />
             Clear
           </Button>
+          {onSave && (
+            <Button
+              size="sm"
+              onClick={() => onSave(code)}
+              disabled={saving}
+              variant="ghost"
+              className="text-gray-300 hover:text-white hover:bg-gray-700"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-1" />
+              )}
+              Save
+            </Button>
+          )}
           <Button
             size="sm"
             onClick={runCode}
@@ -188,7 +206,7 @@ export function WebIDE({ initialCode = '', onCodeChange, readOnly = false }: Pro
             onKeyDown={handleKeyDown}
             readOnly={readOnly}
             className="w-full h-full pl-16 pr-4 py-4 bg-gray-900 text-gray-100 font-mono text-sm resize-none focus:outline-none leading-6"
-            style={{ 
+            style={{
               tabSize: 4,
               caretColor: '#ffa200',
             }}
