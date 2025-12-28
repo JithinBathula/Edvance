@@ -8,16 +8,18 @@ from dotenv import load_dotenv
 
 from routes import chat_bp, user_bp
 from api.planning import planning_bp
+from auth import auth_bp
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)  # Enable credentials for cookies
 
 # Register blueprints
 app.register_blueprint(chat_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(planning_bp)
+app.register_blueprint(auth_bp)
 
 
 @app.errorhandler(404)

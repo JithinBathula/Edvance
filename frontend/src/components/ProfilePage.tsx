@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { User, OnboardingData } from '../App';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { BACKEND_URL } from '../utils/constants';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -29,20 +29,17 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(user.name)}/onboarding`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify(answers),
-        }
-      );
+      const response = await fetch(`${BACKEND_URL}/onboarding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          onboardingData: answers,
+        }),
+      });
 
       const data = await response.json();
-      
+
       if (data.success) {
         onUpdate(answers);
       }

@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import { User } from "../App";
-import {
-  projectId,
-  publicAnonKey,
-} from "../utils/supabase/info";
+// NOTE: Course progress APIs not yet in Flask backend
 import { WebIDE } from "./WebIDE";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
@@ -252,26 +249,8 @@ export function CoursePage({ user, onBack }: Props) {
   }, [currentLesson]);
 
   useEffect(() => {
-    // Load progress
-    const loadProgress = async () => {
-      try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(user.name)}/course-progress`,
-          {
-            headers: {
-              Authorization: `Bearer ${publicAnonKey}`,
-            },
-          },
-        );
-        const data = await response.json();
-        if (data.progress?.completedLessons) {
-          setCompletedLessons(data.progress.completedLessons);
-        }
-      } catch (err) {
-        console.error("Error loading progress:", err);
-      }
-    };
-    loadProgress();
+    // TODO: Load progress from backend (API not yet implemented)
+    // For now, progress is local only
   }, [user.name]);
 
   const handleCompleteLesson = async () => {
@@ -281,25 +260,8 @@ export function CoursePage({ user, onBack }: Props) {
     ];
     setCompletedLessons(newCompleted);
 
-    // Save progress
-    try {
-      await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/user/${encodeURIComponent(user.name)}/course-progress`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({
-            completedLessons: newCompleted,
-            currentLesson: currentLesson.id,
-          }),
-        },
-      );
-    } catch (err) {
-      console.error("Error saving progress:", err);
-    }
+    // TODO: Save progress to backend (API not yet implemented)
+    // Progress is local only for now
 
     if (currentLessonIndex < lessons.length - 1) {
       setCurrentLessonIndex(currentLessonIndex + 1);
@@ -401,15 +363,14 @@ export function CoursePage({ user, onBack }: Props) {
                       !isLocked && setCurrentLessonIndex(index)
                     }
                     disabled={isLocked}
-                    className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
-                      isCurrent
+                    className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${isCurrent
                         ? "bg-gradient-to-r from-[#7622e5] to-[#b480f8] text-white"
                         : isCompleted
                           ? "bg-white border border-green-200 hover:bg-green-50"
                           : isLocked
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-white border hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm">

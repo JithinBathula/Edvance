@@ -1,16 +1,17 @@
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon } from 'lucide-react';
+import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon, LogOut } from 'lucide-react';
 
 type Props = {
   user: User;
   onStartCourse: () => void;
   onStartCustomProject: () => void;
   onOpenProfile: () => void;
+  onLogout?: () => void;
 };
 
-export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenProfile }: Props) {
+export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenProfile, onLogout }: Props) {
   const getThemeIcon = (theme: string) => {
     switch (theme) {
       case 'chatbot':
@@ -55,6 +56,16 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
               >
                 <UserIcon className="w-5 h-5" />
               </Button>
+              {onLogout && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onLogout}
+                  className="rounded-full text-gray-500 hover:text-red-500"
+                >
+                  <LogOut className="w-5 h-5" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -88,7 +99,7 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <BookOpen className="w-7 h-7 text-white" />
               </div>
-              
+
               <h3 className="text-2xl mb-3">Python Fundamentals Course</h3>
               <p className="text-gray-600 mb-6 flex-1">
                 Master the basics through structured lessons. Each challenge builds toward a complete {user.onboarding?.theme || 'project'} - see your code come to life!
@@ -124,7 +135,7 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Rocket className="w-7 h-7 text-white" />
               </div>
-              
+
               <h3 className="text-2xl mb-3">Generate Custom Project</h3>
               <p className="text-gray-600 mb-6 flex-1">
                 Have an idea? Our AI will design a project tailored to your skill level with step-by-step tasks to bring it to life.

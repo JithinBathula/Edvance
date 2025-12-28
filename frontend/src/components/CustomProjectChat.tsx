@@ -3,12 +3,12 @@ import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import React from "react";
 // Import the backend URL constant
-import { BACKEND_URL } from '../utils/constants'; 
+import { BACKEND_URL } from '../utils/constants';
 
 interface ChatMessage {
   id: string;
@@ -47,41 +47,28 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   // 2. Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, isReadyToProceed]);
+  }, [messages, isLoading]);
 
-  // 3. Hand-off Logic
-  const handleHandOff = useCallback(async () => {
-    const sessionId = getSessionId(user);
-    const baseUrl = BACKEND_URL || 'http://localhost:8001/api';
-    
-    try {
-      const response = await fetch(`${baseUrl}/custom/requirements/${sessionId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to retrieve final requirements: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.status === 'success' && data.requirements) {
+  // 3. Auto-proceed when handoff is detected
+  useEffect(() => {
+    if (isReadyToProceed) {
+      // Small delay for UX - let user see the final message
+      const timer = setTimeout(() => {
+        const userMessages = messages.filter(m => m.role === 'user');
+        const projectIdea = userMessages[0]?.content || 'Custom Project';
+
         toast.success("Requirements finalized. Preparing project plan!");
-        
-        onProjectCreated({
-            title: data.requirements.project_idea || "Custom Project", 
-            idea: data.requirements.project_idea,
-            techStack: data.requirements.tech_stack, 
-            complexity: data.requirements.complexity_check?.complexity, 
-            userContext: { name: user.name }
-        }); 
-      } else {
-         toast.error("Could not retrieve structured requirements. Please check backend session.");
-      }
-    } catch (error) {
-      console.error("Hand-off Error:", error);
-      toast.error("Failed to finalize project data. Check network.");
-    }
 
-  }, [onProjectCreated, user]);
+        onProjectCreated({
+          title: projectIdea.slice(0, 50),
+          idea: projectIdea,
+          techStack: ['Python'],
+          experienceLevel: user.onboarding?.experienceLevel || 'beginner',
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isReadyToProceed, messages, onProjectCreated, user]);
 
 
   // 4. Handle Sending Messages
@@ -102,19 +89,18 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     const history = messages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }));
-    
+
     // Add user message
     setMessages(prev => [...prev, newUserMessage]);
-    
+
     // Add placeholder assistant message immediately
     const assistantId = Date.now().toString() + '-assistant';
     setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
 
-    let fullContent = ""; 
+    let fullContent = "";
 
     try {
-      const baseUrl = BACKEND_URL || 'http://localhost:8001/api';
-      const response = await fetch(`${baseUrl}/chat`, { 
+      const response = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,62 +127,70 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
-        
+
         for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                try {
-                    const dataString = line.substring(6);
-                    const data = JSON.parse(dataString);
+          if (line.startsWith('data: ')) {
+            try {
+              const dataString = line.substring(6);
+              const data = JSON.parse(dataString);
 
-                    setMessages(prev => {
-                        const newMessages = [...prev];
-                        const lastIndex = newMessages.length - 1;
-                        // Create a shallow copy to prevent Strict Mode double-render duplication
-                        const lastMessage = { ...newMessages[lastIndex] };
-                        
-                        if (lastMessage.id === assistantId) {
-                           if (data.content) {
-                               lastMessage.content += data.content;
-                                fullContent += data.content; // ← THIS LINE WAS ADDED
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastIndex = newMessages.length - 1;
+                // Create a shallow copy to prevent Strict Mode double-render duplication
+                const lastMessage = { ...newMessages[lastIndex] };
 
-                               
-                               // Check for completion signal in real-time as content arrives
-                              if (fullContent.toLowerCase().includes('hand you over to the planning phase')) {
-                                  console.log('🎯 Handoff phrase detected!');
-                                  setIsReadyToProceed(true);
-                              }
-                          }
-                           
-                           if (data.done) {
-                               streamFinished = true;
-                           }
-                           
-                           // Update array with the modified copy
-                           newMessages[lastIndex] = lastMessage;
-                        }
-                        return newMessages;
-                    });
-                } catch (e) {
-                    console.error("Failed to parse JSON chunk:", e, line);
+                if (lastMessage.id === assistantId) {
+                  if (data.content) {
+                    lastMessage.content += data.content;
+                    fullContent += data.content;
+
+                    // Check for completion signal - multiple variations
+                    const lowerContent = fullContent.toLowerCase();
+                    const handoffPhrases = [
+                      'hand you over to the planning',
+                      'proceed to the planning phase',
+                      'ready to proceed',
+                      'move to the planning',
+                      'planning phase',
+                    ];
+
+                    if (!isReadyToProceed && handoffPhrases.some(phrase => lowerContent.includes(phrase))) {
+                      console.log('🎯 Handoff phrase detected! Content:', fullContent.slice(-100));
+                      setIsReadyToProceed(true);
+                    }
+                  }
+
+                  if (data.done) {
+                    streamFinished = true;
+                  }
+
+                  // Update array with the modified copy
+                  newMessages[lastIndex] = lastMessage;
                 }
+                return newMessages;
+              });
+            } catch (e) {
+              console.error("Failed to parse JSON chunk:", e, line);
             }
+          }
         }
       }
-      
+
 
     } catch (error) {
       console.error("Chat streaming error:", error);
       toast.error("Connection failed. Please ensure the Flask backend is running on port 8001.");
       setMessages(prev => {
-          const newMessages = [...prev];
-          const lastIndex = newMessages.length - 1;
-          const lastMessage = { ...newMessages[lastIndex] };
-          
-          if (lastMessage.id === assistantId) {
-            lastMessage.content = (lastMessage.content || "") + "\n\n**Error:** I encountered a backend error. Please try again.";
-            newMessages[lastIndex] = lastMessage;
-          }
-          return newMessages;
+        const newMessages = [...prev];
+        const lastIndex = newMessages.length - 1;
+        const lastMessage = { ...newMessages[lastIndex] };
+
+        if (lastMessage.id === assistantId) {
+          lastMessage.content = (lastMessage.content || "") + "\n\n**Error:** I encountered a backend error. Please try again.";
+          newMessages[lastIndex] = lastMessage;
+        }
+        return newMessages;
       });
     } finally {
       setIsLoading(false);
@@ -211,14 +205,14 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   };
 
   // Logic updated for loading state
-  const isThinking = isLoading && 
-    messages.length > 0 && 
-    messages[messages.length - 1].role === 'assistant' && 
+  const isThinking = isLoading &&
+    messages.length > 0 &&
+    messages[messages.length - 1].role === 'assistant' &&
     messages[messages.length - 1].content === '';
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">
-      
+
       {/* Header */}
       <header className="border-b bg-white px-4 py-3 flex items-center gap-4 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
@@ -246,57 +240,55 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
               return (
                 <div
                   key={i}
-                  className={`flex gap-4 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  } ${message.role === 'tool' ? 'hidden' : ''}`}
+                  className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'
+                    } ${message.role === 'tool' ? 'hidden' : ''}`}
                 >
                   {message.role === 'assistant' && (
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center flex-shrink-0">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
                   )}
-                  
+
                   <div className={`flex flex-col gap-2 max-w-[80%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
                     {/* Message Card */}
                     {message.content && (
                       <Card
-                        className={`p-4 ${
-                          message.role === 'user'
-                            ? 'bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white border-0'
-                            : 'bg-white'
-                        }`}
+                        className={`p-4 ${message.role === 'user'
+                          ? 'bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white border-0'
+                          : 'bg-white'
+                          }`}
                       >
                         <div className={`${message.role === 'assistant' ? "text-gray-800 prose prose-sm max-w-none" : ""}`}>
                           <ReactMarkdown
                             components={{
                               // Paragraphs with proper spacing
-                              p: ({children}) => <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>,
-                              
+                              p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>,
+
                               // Unordered lists with bullets
-                              ul: ({children}) => (
+                              ul: ({ children }) => (
                                 <ul className="list-disc pl-6 mb-4 space-y-2 marker:text-gray-600">
                                   {children}
                                 </ul>
                               ),
-                              
+
                               // Ordered lists with numbers
-                              ol: ({children}) => (
+                              ol: ({ children }) => (
                                 <ol className="list-decimal pl-6 mb-4 space-y-2 marker:text-gray-600">
                                   {children}
                                 </ol>
                               ),
-                              
+
                               // List items
-                              li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                              
+                              li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+
                               // Bold text
-                              strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                              
+                              strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+
                               // Italic text
-                              em: ({children}) => <em className="italic">{children}</em>,
-                              
+                              em: ({ children }) => <em className="italic">{children}</em>,
+
                               // Code blocks
-                              code: ({inline, children}: any) => 
+                              code: ({ inline, children }: any) =>
                                 inline ? (
                                   <code className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono">
                                     {children}
@@ -306,14 +298,14 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                                     {children}
                                   </code>
                                 ),
-                              
+
                               // Headings
-                              h1: ({children}) => <h1 className="text-2xl font-bold mb-3 mt-4">{children}</h1>,
-                              h2: ({children}) => <h2 className="text-xl font-bold mb-3 mt-4">{children}</h2>,
-                              h3: ({children}) => <h3 className="text-lg font-semibold mb-2 mt-3">{children}</h3>,
-                              
+                              h1: ({ children }) => <h1 className="text-2xl font-bold mb-3 mt-4">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-xl font-bold mb-3 mt-4">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-lg font-semibold mb-2 mt-3">{children}</h3>,
+
                               // Blockquotes
-                              blockquote: ({children}) => (
+                              blockquote: ({ children }) => (
                                 <blockquote className="border-l-4 border-purple-500 pl-4 italic my-4 text-gray-700">
                                   {children}
                                 </blockquote>
@@ -354,12 +346,12 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                 </Card>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
         </div>
       </div>
-      
+
       <div className="border-t bg-white/95 backdrop-blur-sm p-4 flex-shrink-0">
         <div className="flex gap-3 items-end max-w-4xl mx-auto">
           {/* Render Textarea OR Proceed Button */}
@@ -383,15 +375,11 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
               </Button>
             </>
           ) : (
-            <div className="w-full flex flex-col items-center gap-2 p-2">
-                <p className="text-gray-600 mb-2">Great! The agent has gathered enough information.</p>
-                <Button 
-                    onClick={handleHandOff}
-                    className="w-full max-w-md bg-green-600 hover:bg-green-700 text-black h-12 text-lg"
-                >
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    Proceed to Project Plan
-                </Button>
+            <div className="w-full flex flex-col items-center gap-2 p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 border-2 border-[#7622e5] border-t-transparent rounded-full animate-spin" />
+                <p className="text-gray-600">Preparing your project plan...</p>
+              </div>
             </div>
           )}
         </div>

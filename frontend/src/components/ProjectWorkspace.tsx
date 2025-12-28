@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import { User } from "../App";
-import {
-  projectId,
-  publicAnonKey,
-} from "../utils/supabase/info";
+// NOTE: Project progress APIs not yet in Flask backend
 import { WebIDE } from "./WebIDE";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
@@ -70,24 +67,8 @@ export function ProjectWorkspace({
     const newCompleted = [...completedTasks, currentTask.id];
     setCompletedTasks(newCompleted);
 
-    // Save progress
-    try {
-      await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/project/${project.id}/progress`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({
-            completedTasks: newCompleted,
-          }),
-        },
-      );
-    } catch (err) {
-      console.error("Error saving progress:", err);
-    }
+    // TODO: Save progress to backend (API not yet implemented)
+    // Progress is local only for now
 
     if (currentTaskIndex < tasks.length - 1) {
       setCurrentTaskIndex(currentTaskIndex + 1);
@@ -98,27 +79,9 @@ export function ProjectWorkspace({
   };
 
   const handleProjectComplete = async () => {
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/project/${project.id}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({ userName: user.name }),
-        },
-      );
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShowCompletion(true);
-      }
-    } catch (err) {
-      console.error("Error completing project:", err);
-    }
+    // TODO: Mark project complete in backend (API not yet implemented)
+    // For now, just show completion screen
+    setShowCompletion(true);
   };
 
   if (showCompletion) {
@@ -221,15 +184,14 @@ export function ProjectWorkspace({
                       !isLocked && setCurrentTaskIndex(index)
                     }
                     disabled={isLocked}
-                    className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
-                      isCurrent
+                    className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${isCurrent
                         ? "bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white"
                         : isCompleted
                           ? "bg-white border border-green-200 hover:bg-green-50"
                           : isLocked
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"
                             : "bg-white border hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm">

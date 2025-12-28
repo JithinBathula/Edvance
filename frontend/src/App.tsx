@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
 import { LoginScreen } from "./components/LoginScreen";
+import { SignupScreen } from "./components/SignupScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { LandingPage } from "./components/LandingPage";
 import { CoursePage } from "./components/CoursePage";
 import { CustomProjectChat } from "./components/CustomProjectChat";
+import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { ProfilePage } from "./components/ProfilePage";
+import { BACKEND_URL } from "./utils/constants";
 
 export type OnboardingData = {
   pythonExperience: string;
@@ -20,6 +23,7 @@ export type OnboardingData = {
 export type User = {
   id: string;
   name: string;
+  email?: string;
   onboarding: OnboardingData | null;
   createdAt: string;
   xp: number;
@@ -30,7 +34,37 @@ export type User = {
 export default function App() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [projectRequirements, setProjectRequirements] = useState<any>(null);
   const [currentProject, setCurrentProject] = useState<any>(null);
+
+  // Check for existing session on app load
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/auth/me`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.success && data.user) {
+          setUser(data.user);
+          // Navigate based on onboarding status
+          if (data.user.onboarding) {
+            navigate("/dashboard", { replace: true });
+          } else {
+            navigate("/onboarding", { replace: true });
+          }
+        }
+      } catch (err) {
+        console.log("No existing session");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+  }, []);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
@@ -41,6 +75,24 @@ export default function App() {
     }
   };
 
+  const handleSignup = (userData: User) => {
+    setUser(userData);
+    navigate("/onboarding");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    setUser(null);
+    navigate("/");
+  };
+
   const handleOnboardingComplete = (onboardingData: OnboardingData) => {
     if (user) {
       setUser({ ...user, onboarding: onboardingData });
@@ -48,21 +100,25 @@ export default function App() {
     navigate("/dashboard");
   };
 
-  const handleProjectCreated = (data: any) => {
-    console.log("📦 Data received from Chat:", data);
-    if (data.tasks && Array.isArray(data.tasks)) {
-      setCurrentProject(data);
-      navigate("/project");
-    } else {
-      toast.success("Requirements gathered successfully!", {
-        description: "Project planning module coming soon.",
-      });
-      navigate("/dashboard");
-    }
+  const handleRequirementsReady = (data: any) => {
+    console.log("📋 Requirements ready:", data);
+    setProjectRequirements({
+      idea: data.idea || data.title,
+      techStack: data.techStack || ['Python'],
+      experienceLevel: user?.onboarding?.experienceLevel || 'beginner',
+    });
+    navigate("/project-planning");
+  };
+
+  const handleProjectReady = (project: any) => {
+    console.log("📦 Project ready:", project);
+    setCurrentProject(project);
+    navigate("/project");
   };
 
   const handleBackToLanding = () => {
     setCurrentProject(null);
+    setProjectRequirements(null);
     navigate("/dashboard");
   };
 
@@ -73,17 +129,57 @@ export default function App() {
     navigate("/dashboard");
   };
 
-  // Protected route wrapper
   const RequireUser = ({ children }: { children: React.ReactNode }) => {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-[#7622e5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
     if (!user) return <Navigate to="/" replace />;
     return <>{children}</>;
   };
+
+  // Show loading spinner while checking session
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#7622e5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="min-h-screen bg-white">
         <Routes>
-          <Route path="/" element={<LoginScreen onLogin={handleLogin} />} />
+          <Route
+            path="/"
+            element={
+              user ? (
+                <Navigate to={user.onboarding ? "/dashboard" : "/onboarding"} replace />
+              ) : (
+                <LoginScreen onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />
+              )
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              user ? (
+                <Navigate to="/onboarding" replace />
+              ) : (
+                <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/")} />
+              )
+            }
+          />
           <Route
             path="/onboarding"
             element={
@@ -101,6 +197,7 @@ export default function App() {
                   onStartCourse={() => navigate("/course")}
                   onStartCustomProject={() => navigate("/custom-project")}
                   onOpenProfile={() => navigate("/profile")}
+                  onLogout={handleLogout}
                 />
               </RequireUser>
             }
@@ -119,9 +216,26 @@ export default function App() {
               <RequireUser>
                 <CustomProjectChat
                   user={user!}
-                  onProjectCreated={handleProjectCreated}
+                  onProjectCreated={handleRequirementsReady}
                   onBack={handleBackToLanding}
                 />
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/project-planning"
+            element={
+              <RequireUser>
+                {projectRequirements ? (
+                  <ProjectPlanning
+                    user={user!}
+                    requirements={projectRequirements}
+                    onProjectReady={handleProjectReady}
+                    onBack={() => navigate("/custom-project")}
+                  />
+                ) : (
+                  <Navigate to="/custom-project" replace />
+                )}
               </RequireUser>
             }
           />

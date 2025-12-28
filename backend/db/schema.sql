@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     email TEXT UNIQUE,
+    password_hash TEXT,
     onboarding JSONB DEFAULT NULL,
     xp INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
