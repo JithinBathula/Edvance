@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
 import { LoginScreen } from "./components/LoginScreen";
@@ -17,7 +18,7 @@ export type OnboardingData = {
 };
 
 export type User = {
-  id : string;
+  id: string;
   name: string;
   onboarding: OnboardingData | null;
   createdAt: string;
@@ -26,133 +27,131 @@ export type User = {
   projects?: string[];
 };
 
-export type Screen =
-  | "login"
-  | "onboarding"
-  | "landing"
-  | "course"
-  | "customProjectChat"
-  | "projectWorkspace"
-  | "profile";
-
 export default function App() {
-  const [currentScreen, setCurrentScreen] =
-    useState<Screen>("login");
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
-  const [currentProject, setCurrentProject] =
-    useState<any>(null);
+  const [currentProject, setCurrentProject] = useState<any>(null);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
     if (userData.onboarding) {
-      setCurrentScreen("landing");
+      navigate("/dashboard");
     } else {
-      setCurrentScreen("onboarding");
+      navigate("/onboarding");
     }
   };
 
-  const handleOnboardingComplete = (
-    onboardingData: OnboardingData,
-  ) => {
+  const handleOnboardingComplete = (onboardingData: OnboardingData) => {
     if (user) {
       setUser({ ...user, onboarding: onboardingData });
     }
-    setCurrentScreen("landing");
-  };
-
-  const handleStartCourse = () => {
-    setCurrentScreen("course");
-  };
-
-  const handleStartCustomProject = () => {
-    setCurrentScreen("customProjectChat");
+    navigate("/dashboard");
   };
 
   const handleProjectCreated = (data: any) => {
     console.log("📦 Data received from Chat:", data);
-
-    // For planning stage ppl, if tasks exist, open workspace directly
     if (data.tasks && Array.isArray(data.tasks)) {
       setCurrentProject(data);
-      setCurrentScreen("projectWorkspace");
+      navigate("/project");
     } else {
-      // Current state (Requirements gathered only).
-      // Just go back to landing and show a success message.
       toast.success("Requirements gathered successfully!", {
-        description: "Project planning module coming soon."
+        description: "Project planning module coming soon.",
       });
-      setCurrentScreen("landing");
+      navigate("/dashboard");
     }
   };
 
   const handleBackToLanding = () => {
-    setCurrentScreen("landing");
     setCurrentProject(null);
+    navigate("/dashboard");
   };
 
-  const handleOpenProfile = () => {
-    setCurrentScreen("profile");
-  };
-
-  const handleProfileUpdate = (
-    onboardingData: OnboardingData,
-  ) => {
+  const handleProfileUpdate = (onboardingData: OnboardingData) => {
     if (user) {
       setUser({ ...user, onboarding: onboardingData });
     }
-    setCurrentScreen("landing");
+    navigate("/dashboard");
+  };
+
+  // Protected route wrapper
+  const RequireUser = ({ children }: { children: React.ReactNode }) => {
+    if (!user) return <Navigate to="/" replace />;
+    return <>{children}</>;
   };
 
   return (
     <>
       <div className="min-h-screen bg-white">
-        {currentScreen === "login" && (
-          <LoginScreen onLogin={handleLogin} />
-        )}
-        {currentScreen === "onboarding" && user && (
-          <OnboardingScreen
-            user={user}
-            onComplete={handleOnboardingComplete}
+        <Routes>
+          <Route path="/" element={<LoginScreen onLogin={handleLogin} />} />
+          <Route
+            path="/onboarding"
+            element={
+              <RequireUser>
+                <OnboardingScreen user={user!} onComplete={handleOnboardingComplete} />
+              </RequireUser>
+            }
           />
-        )}
-        {currentScreen === "landing" && user && (
-          <LandingPage
-            user={user}
-            onStartCourse={handleStartCourse}
-            onStartCustomProject={handleStartCustomProject}
-            onOpenProfile={handleOpenProfile}
+          <Route
+            path="/dashboard"
+            element={
+              <RequireUser>
+                <LandingPage
+                  user={user!}
+                  onStartCourse={() => navigate("/course")}
+                  onStartCustomProject={() => navigate("/custom-project")}
+                  onOpenProfile={() => navigate("/profile")}
+                />
+              </RequireUser>
+            }
           />
-        )}
-        {currentScreen === "course" && user && (
-          <CoursePage
-            user={user}
-            onBack={handleBackToLanding}
+          <Route
+            path="/course"
+            element={
+              <RequireUser>
+                <CoursePage user={user!} onBack={handleBackToLanding} />
+              </RequireUser>
+            }
           />
-        )}
-        {currentScreen === "customProjectChat" && user && (
-          <CustomProjectChat
-            user={user}
-            onProjectCreated={handleProjectCreated}
-            onBack={handleBackToLanding}
+          <Route
+            path="/custom-project"
+            element={
+              <RequireUser>
+                <CustomProjectChat
+                  user={user!}
+                  onProjectCreated={handleProjectCreated}
+                  onBack={handleBackToLanding}
+                />
+              </RequireUser>
+            }
           />
-        )}
-        {currentScreen === "projectWorkspace" &&
-          user &&
-          currentProject && (
-            <ProjectWorkspace
-              user={user}
-              project={currentProject}
-              onBack={handleBackToLanding}
-              onComplete={handleBackToLanding}
-            />
-          )}
-        {currentScreen === "profile" && user && (
-          <ProfilePage
-            user={user}
-            onUpdate={handleProfileUpdate}
-            onBack={handleBackToLanding}
+          <Route
+            path="/project"
+            element={
+              <RequireUser>
+                {currentProject ? (
+                  <ProjectWorkspace
+                    user={user!}
+                    project={currentProject}
+                    onBack={handleBackToLanding}
+                    onComplete={handleBackToLanding}
+                  />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )}
+              </RequireUser>
+            }
           />
-        )}
+          <Route
+            path="/profile"
+            element={
+              <RequireUser>
+                <ProfilePage user={user!} onUpdate={handleProfileUpdate} onBack={handleBackToLanding} />
+              </RequireUser>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
       <Toaster />
     </>
