@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Sequence
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import ValidationError
-from ..prompts import planning_prompts as prompt_bank
-from ..pydantic_classes.planning import CurriculumGenerationError, Milestone, ProjectCurriculum, OutlineMilestone, OutlineProject
-from ..schemas.planning import OUTLINE_SCHEMA,  MILESTONE_SCHEMA
+from prompts import planning_prompts as prompt_bank
+from pydantic_classes.planning import CurriculumGenerationError, Milestone, ProjectCurriculum, OutlineMilestone, OutlineProject
+from schemas.planning import OUTLINE_SCHEMA,  MILESTONE_SCHEMA
 load_dotenv()
 
 class CurriculumPlanner:

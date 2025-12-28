@@ -1,0 +1,153 @@
+-- =============================================================================
+-- Edvance Database Schema
+-- Run this in the Supabase SQL Editor to create all required tables.
+-- =============================================================================
+
+-- Enable UUID extension (usually enabled by default in Supabase)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- =============================================================================
+-- USERS TABLE
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    onboarding JSONB DEFAULT NULL,
+    xp INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for email lookups
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- =============================================================================
+-- PROJECTS TABLE
+-- Stores both Custom Projects and future Course content
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    brief TEXT,
+    content_type TEXT NOT NULL DEFAULT 'custom_project' CHECK (content_type IN ('custom_project', 'course')),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'in_progress', 'completed')),
+    requirements JSONB DEFAULT '[]'::jsonb,
+    tech_stack JSONB DEFAULT '[]'::jsonb,
+    experience_level TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for user's projects
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+
+-- =============================================================================
+-- MILESTONES TABLE
+-- High-level groupings of tasks within a project
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS milestones (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for ordering milestones within a project
+CREATE INDEX IF NOT EXISTS idx_milestones_project_id ON milestones(project_id);
+CREATE INDEX IF NOT EXISTS idx_milestones_position ON milestones(project_id, position);
+
+-- =============================================================================
+-- TASKS TABLE
+-- Individual coding steps within a milestone
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    milestone_id UUID NOT NULL REFERENCES milestones(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    task_id_slug TEXT NOT NULL,
+    instruction_theory TEXT,
+    coding_requirements TEXT[] DEFAULT '{}',
+    hints TEXT[] DEFAULT '{}',
+    test_specification JSONB DEFAULT '{}'::jsonb,
+    starter_code TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for ordering tasks within a milestone
+CREATE INDEX IF NOT EXISTS idx_tasks_milestone_id ON tasks(milestone_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_position ON tasks(milestone_id, position);
+
+-- =============================================================================
+-- USER_PROGRESS TABLE
+-- Tracks a user's state on each task
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS user_progress (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
+    submitted_code TEXT,
+    passed BOOLEAN DEFAULT FALSE,
+    feedback JSONB DEFAULT NULL,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Ensure one progress record per user per task
+    UNIQUE(user_id, task_id)
+);
+
+-- Indexes for progress queries
+CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON user_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_progress_task_id ON user_progress(task_id);
+CREATE INDEX IF NOT EXISTS idx_user_progress_status ON user_progress(status);
+
+-- =============================================================================
+-- HELPER FUNCTION: Update updated_at timestamp
+-- =============================================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply trigger to tables with updated_at
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_progress_updated_at
+    BEFORE UPDATE ON user_progress
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- ROW LEVEL SECURITY (RLS) - Optional, enable if using Supabase Auth
+-- =============================================================================
+-- Uncomment these if you want to enable RLS with Supabase Auth:
+--
+-- ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE milestones ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+--
+-- CREATE POLICY "Users can view own data" ON users
+--     FOR SELECT USING (auth.uid() = id);
+--
+-- CREATE POLICY "Users can view own projects" ON projects
+--     FOR ALL USING (auth.uid() = user_id);

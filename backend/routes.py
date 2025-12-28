@@ -109,61 +109,65 @@ def get_final_requirements(session_id: str):
 
 
 # ==============================================================================
-# MOCK STORAGE AND HELPERS (To replace Supabase/DB for user data for now)
+# DATABASE CLIENT
 # ==============================================================================
 
-# Global in-memory storage for mock user data (clears on server restart)
-# Simulates the database persistence required to guarantee user data structure.
-MOCK_USER_STORE = {} 
-
-def create_new_user(name: str):
-    """Generates a new user object with all required properties (ID generated here)."""
-    user_id = str(uuid.uuid4()) # Ensures a unique ID is created
-    # Ensure time format is ISO 8601 compatible for TypeScript 'string' type
-    current_time_iso = datetime.utcnow().isoformat(timespec='milliseconds') + 'Z' 
-
-    new_user = {
-        'id': user_id,
-        'name': name.strip(),
-        'onboarding': None,      # Must be null initially per frontend User type
-        'createdAt': current_time_iso,
-        'xp': 0,
-        'completedProjects': [],
-        # 'projects' is optional and omitted for initial simplicity
-    }
-    MOCK_USER_STORE[user_id] = new_user
-    return new_user
+from db.supabase_client import (
+    create_user as db_create_user,
+    get_user_by_id as db_get_user,
+    update_user_onboarding as db_update_onboarding
+)
 
 # ==============================================================================
 # USER ROUTES (Login/Signup & Onboarding)
 # ==============================================================================
 
+@user_bp.route('/api/user/<user_id>', methods=['GET'])
+def get_user(user_id: str):
+    """Get user by ID."""
+    try:
+        user = db_get_user(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        return jsonify({'success': True, 'user': user}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @user_bp.route('/api/user', methods=['POST'])
 def handle_user_login():
     """
-    Handles user login/signup via name. Always creates a new user and generates a 
-    unique UUID ID, simulating the process that guarantees an ID exists.
+    Handles user login/signup via name. Creates a new user in Supabase
+    and returns the user record with a unique UUID.
     Endpoint: POST /api/user
     """
     data = request.json
     name = data.get('name')
+    email = data.get('email')  # Optional
 
     if not name or not isinstance(name, str):
         return jsonify({'success': False, 'error': 'Invalid name provided'}), 400
 
-    new_user = create_new_user(name)
-
-    return jsonify({
-        'success': True,
-        'user': new_user
-    }), 201
+    try:
+        new_user = db_create_user(name=name, email=email)
+        # Format response to match frontend expectations
+        formatted_user = {
+            'id': new_user['id'],
+            'name': new_user['name'],
+            'onboarding': new_user.get('onboarding'),
+            'createdAt': new_user['created_at'],
+            'xp': new_user.get('xp', 0),
+            'completedProjects': [],
+        }
+        return jsonify({'success': True, 'user': formatted_user}), 201
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @user_bp.route('/api/onboarding', methods=['POST'])
 def handle_onboarding_update():
     """
-    Receives and processes onboarding data, simulates persistence, and updates
-    the in-memory user record.
+    Receives and processes onboarding data and persists it to Supabase.
     Endpoint: POST /api/onboarding
     """
     data = request.json
@@ -174,17 +178,16 @@ def handle_onboarding_update():
     if not user_id or not onboarding_data:
         return jsonify({'success': False, 'error': 'Missing userId or onboarding data'}), 400
 
-    # Simulate saving the onboarding data to the user record
-    if user_id in MOCK_USER_STORE:
-        MOCK_USER_STORE[user_id]['onboarding'] = onboarding_data
+    try:
+        db_update_onboarding(user_id=user_id, onboarding_data=onboarding_data)
         print(f"✅ Onboarding data saved for User {user_id}")
-    else:
-        print(f"⚠️ Warning: User ID {user_id} not found in mock store for onboarding update.")
-
-    return jsonify({
-        'success': True,
-        'message': f"Onboarding data saved for user {user_id}"
-    }), 200
+        return jsonify({
+            'success': True,
+            'message': f"Onboarding data saved for user {user_id}"
+        }), 200
+    except Exception as e:
+        print(f"❌ Error saving onboarding for {user_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==============================================================================
