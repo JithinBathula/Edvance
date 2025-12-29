@@ -10,7 +10,15 @@ chat_bp = Blueprint('chat', __name__)
 planning_bp = Blueprint('planning', __name__)
 user_bp = Blueprint('user', __name__) 
 
-requirement_agent = RequirementGatheringAgent()
+# Lazy initialization to avoid timeout during app startup
+_requirement_agent = None
+
+def get_requirement_agent():
+    """Get or create the requirement gathering agent instance."""
+    global _requirement_agent
+    if _requirement_agent is None:
+        _requirement_agent = RequirementGatheringAgent()
+    return _requirement_agent
 
 
 # ==============================================================================
@@ -32,7 +40,7 @@ def chat():
         # Stream response from requirement gathering agent
         def generate():
             try:
-                for chunk in requirement_agent.process_message(
+                for chunk in get_requirement_agent().process_message(
                     message=message,
                     conversation_history=conversation_history,
                     session_id=session_id
@@ -70,7 +78,7 @@ def reset_session():
     try:
         data = request.get_json()
         session_id = data.get('session_id', 'default')
-        requirement_agent.reset_session(session_id)
+        get_requirement_agent().reset_session(session_id)
         return jsonify({'status': 'success', 'message': 'Session reset'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -85,7 +93,7 @@ def get_final_requirements(session_id: str):
     NOTE: The frontend should call this after the 'Requirement gathering complete!' signal.
     """
     try:
-        session_state = requirement_agent.get_session_state(session_id)
+        session_state = get_requirement_agent().get_session_state(session_id)
         
         if not session_state.get('requirements_finalized'):
             return jsonify({
