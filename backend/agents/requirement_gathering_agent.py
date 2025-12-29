@@ -135,7 +135,7 @@ class RequirementGatheringAgent:
             try:
                 # API Call
                 response = self.client.chat.completions.create(
-                    model="openai/gpt-4o",
+                    model="openai/gpt-5.2",
                     messages=messages,
                     tools=self.requirement_tools.get_tool_definitions(),
                     tool_choice="auto", 

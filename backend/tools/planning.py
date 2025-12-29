@@ -115,7 +115,7 @@ class PlanningTools:
         )
 
         response = openrouter.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5.2",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -153,7 +153,7 @@ class PlanningTools:
             USER_LEVEL=level_str
         )
         response = openrouter.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
