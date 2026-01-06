@@ -170,3 +170,93 @@ CREATE TRIGGER update_user_progress_updated_at
 --
 -- CREATE POLICY "Users can view own projects" ON projects
 --     FOR ALL USING (auth.uid() = user_id);
+
+-- =============================================================================
+-- COURSES TABLE
+-- Stores course metadata (e.g., Python Fundamentals)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS courses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    description TEXT,
+    theme TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_courses_theme ON courses(theme);
+
+-- =============================================================================
+-- COURSE_LESSONS TABLE
+-- Individual lessons within a course
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS course_lessons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    content TEXT,
+    challenge_description TEXT,
+    starter_code TEXT,
+    hints TEXT[] DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_lessons_course_id ON course_lessons(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_lessons_position ON course_lessons(course_id, position);
+
+-- =============================================================================
+-- COURSE_LESSON_TASKS TABLE
+-- Practice tasks within a lesson
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS course_lesson_tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lesson_id UUID NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    task_description TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_lesson_tasks_lesson_id ON course_lesson_tasks(lesson_id);
+
+-- =============================================================================
+-- COURSE_LESSON_HIGHLIGHTS TABLE
+-- Teaching highlights/tips for each lesson
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS course_lesson_highlights (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lesson_id UUID NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    heading TEXT NOT NULL,
+    detail TEXT,
+    icon_name TEXT DEFAULT 'BookOpen',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_lesson_highlights_lesson_id ON course_lesson_highlights(lesson_id);
+
+-- =============================================================================
+-- USER_COURSE_PROGRESS TABLE
+-- Tracks user progress through courses
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS user_course_progress (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    completed_lessons TEXT[] DEFAULT '{}',
+    current_lesson_id UUID REFERENCES course_lessons(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(user_id, course_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_course_progress_user_id ON user_course_progress(user_id);
+
+-- Trigger for user_course_progress updated_at
+CREATE TRIGGER update_user_course_progress_updated_at
+    BEFORE UPDATE ON user_course_progress
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+

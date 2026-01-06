@@ -423,3 +423,85 @@ def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     """
     result = supabase.table("projects").select("id, title, brief, status, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
     return result.data or []
+
+
+# =============================================================================
+# COURSE OPERATIONS
+# =============================================================================
+
+def get_course_by_theme(theme: str) -> Optional[Dict[str, Any]]:
+    """
+    Get a course by theme with all lessons, tasks, and highlights.
+    """
+    # Get the course
+    result = supabase.table("courses").select("*").eq("theme", theme).limit(1).execute()
+    
+    if not result.data:
+        return None
+    
+    course = result.data[0]
+    
+    # Get lessons for the course
+    lessons_result = supabase.table("course_lessons").select("*").eq("course_id", course["id"]).order("position").execute()
+    lessons = lessons_result.data or []
+    
+    # Get tasks and highlights for each lesson
+    for lesson in lessons:
+        # Get tasks
+        tasks_result = supabase.table("course_lesson_tasks").select("*").eq("lesson_id", lesson["id"]).order("position").execute()
+        lesson["tasks"] = tasks_result.data or []
+        
+        # Get highlights
+        highlights_result = supabase.table("course_lesson_highlights").select("*").eq("lesson_id", lesson["id"]).order("position").execute()
+        lesson["highlights"] = highlights_result.data or []
+    
+    course["lessons"] = lessons
+    return course
+
+
+def get_user_course_progress(user_id: str, course_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get user's progress in a course.
+    """
+    result = supabase.table("user_course_progress").select("*").eq("user_id", user_id).eq("course_id", course_id).execute()
+    
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def update_user_course_progress(
+    user_id: str,
+    course_id: str,
+    completed_lessons: List[str],
+    current_lesson_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update or create user's course progress.
+    """
+    # Check if progress exists
+    existing = get_user_course_progress(user_id, course_id)
+    
+    if existing:
+        # Update existing
+        update_data = {
+            "completed_lessons": completed_lessons
+        }
+        if current_lesson_id:
+            update_data["current_lesson_id"] = current_lesson_id
+            
+        result = supabase.table("user_course_progress").update(update_data).eq("user_id", user_id).eq("course_id", course_id).execute()
+    else:
+        # Create new
+        progress_data = {
+            "user_id": user_id,
+            "course_id": course_id,
+            "completed_lessons": completed_lessons,
+            "current_lesson_id": current_lesson_id
+        }
+        result = supabase.table("user_course_progress").insert(progress_data).execute()
+    
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to update course progress")
+
