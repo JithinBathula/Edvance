@@ -141,7 +141,7 @@ export function CoursePage({ user, onBack }: Props) {
       if (!course?.id) return;
       try {
         const response = await fetch(
-          `${BACKEND_URL}/user/${user.id}/course-progress/${course.id}`
+          `${BACKEND_URL}/courses/progress/${user.id}/${course.id}`
         );
         const data = await response.json();
         if (data.success && data.progress?.completed_lessons) {
@@ -258,7 +258,7 @@ export function CoursePage({ user, onBack }: Props) {
     // Save progress to new API
     try {
       await fetch(
-        `${BACKEND_URL}/user/${user.id}/course-progress/${course.id}`,
+        `${BACKEND_URL}/courses/progress/${user.id}/${course.id}`,
         {
           method: "POST",
           headers: {

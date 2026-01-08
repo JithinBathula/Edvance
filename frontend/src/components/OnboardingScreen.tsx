@@ -50,7 +50,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
     try {
       // --- REVISED: Call Flask Backend /api/onboarding using BACKEND_URL ---
       const response = await fetch(
-        `${BACKEND_URL}/onboarding`, // Uses BACKEND_URL and the /onboarding endpoint
+        `${BACKEND_URL}/users/onboarding`,
         {
           method: 'POST',
           headers: {

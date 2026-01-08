@@ -29,7 +29,7 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/onboarding`, {
+      const response = await fetch(`${BACKEND_URL}/users/onboarding`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

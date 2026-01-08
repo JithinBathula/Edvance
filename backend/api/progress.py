@@ -10,14 +10,13 @@ from db.supabase_client import (
     get_user_projects_list,
     get_project_by_id,
     get_project_milestones,
-    get_milestone_tasks,
-    update_progress
+    get_milestone_tasks
 )
 
-progress_bp = Blueprint('progress', __name__)
+progress_bp = Blueprint('progress', __name__, url_prefix='/api/progress')
 
 
-@progress_bp.route('/api/progress/save', methods=['POST'])
+@progress_bp.route('/save', methods=['POST'])
 def save_code():
     """
     Save user code for a task.
@@ -43,7 +42,7 @@ def save_code():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@progress_bp.route('/api/progress/load/<task_id>', methods=['GET'])
+@progress_bp.route('/load/<task_id>', methods=['GET'])
 def load_code(task_id: str):
     """
     Load latest saved code for a task.
@@ -73,7 +72,7 @@ def load_code(task_id: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@progress_bp.route('/api/projects/user/<user_id>', methods=['GET'])
+@progress_bp.route('/projects/user/<user_id>', methods=['GET'])
 def get_user_projects(user_id: str):
     """
     Get all projects for a user.
@@ -89,7 +88,7 @@ def get_user_projects(user_id: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@progress_bp.route('/api/projects/<project_id>/full', methods=['GET'])
+@progress_bp.route('/projects/<project_id>/full', methods=['GET'])
 def get_project_full(project_id: str):
     """
     Get a project with all milestones and tasks for workspace.

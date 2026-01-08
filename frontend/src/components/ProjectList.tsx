@@ -31,7 +31,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
 
     const fetchProjects = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/projects/user/${user.id}`, {
+            const response = await fetch(`${BACKEND_URL}/progress/projects/user/${user.id}`, {
                 credentials: 'include',
             });
             const data = await response.json();
@@ -48,7 +48,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
     const handleSelectProject = async (projectId: string) => {
         setLoadingProject(projectId);
         try {
-            const response = await fetch(`${BACKEND_URL}/projects/${projectId}/full`, {
+            const response = await fetch(`${BACKEND_URL}/progress/projects/${projectId}/full`, {
                 credentials: 'include',
             });
             const data = await response.json();

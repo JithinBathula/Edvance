@@ -1,31 +1,20 @@
 """
-Flask Backend for Custom Project Chat - Requirement Gathering
+Flask Backend for Edvance - AI-Powered Learning Platform
 """
 from flask import Flask
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 
-from routes import chat_bp, user_bp
-from api.planning import planning_bp
-from api.progress import progress_bp
-from api.submission import submission_bp
-from api.assistant import assistant_bp
-from auth import auth_bp
+from api import register_blueprints
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)  # Enable credentials for cookies
+CORS(app, supports_credentials=True)
 
-# Register blueprints
-app.register_blueprint(chat_bp)
-app.register_blueprint(user_bp)
-app.register_blueprint(planning_bp)
-app.register_blueprint(progress_bp)
-app.register_blueprint(submission_bp)
-app.register_blueprint(assistant_bp)
-app.register_blueprint(auth_bp)
+# Register all API blueprints
+register_blueprints(app)
 
 
 @app.errorhandler(404)
@@ -40,7 +29,7 @@ def internal_error(error):
 
 if __name__ == '__main__':
     port = int(os.getenv('CLIENT_PORT', 8000))
-    debug = os.getenv('FLASK_DEBUG', '1') == '1'
-    print(f"Starting Custom Project Chat Service on port {port}")
+    debug = os.getenv('FLASK_DEBUG', '0') == '1'  # Default: off
+    print(f"Starting Edvance Backend on port {port}")
     print(f"Debug mode: {debug}")
     app.run(host='0.0.0.0', port=port, debug=debug)

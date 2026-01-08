@@ -14,11 +14,14 @@ from db.supabase_client import (
     create_user_with_password
 )
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
-# JWT secret - should be in environment variables
-JWT_SECRET = os.getenv('JWT_SECRET', 'edvance-secret-key-change-in-production')
+# JWT secret - REQUIRED in environment variables
+JWT_SECRET = os.getenv('JWT_SECRET')
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable is required")
 JWT_EXPIRY_DAYS = 7
+IS_PRODUCTION = os.getenv('FLASK_ENV', 'development') == 'production'
 
 
 def format_user_response(user: dict) -> dict:
@@ -55,7 +58,7 @@ def verify_token(token: str) -> str | None:
         return None
 
 
-@auth_bp.route('/api/auth/signup', methods=['POST'])
+@auth_bp.route('/signup', methods=['POST'])
 def signup():
     """
     Create a new user account.
@@ -97,8 +100,8 @@ def signup():
             'auth_token',
             token,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite='Lax',
+            secure=IS_PRODUCTION,
+            samesite='Lax' if not IS_PRODUCTION else 'None',
             max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60
         )
         
@@ -109,7 +112,7 @@ def signup():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@auth_bp.route('/api/auth/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'])
 def login():
     """
     Login with email and password.
@@ -145,8 +148,8 @@ def login():
             'auth_token',
             token,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite='Lax',
+            secure=IS_PRODUCTION,
+            samesite='Lax' if not IS_PRODUCTION else 'None',
             max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60
         )
         
@@ -157,7 +160,7 @@ def login():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@auth_bp.route('/api/auth/logout', methods=['POST'])
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     """
     Logout and clear session cookie.
@@ -167,7 +170,7 @@ def logout():
     return response, 200
 
 
-@auth_bp.route('/api/auth/me', methods=['GET'])
+@auth_bp.route('/me', methods=['GET'])
 def get_current_user():
     """
     Get current authenticated user from session cookie.

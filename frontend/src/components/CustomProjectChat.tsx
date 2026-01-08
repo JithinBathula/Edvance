@@ -100,7 +100,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     let fullContent = "";
 
     try {
-      const response = await fetch(`${BACKEND_URL}/chat`, {
+      const response = await fetch(`${BACKEND_URL}/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

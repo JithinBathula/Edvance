@@ -1,7 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Dict, Any, Optional
 
 
 # --- 1. Web Search Result (Simplified) ---

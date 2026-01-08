@@ -1,0 +1,104 @@
+"""
+Chat API routes - Requirement Gathering
+"""
+from flask import Blueprint, request, jsonify, Response, stream_with_context
+import json
+import traceback
+
+from agents.requirement_gathering_agent import RequirementGatheringAgent
+
+chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
+
+# Lazy initialization to avoid timeout during app startup
+_requirement_agent = None
+
+
+def get_requirement_agent():
+    """Get or create the requirement gathering agent instance."""
+    global _requirement_agent
+    if _requirement_agent is None:
+        _requirement_agent = RequirementGatheringAgent()
+    return _requirement_agent
+
+
+@chat_bp.route('/', methods=['POST'])
+def chat():
+    """Process chat message with streaming response."""
+    try:
+        data = request.get_json()
+        message = data.get('message')
+        conversation_history = data.get('history', [])
+        session_id = data.get('session_id', 'default')
+        
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        def generate():
+            try:
+                for chunk in get_requirement_agent().process_message(
+                    message=message,
+                    conversation_history=conversation_history,
+                    session_id=session_id
+                ):
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                
+                yield f"data: {json.dumps({'done': True})}\n\n"
+                
+            except Exception as e:
+                error_data = {
+                    "error": f"Agent error: {str(e)}",
+                    "content": "I encountered an error. Please try again."
+                }
+                print(f"Error in chat agent processing: {traceback.format_exc()}")
+                yield f"data: {json.dumps(error_data)}\n\n"
+        
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no'
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in chat endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@chat_bp.route('/reset-session', methods=['POST'])
+def reset_session():
+    """Reset the requirement gathering session."""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id', 'default')
+        get_requirement_agent().reset_session(session_id)
+        return jsonify({'status': 'success', 'message': 'Session reset'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@chat_bp.route('/requirements/<session_id>', methods=['GET'])
+def get_final_requirements(session_id: str):
+    """
+    Retrieve the finalized project requirements from the agent's session state.
+    """
+    try:
+        session_state = get_requirement_agent().get_session_state(session_id)
+        
+        if not session_state.get('requirements_finalized'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Requirements not yet finalized in this session'
+            }), 404
+
+        final_data = {
+            'project_idea': session_state.get('project_idea'),
+            'tech_stack': session_state.get('tech_analysis', {}).get('libraries'),
+            'complexity_check': session_state.get('quality_check'),
+        }
+
+        return jsonify({'status': 'success', 'requirements': final_data}), 200
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
