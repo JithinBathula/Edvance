@@ -143,24 +143,24 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
                 <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">PRACTICE EXERCISE</span>
             </div>
 
-            {/* Code Preview */}
-            <div className="bg-gray-800 p-4">
-                <pre className="text-sm font-mono whitespace-pre-wrap">
+            {/* Code Preview - White background */}
+            <div className="bg-white p-4 border-b border-gray-100">
+                <pre className="text-sm font-mono whitespace-pre-wrap leading-relaxed">
                     <code>
                         {starterCode.split('\n').map((line, i) => (
                             <div key={i}>
                                 {line.includes('#') ? (
-                                    <span className="text-green-400">{line}</span>
+                                    <span className="text-gray-500">{line}</span>
                                 ) : line.includes('print') || line.includes('for') || line.includes('while') || line.includes('in') || line.includes('range') ? (
                                     <span>
                                         {line.split(/(\b(?:print|for|while|in|range)\b)/).map((part, j) => (
-                                            <span key={j} className={['print', 'for', 'while', 'in', 'range'].includes(part) ? 'text-purple-400' : 'text-gray-200'}>
+                                            <span key={j} className={['print', 'for', 'while', 'in', 'range'].includes(part) ? 'text-purple-600' : 'text-gray-800'}>
                                                 {part}
                                             </span>
                                         ))}
                                     </span>
                                 ) : (
-                                    <span className="text-gray-200">{line}</span>
+                                    <span className="text-gray-800">{line}</span>
                                 )}
                             </div>
                         ))}

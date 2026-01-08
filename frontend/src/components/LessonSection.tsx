@@ -45,7 +45,7 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
                 {section.content.map((paragraph, idx) => (
                     <p
                         key={idx}
-                        className="text-gray-700 leading-relaxed"
+                        className="text-gray-700 leading-relaxed text-base"
                         dangerouslySetInnerHTML={{
                             __html: paragraph
                                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -66,27 +66,27 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
                             </div>
                         )}
 
-                        {/* Code Block */}
-                        <div className="bg-gray-800 rounded-lg p-4 overflow-x-auto">
-                            <pre className="text-sm font-mono">
+                        {/* Code Block - Light gray for regular examples */}
+                        <div className="bg-gray-100 rounded-lg p-4 overflow-x-auto border border-gray-200">
+                            <pre className="text-sm font-mono leading-relaxed">
                                 <code>
                                     {section.codeExample.code.split('\n').map((line, i) => (
                                         <div key={i}>
                                             {line.includes('#') ? (
-                                                <span className="text-green-400">{line}</span>
+                                                <span className="text-gray-500">{line}</span>
                                             ) : (
                                                 <span>
                                                     {line.split(/(\b(?:print|for|while|in|range|if|else|def|return)\b|"[^"]*"|'[^']*'|\d+)/).map((part, j) => {
                                                         if (['print', 'for', 'while', 'in', 'range', 'if', 'else', 'def', 'return'].includes(part)) {
-                                                            return <span key={j} className="text-purple-400">{part}</span>;
+                                                            return <span key={j} className="text-purple-600">{part}</span>;
                                                         }
                                                         if (/^["'].*["']$/.test(part)) {
-                                                            return <span key={j} className="text-green-400">{part}</span>;
+                                                            return <span key={j} className="text-green-600">{part}</span>;
                                                         }
                                                         if (/^\d+$/.test(part)) {
-                                                            return <span key={j} className="text-blue-400">{part}</span>;
+                                                            return <span key={j} className="text-blue-600">{part}</span>;
                                                         }
-                                                        return <span key={j} className="text-gray-200">{part}</span>;
+                                                        return <span key={j} className="text-gray-800">{part}</span>;
                                                     })}
                                                 </span>
                                             )}
