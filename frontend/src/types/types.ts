@@ -26,7 +26,7 @@ export interface LessonTask {
     label: string;
     completed: boolean;
     xp: number;
-    description: string;
+    task_description: string;
     hint?: string;
 }
 

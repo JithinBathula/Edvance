@@ -236,15 +236,23 @@ run_user_code
       {/* Header */}
       <div className="flex-shrink-0 bg-white px-4 py-2 flex items-center justify-between border-b border-gray-200">
         {/* File Tab - Matching Google AI style */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-md border border-gray-200 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+        <div className="flex items-center gap-2 px-3 h-8 bg-gray-50 rounded-md border border-gray-200 shadow-sm">
+          <span
+            className="flex-shrink-0 rounded-full"
+            style={{ width: '8px', height: '8px', backgroundColor: '#3b82f6' }}
+          ></span>
           <span className="text-sm font-medium text-gray-800">
             main.py
           </span>
         </div>
         <div className="flex items-center gap-4 flex-shrink-0">
           <button
-            onClick={() => setCode(initialCode)}
+            onClick={() => {
+              setCode('');
+              setOutput([]);
+              onCodeChange?.('');
+              onOutputChange?.([]);
+            }}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />

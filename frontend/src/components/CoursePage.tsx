@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { User } from "../App";
 import { WebIDE } from "./WebIDE";
 import { AIChatbot } from "./AIChatbot";
@@ -108,10 +108,57 @@ export function CoursePage({ user, onBack }: Props) {
   ]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
+  // XP state
+  const [earnedXP, setEarnedXP] = useState(0);
+  const [showXPPopup, setShowXPPopup] = useState(false);
+  const [xpGained, setXpGained] = useState(0);
+
+  // Confetti function
+  const triggerConfetti = useCallback(() => {
+    import('canvas-confetti').then((confetti) => {
+      // Fire confetti from both sides
+      const count = 200;
+      const defaults = {
+        origin: { y: 0.7 },
+        zIndex: 9999,
+      };
+
+      function fire(particleRatio: number, opts: any) {
+        confetti.default({
+          ...defaults,
+          ...opts,
+          particleCount: Math.floor(count * particleRatio),
+        });
+      }
+
+      fire(0.25, { spread: 26, startVelocity: 55 });
+      fire(0.2, { spread: 60 });
+      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+      fire(0.1, { spread: 120, startVelocity: 45 });
+    });
+  }, []);
+
   // Handler to mark a section as complete
   const handleSectionComplete = (sectionId: string) => {
+    console.log('handleSectionComplete called with sectionId:', sectionId);
     if (!completedSections.includes(sectionId)) {
+      // Add to completed sections
       setCompletedSections(prev => [...prev, sectionId]);
+
+      // Award XP and show celebration
+      const xpReward = 100;
+      setEarnedXP(prev => prev + xpReward);
+      setXpGained(xpReward);
+      setShowXPPopup(true);
+
+      // Trigger confetti!
+      triggerConfetti();
+
+      // Hide XP popup after 2 seconds
+      setTimeout(() => {
+        setShowXPPopup(false);
+      }, 2000);
     }
   };
 
@@ -177,12 +224,8 @@ export function CoursePage({ user, onBack }: Props) {
     loadProgress();
   }, [user.id, course?.id]);
 
-  // Set starter code when lesson changes
-  useEffect(() => {
-    if (currentLesson?.starter_code) {
-      setUserCode(currentLesson.starter_code);
-    }
-  }, [currentLessonIndex, currentLesson?.starter_code]);
+  // Note: Removed useEffect that was overriding mockLesson.starterCode with currentLesson.starter_code
+  // Now the IDE uses mockLesson.starterCode by default
 
 
   const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>(
@@ -417,23 +460,45 @@ export function CoursePage({ user, onBack }: Props) {
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-lg">Python Fundamentals</h1>
-            <p className="text-sm text-gray-600">
-              Lesson {currentLessonIndex + 1} of{" "}
-              {lessons.length}
-            </p>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded font-medium">Learn</span>
+              <span className="text-gray-400 text-xs">→</span>
+              <span className="text-xs text-gray-500">Project</span>
+            </div>
+            <h1 className="text-base font-semibold text-gray-900">Lesson 5 — {mockLesson.title}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="w-48">
+        <div className="flex items-center gap-3">
+          {/* Progress bar */}
+          <div className="w-32">
             <Progress value={progress} className="h-2" />
           </div>
-          <span className="text-sm text-gray-600">
-            {Math.round(progress)}%
-          </span>
+          {/* XP Badge */}
+          <div className="flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full relative">
+            <span className="text-sm font-semibold text-green-600">{earnedXP}</span>
+            <span className="text-xs text-green-500 font-medium">XP</span>
+
+          </div>
         </div>
       </header>
+
+      {/* Big Centered XP Popup */}
+      {showXPPopup && (
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-[9999]">
+          <div
+            className="text-6xl font-bold text-center px-8 py-4 rounded-2xl"
+            style={{
+              animation: 'xpFloatUp 2s ease-out forwards',
+              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+              color: 'white',
+              boxShadow: '0 10px 40px rgba(34, 197, 94, 0.4)',
+            }}
+          >
+            +{xpGained} XP ✨
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
@@ -469,11 +534,11 @@ export function CoursePage({ user, onBack }: Props) {
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-[3px] rounded bg-gray-300 group-hover:bg-[#7622e5]" />
           </div>
-          <div className="flex-1 overflow-y-auto px-6 py-8">
+          <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
             <div className="max-w-2xl mx-auto">
 
               {/* Section-based Lesson Content using mockLesson */}
-              <div>
+              <div className="space-y-12">
                 {mockLesson.sections.map((section) => (
                   <LessonSectionComponent
                     key={section.id}
@@ -511,7 +576,7 @@ export function CoursePage({ user, onBack }: Props) {
         {/* AI Chatbot */}
         {
           isChatOpen && (
-            <div className="w-80 border-l border-gray-200 bg-white flex flex-col transition-all duration-300">
+            <div className="w-64 border-l border-gray-200 bg-white flex flex-col transition-all duration-300">
               <AIChatbot
                 context={currentLesson?.title || mockLesson.title}
                 taskId={currentLesson?.id || mockLesson.id}

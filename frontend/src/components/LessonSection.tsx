@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { PracticeCard } from './PracticeCard';
 import { LessonSectionData } from '../data/mockLessonData';
 
@@ -20,23 +20,23 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
     output,
     onSectionComplete,
 }) => {
+    console.log(`LessonSection ${section.id}: isCompleted =`, isCompleted);
     return (
-        <div id={`section-${section.id}`} className="space-y-8 first:mt-0 mt-16 pb-8">
+        <div id={`section-${section.id}`} className="space-y-6 pb-8 pt-6 px-4 rounded-lg">
             {/* Section Header */}
-            <div className="flex items-start gap-4">
-                {/* Number Circle */}
-                <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCompleted
-                        ? 'bg-green-500 text-white'
-                        : 'bg-green-100 text-green-600 border border-green-300'
-                        }`}
-                >
-                    {isCompleted ? <Check className="w-4 h-4" /> : section.number}
-                </div>
+            <div className="flex items-start gap-3">
+                {/* Number/Check Circle - Uses CheckCircle when completed */}
+                {isCompleted ? (
+                    <CheckCircle className="w-7 h-7 flex-shrink-0 mt-0.5" style={{ color: '#22c55e' }} />
+                ) : (
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium bg-green-100 text-green-600 border border-green-300 mt-0.5">
+                        {section.number}
+                    </div>
+                )}
 
-                {/* Title */}
-                <h2 className="text-xl font-semibold text-gray-900 pt-1">
-                    {section.number}. {section.title} {section.emoji}
+                {/* Title - With emoji */}
+                <h2 className="text-xl font-semibold text-gray-900">
+                    {section.title} {section.emoji}
                 </h2>
             </div>
 
@@ -97,7 +97,10 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
                             userCode={userCode}
                             output={output}
                             onCheck={() => { }}
-                            onComplete={() => onSectionComplete(section.id)}
+                            onComplete={() => {
+                                console.log(`LessonSection: onComplete called for section ${section.id}`);
+                                onSectionComplete(section.id);
+                            }}
                         />
                     </div>
                 )}

@@ -67,8 +67,12 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
             const regex = new RegExp(expectedOutputRegex, 'is');
 
             if (regex.test(outputText)) {
+                console.log('=== CHECK PASSED - Marking section complete ===');
                 setShowSuccess(true);
                 setShowError(false);
+                // Call onComplete immediately when check passes!
+                onComplete();
+                console.log('onComplete() called from handleCheck');
             } else {
                 setShowError(true);
                 onCheck();
@@ -78,8 +82,14 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
     };
 
     const handleDone = () => {
+        alert('Done button clicked! Check console for logs.');
+        console.log('=== DONE BUTTON CLICKED ===');
+        console.log('handleDone called in PracticeCard');
+        console.log('About to call setIsCompleted(true)');
         setIsCompleted(true);
+        console.log('About to call onComplete()');
         onComplete();
+        console.log('onComplete() called - completion flow finished');
     };
 
     // COMPLETED STATE
@@ -115,8 +125,8 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
                 <div className="px-4 py-4 bg-gray-50 flex items-center justify-between gap-4">
                     <p className="text-sm text-gray-700">{successMessage}</p>
                     <button
-                        className="px-5 py-2.5 bg-white border-2 border-green-500 text-green-600 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-green-50 transition-colors whitespace-nowrap"
-                        style={{ minWidth: '110px' }}
+                        className="px-5 py-2.5 bg-white border-2 border-green-500 text-green-600 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-green-50 transition-colors"
+                        style={{ width: '110px' }}
                     >
                         <CheckCircle className="w-4 h-4" />
                         Done
@@ -160,8 +170,8 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
                     <p className="text-sm text-gray-700">{successMessage}</p>
                     <button
                         onClick={handleDone}
-                        className="px-5 py-2.5 bg-white border-2 border-green-500 text-green-600 text-sm font-semibold rounded-lg flex items-center gap-2 hover:bg-green-50 transition-colors whitespace-nowrap"
-                        style={{ minWidth: '140px' }}
+                        className="px-5 py-2.5 bg-white border-2 border-green-500 text-green-600 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-green-50 transition-colors"
+                        style={{ width: '110px' }}
                     >
                         <CheckCircle className="w-4 h-4" />
                         Done
