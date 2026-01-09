@@ -6,6 +6,7 @@ import Editor from "@monaco-editor/react";
 type Props = {
   initialCode?: string;
   onCodeChange?: (code: string) => void;
+  onOutputChange?: (output: string[]) => void;
   readOnly?: boolean;
   language?: string;
 };
@@ -14,6 +15,7 @@ type Props = {
 export function WebIDE({
   initialCode = "",
   onCodeChange,
+  onOutputChange,
   readOnly = false,
   language = "python", // we still simulate python
 }: Props) {
@@ -185,21 +187,23 @@ run_user_code
       }
 
       if (stderr && stderr.trim().length > 0) {
-        setOutput(
-          stderr
-            .replace(/\r\n/g, "\n")
-            .split("\n")
-            .filter((line) => line.trim().length > 0),
-        );
+        const newOutput = stderr
+          .replace(/\r\n/g, "\n")
+          .split("\n")
+          .filter((line) => line.trim().length > 0);
+        setOutput(newOutput);
+        onOutputChange?.(newOutput);
       } else if (stdout && stdout.trim().length > 0) {
-        setOutput(
-          stdout
-            .replace(/\r\n/g, "\n")
-            .split("\n")
-            .filter((line) => line.length > 0),
-        );
+        const newOutput = stdout
+          .replace(/\r\n/g, "\n")
+          .split("\n")
+          .filter((line) => line.length > 0);
+        setOutput(newOutput);
+        onOutputChange?.(newOutput);
       } else {
-        setOutput(["Code executed successfully (no output)"]);
+        const newOutput = ["Code executed successfully (no output)"];
+        setOutput(newOutput);
+        onOutputChange?.(newOutput);
       }
     } catch (e) {
       setOutput([`Runtime error: ${String(e)}`]);
@@ -233,7 +237,7 @@ run_user_code
       <div className="flex-shrink-0 bg-white px-4 py-2 flex items-center justify-between border-b border-gray-200">
         {/* File Tab - Matching Google AI style */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-md border border-gray-200 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
           <span className="text-sm font-medium text-gray-800">
             main.py
           </span>

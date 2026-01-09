@@ -21,7 +21,7 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
     onSectionComplete,
 }) => {
     return (
-        <div className="space-y-6 pb-10 border-b border-gray-100 last:border-b-0">
+        <div id={`section-${section.id}`} className="space-y-8 first:mt-0 mt-16 pb-8">
             {/* Section Header */}
             <div className="flex items-start gap-4">
                 {/* Number Circle */}
@@ -41,7 +41,7 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
             </div>
 
             {/* Content */}
-            <div className="ml-12 space-y-4">
+            <div className="ml-12 space-y-6">
                 {section.content.map((paragraph, idx) => (
                     <p
                         key={idx}
@@ -66,32 +66,11 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
                             </div>
                         )}
 
-                        {/* Code Block - Light gray for regular examples */}
+                        {/* Code Block - Plain black text for examples */}
                         <div className="bg-gray-100 rounded-lg p-4 overflow-x-auto border border-gray-200">
-                            <pre className="text-sm font-mono leading-relaxed">
-                                <code>
-                                    {section.codeExample.code.split('\n').map((line, i) => (
-                                        <div key={i}>
-                                            {line.includes('#') ? (
-                                                <span className="text-gray-500">{line}</span>
-                                            ) : (
-                                                <span>
-                                                    {line.split(/(\b(?:print|for|while|in|range|if|else|def|return)\b|"[^"]*"|'[^']*'|\d+)/).map((part, j) => {
-                                                        if (['print', 'for', 'while', 'in', 'range', 'if', 'else', 'def', 'return'].includes(part)) {
-                                                            return <span key={j} className="text-purple-600">{part}</span>;
-                                                        }
-                                                        if (/^["'].*["']$/.test(part)) {
-                                                            return <span key={j} className="text-green-600">{part}</span>;
-                                                        }
-                                                        if (/^\d+$/.test(part)) {
-                                                            return <span key={j} className="text-blue-600">{part}</span>;
-                                                        }
-                                                        return <span key={j} className="text-gray-800">{part}</span>;
-                                                    })}
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))}
+                            <pre className="text-sm font-mono leading-relaxed whitespace-pre-wrap break-words">
+                                <code className="text-gray-800">
+                                    {section.codeExample.code}
                                 </code>
                             </pre>
                         </div>

@@ -25,8 +25,9 @@ export const mockLesson = {
     title: "Loops: Fashion & Python",
     starterCode: `# Python Fashion Studio
 # Ready for your designs...
-for i in range(3):
-    print("Designing outfit...")`,
+# 
+# Type your code here and click Run!
+# You've got this! 🚀`,
     sections: [
         {
             id: "section-1",

@@ -3,8 +3,8 @@ import { User } from "../App";
 import { WebIDE } from "./WebIDE";
 import { AIChatbot } from "./AIChatbot";
 import { LessonSection as LessonSectionComponent } from "./LessonSection";
+import { Sidebar } from "./Sidebar";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { ScrollArea } from "./ui/scroll-area";
@@ -437,165 +437,18 @@ export function CoursePage({ user, onBack }: Props) {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - Lessons List */}
-        <div
-          className="border-r bg-gray-50 flex flex-col relative"
-          style={{ width: `${sidebarWidth}px`, minWidth: '200px', maxWidth: '500px' }}
-        >
-          {/* Resize handle */}
-          <div
-            className="group absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-10"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setIsDraggingSidebar(true);
-            }}
-            onDoubleClick={() => setSidebarWidth(256)}
-          >
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-[3px] rounded bg-gray-300 group-hover:bg-[#7622e5]" />
-          </div>
-          <div className="p-4 border-b bg-white">
-            <h2 className="font-semibold">Course Progress</h2>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="p-2">
-              {lessons.map((lesson, index) => {
-                const isCompleted = completedLessons.includes(
-                  lesson.id,
-                );
-                const isCurrent = index === currentLessonIndex;
-                const isLocked =
-                  index > currentLessonIndex && !isCompleted;
-                const isExpanded = !!expandedLessons[lesson.id];
-                const activeItem =
-                  activeSubsection.lessonId === lesson.id
-                    ? activeSubsection.itemId
-                    : null;
-                const isPracticeActive =
-                  activeItem === "lesson" ||
-                  activeItem === "task-1" ||
-                  activeItem === "task-2" ||
-                  activeItem === "task-3";
-
-                const handleSubsectionSelect = (subId: SubSectionId) => {
-                  if (isLocked) return;
-                  if (currentLessonIndex !== index) {
-                    setCurrentLessonIndex(index);
-                  }
-                  setExpandedLessons((prev) => ({
-                    ...prev,
-                    [lesson.id]: true,
-                  }));
-                  setActiveSubsection({
-                    lessonId: lesson.id,
-                    itemId: subId,
-                  });
-                };
-
-                return (
-                  <div key={lesson.id} className="mb-3 last:mb-0">
-                    <button
-                      onClick={() => {
-                        if (isLocked) return;
-                        setCurrentLessonIndex(index);
-                        setExpandedLessons((prev) => ({
-                          ...prev,
-                          [lesson.id]: !isExpanded,
-                        }));
-                        setActiveSubsection({
-                          lessonId: lesson.id,
-                          itemId: "blog",
-                        });
-                      }}
-                      disabled={isLocked}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${isCurrent
-                        ? "bg-gradient-to-r from-[#7622e5] to-[#b480f8] text-white border-transparent shadow-sm"
-                        : isLocked
-                          ? "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed"
-                          : "bg-white border-gray-200 hover:border-[#7622e5]/40 hover:bg-[#f5f0ff]"
-                        }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <span className="text-xs uppercase tracking-wide block mb-1">
-                            Lesson {index + 1}
-                          </span>
-                          <p
-                            className={`text-sm font-medium ${isCurrent ? "text-white" : "text-gray-900"
-                              }`}
-                          >
-                            {lesson.title}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isCompleted ? (
-                            <Check className="w-4 h-4 text-green-200" />
-                          ) : isLocked ? (
-                            <Lock className="w-4 h-4" />
-                          ) : null}
-                          <ChevronDown
-                            className={`w-4 h-4 transition-transform ${isExpanded && !isLocked ? "rotate-180" : ""
-                              }`}
-                          />
-                        </div>
-                      </div>
-                    </button>
-
-                    {isExpanded && !isLocked && (
-                      <div className="mt-3 ml-2 pl-3 border-l border-gray-200 space-y-1">
-                        <button
-                          onClick={() => handleSubsectionSelect("blog")}
-                          className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${activeItem === "blog"
-                            ? "bg-[#7622e5]/10 text-[#7622e5] font-medium"
-                            : "text-gray-600 hover:bg-gray-100"
-                            }`}
-                        >
-                          Blog Post
-                        </button>
-
-                        <div>
-                          <button
-                            onClick={() =>
-                              handleSubsectionSelect("lesson")
-                            }
-                            className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${isPracticeActive
-                              ? "bg-[#7622e5]/10 text-[#7622e5] font-medium"
-                              : "text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            <span>Lesson</span>
-                            <ChevronRight className="w-3 h-3 opacity-50" />
-                          </button>
-                          <div className="ml-3 mt-1 space-y-1">
-                            {["task-1", "task-2", "task-3"].map(
-                              (taskId, taskIndex) => {
-                                const typedTaskId = taskId as SubSectionId;
-                                const isActive = activeItem === typedTaskId;
-                                return (
-                                  <button
-                                    key={taskId}
-                                    onClick={() =>
-                                      handleSubsectionSelect(typedTaskId)
-                                    }
-                                    className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${isActive
-                                      ? "bg-[#7622e5]/10 text-[#7622e5] font-medium"
-                                      : "text-gray-500 hover:bg-gray-100"
-                                      }`}
-                                  >
-                                    Task {taskIndex + 1}
-                                  </button>
-                                );
-                              },
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </div>
+        {/* Sidebar - Collapsible */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          completedSections={completedSections}
+          onSectionClick={(sectionId) => {
+            const element = document.getElementById(`section-${sectionId}`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }}
+        />
 
         {/* Middle - Unified Lesson Card (Story + Practice) with better padding */}
         <div
@@ -616,11 +469,11 @@ export function CoursePage({ user, onBack }: Props) {
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-[3px] rounded bg-gray-300 group-hover:bg-[#7622e5]" />
           </div>
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="max-w-2xl mx-auto space-y-8">
+          <div className="flex-1 overflow-y-auto px-6 py-8">
+            <div className="max-w-2xl mx-auto">
 
               {/* Section-based Lesson Content using mockLesson */}
-              <div className="space-y-16">
+              <div>
                 {mockLesson.sections.map((section) => (
                   <LessonSectionComponent
                     key={section.id}
@@ -649,33 +502,38 @@ export function CoursePage({ user, onBack }: Props) {
             <WebIDE
               initialCode={userCode}
               onCodeChange={setUserCode}
+              onOutputChange={setIdeOutput}
               readOnly={false}
             />
           </div>
         </div>
 
         {/* AI Chatbot */}
-        {isChatOpen && (
-          <div className="w-80 border-l border-gray-200 bg-white flex flex-col transition-all duration-300">
-            <AIChatbot
-              context={currentLesson?.title || mockLesson.title}
-              taskId={currentLesson?.id || mockLesson.id}
-              userCode={userCode}
-              onClose={() => setIsChatOpen(false)}
-              visible={true}
-            />
-          </div>
-        )}
-        {!isChatOpen && (
-          <button
-            onClick={() => setIsChatOpen(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
-            style={{ backgroundColor: '#4285f4' }}
-            title="Open AI Chat"
-          >
-            <MessageCircle className="w-6 h-6 text-white" />
-          </button>
-        )}
+        {
+          isChatOpen && (
+            <div className="w-80 border-l border-gray-200 bg-white flex flex-col transition-all duration-300">
+              <AIChatbot
+                context={currentLesson?.title || mockLesson.title}
+                taskId={currentLesson?.id || mockLesson.id}
+                userCode={userCode}
+                onClose={() => setIsChatOpen(false)}
+                visible={true}
+              />
+            </div>
+          )
+        }
+        {
+          !isChatOpen && (
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
+              style={{ backgroundColor: '#4285f4' }}
+              title="Open AI Chat"
+            >
+              <MessageCircle className="w-6 h-6 text-white" />
+            </button>
+          )
+        }
       </div>
     </div>
   );
