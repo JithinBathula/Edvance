@@ -150,15 +150,17 @@ export function CoursePage({ user, onBack }: Props) {
       const xpReward = 100;
       setEarnedXP(prev => prev + xpReward);
       setXpGained(xpReward);
+      console.log('=== SHOWING XP POPUP ===', xpReward);
       setShowXPPopup(true);
 
       // Trigger confetti!
       triggerConfetti();
 
-      // Hide XP popup after 2 seconds
+      // Hide XP popup after 3 seconds (longer for visibility)
       setTimeout(() => {
+        console.log('=== HIDING XP POPUP ===');
         setShowXPPopup(false);
-      }, 2000);
+      }, 3000);
     }
   };
 
