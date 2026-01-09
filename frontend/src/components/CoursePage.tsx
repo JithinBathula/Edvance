@@ -94,6 +94,7 @@ export function CoursePage({ user, onBack }: Props) {
   const [userCode, setUserCode] = useState(mockLesson.starterCode);
   const [ideOutput, setIdeOutput] = useState<string[]>([]); // Track IDE output for practice validation
   const [completedSections, setCompletedSections] = useState<string[]>([]); // Track per-section completion
+  const [lastPracticeError, setLastPracticeError] = useState<string | null>(null); // Track failed practice attempts for AI context
   const [showCompletion, setShowCompletion] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true); // Control Left Sidebar
   const [isChatOpen, setIsChatOpen] = useState(true); // Control Right AI Chat
@@ -485,19 +486,22 @@ export function CoursePage({ user, onBack }: Props) {
         </div>
       </header>
 
-      {/* Big Centered XP Popup */}
+      {/* Big Centered XP Popup - Black text, shrink and fade */}
       {showXPPopup && (
-        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-[9999]">
+        <div
+          className="fixed inset-0 flex items-center justify-center pointer-events-none"
+          style={{ zIndex: 99999 }}
+        >
           <div
-            className="text-6xl font-bold text-center px-8 py-4 rounded-2xl"
             style={{
-              animation: 'xpFloatUp 2s ease-out forwards',
-              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-              color: 'white',
-              boxShadow: '0 10px 40px rgba(34, 197, 94, 0.4)',
+              fontSize: '5rem',
+              fontWeight: 900,
+              color: '#1f2937',
+              textShadow: '0 4px 30px rgba(0,0,0,0.15)',
+              animation: 'xpShrinkFade 2.5s ease-out forwards',
             }}
           >
-            +{xpGained} XP ✨
+            +{xpGained} XP
           </div>
         </div>
       )}
@@ -549,6 +553,11 @@ export function CoursePage({ user, onBack }: Props) {
                     userCode={userCode}
                     output={ideOutput}
                     onSectionComplete={handleSectionComplete}
+                    onPracticeError={(errorInfo) => {
+                      setLastPracticeError(errorInfo);
+                      // Optional: auto-open chat when practice fails
+                      setIsChatOpen(true);
+                    }}
                   />
                 ))}
               </div>
@@ -580,9 +589,15 @@ export function CoursePage({ user, onBack }: Props) {
           isChatOpen && (
             <div className="w-64 border-l border-gray-200 bg-white flex flex-col transition-all duration-300">
               <AIChatbot
-                context={currentLesson?.title || mockLesson.title}
+                context={`Lesson: ${currentLesson?.title || mockLesson.title}. ${lastPracticeError ? `Practice Error: ${lastPracticeError}` : ''} Output: ${ideOutput.join('\n') || 'No output yet'}`}
                 taskId={currentLesson?.id || mockLesson.id}
                 userCode={userCode}
+                userProgress={{
+                  completedSections: completedSections,
+                  output: ideOutput,
+                  sectionCount: mockLesson.sections.length,
+                  lastError: lastPracticeError,
+                }}
                 onClose={() => setIsChatOpen(false)}
                 visible={true}
               />

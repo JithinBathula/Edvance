@@ -11,6 +11,7 @@ interface LessonSectionProps {
     userCode: string;
     output: string[];
     onSectionComplete: (sectionId: string) => void;
+    onPracticeError?: (errorInfo: string) => void;
 }
 
 export const LessonSection: React.FC<LessonSectionProps> = ({
@@ -19,6 +20,7 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
     userCode,
     output,
     onSectionComplete,
+    onPracticeError,
 }) => {
     console.log(`LessonSection ${section.id}: isCompleted =`, isCompleted);
     return (
@@ -96,7 +98,10 @@ export const LessonSection: React.FC<LessonSectionProps> = ({
                             successMessage={section.practice.successMessage}
                             userCode={userCode}
                             output={output}
-                            onCheck={() => { }}
+                            onCheck={() => {
+                                // Notify parent about failed practice attempt
+                                onPracticeError?.(`Failed to match expected output for: ${section.practice.instruction}`);
+                            }}
                             onComplete={() => {
                                 console.log(`LessonSection: onComplete called for section ${section.id}`);
                                 onSectionComplete(section.id);
