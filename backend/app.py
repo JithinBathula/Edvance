@@ -11,7 +11,13 @@ from api import register_blueprints
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+
+# CORS configuration for deployed environment
+CORS(app, 
+     resources={r"/api/*": {"origins": "*"}},
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Register all API blueprints
 register_blueprints(app)
