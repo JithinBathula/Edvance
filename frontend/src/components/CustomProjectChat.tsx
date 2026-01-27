@@ -337,7 +337,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                       <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                       <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
-                    <span className="text-sm text-gray-600">Analyzing your project idea...</span>
+                    <span className="text-sm text-gray-600"></span>
                   </div>
                 </Card>
               </div>
