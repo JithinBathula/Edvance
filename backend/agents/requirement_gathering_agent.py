@@ -21,18 +21,42 @@ DEFAULT_USER_SKILLS = {
 
 MAX_ITERATIONS = 5
 
-
 class RequirementGatheringAgent:
+    @staticmethod
+    def _has_ready_flag(text: str) -> bool:
+        """Return True if the assistant emitted the ready-to-plan JSON flag. 
+        Used to end the requirements gathering and move on to the planning stage.
+        
+        Input: text: str - accumulated assistant content
+        Output: bool - whether ready_to_plan flag is present"""
+
+        if not text:
+            return False
+        stripped = text.strip()
+        try:
+            parsed = json.loads(stripped)
+            if isinstance(parsed, dict):
+                return bool(parsed.get("ready_to_plan") is True)
+        except Exception:
+            pass
+        lowered = stripped.lower().replace(" ", "")
+        return '"ready_to_plan":true' in lowered or "'ready_to_plan':true" in lowered
+
     def __init__(self):
+        """
+        Initialize the Requirement Gathering Agent with OpenAI client and tools.
+        """
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY")
         )
         self.requirement_tools = RequirementTools()
+
+        # Session states in memory dictionary
         self.sessions = {}
         
     def get_session_state(self, session_id: str) -> Dict[str, Any]:
-        """Get or create session state"""
+        """Get or create session state. Session state tracks the progress of requirement gathering."""
         if session_id not in self.sessions:
             self.sessions[session_id] = {
                 'iteration': 0,
@@ -48,19 +72,17 @@ class RequirementGatheringAgent:
         """Reset session state"""
         if session_id in self.sessions:
             del self.sessions[session_id]
-
-    def _log_final_requirements(self, session_id: str, session: Dict[str, Any]) -> None:
-        """Print the requirements snapshot when handing off to planning."""
-        payload = {
-            "session_id": session_id,
-            "project_idea": session.get("project_idea"),
-            "tech_analysis": session.get("tech_analysis"),
-            "quality_check": session.get("quality_check"),
-        }
-        print("[requirements->planning]", json.dumps(payload, indent=2))
     
     def _tool_dispatch(self, tool_name: str, tool_args: Dict[str, Any], session: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool and return results."""
+        """Execute a tool and return results. 
+        
+        Input:
+        - tool_name: str - name of the tool to execute
+        - tool_args: Dict[str, Any] - arguments for the tool
+        - session: Dict[str, Any] - current session state
+        
+        Ouput:
+        - Dict[str, Any] - tool execution result"""
         print(f"Dispatching tool: {tool_name}")
         print(f"Arguments: {json.dumps(tool_args, indent=2)}")
         
@@ -77,6 +99,14 @@ class RequirementGatheringAgent:
                     libraries=tool_args.get('libraries', ''), 
                     user_skills=DEFAULT_USER_SKILLS
                 )
+            
+            elif tool_name == "mark_ready_to_plan":
+                session['ready_summary'] = tool_args.get('summary')
+                return {
+                    "ready_to_plan": bool(tool_args.get('ready_to_plan')),
+                    "summary": tool_args.get('summary'),
+                    "status": "complete"
+                }
             
             elif tool_name == "suggest_alternative_projects":
                 # Ensure avoid_topics includes current project
@@ -102,6 +132,7 @@ class RequirementGatheringAgent:
             return {"error": str(e), "status": "failed"}
     
     def _build_system_prompt(self) -> str:
+        """Construct the system prompt with user skills embedded."""
         return requirements_prompts.requirements_agent_prompt.format(
             experience=DEFAULT_USER_SKILLS["userExperienceLevel"].upper(),
             python_knowledge=DEFAULT_USER_SKILLS["pythonExperience"],
@@ -117,6 +148,14 @@ class RequirementGatheringAgent:
         """
         Process user message and stream responses.
         The LLM will naturally understand user intent and call appropriate tools.
+
+        Input:
+        - message: str - user message
+        - conversation_history: List[Dict[str, str]] - prior messages in the conversation
+        - session_id: str - unique session identifier
+
+        Output:
+        - Generator yielding response chunks as Dict[str, Any] for streaming
         """
         session = self.get_session_state(session_id)
         
@@ -141,6 +180,7 @@ class RequirementGatheringAgent:
         iteration_count = 0
         while iteration_count < MAX_ITERATIONS:
             iteration_count += 1
+            finalize_now = False
             
             try:
                 # API Call
@@ -156,14 +196,12 @@ class RequirementGatheringAgent:
                 accumulated_content = ""
                 tool_calls = []
                 current_tool_call = None
-                finish_reason = None
 
                 for chunk in response:
                     if not chunk.choices:
                         continue
                     
                     delta = chunk.choices[0].delta
-                    finish_reason = chunk.choices[0].finish_reason
                     
                     # 1. Handle content streaming
                     if delta.content:
@@ -209,10 +247,12 @@ class RequirementGatheringAgent:
             
             # Case A: No tools called - conversation done
             if not tool_calls:
-                if accumulated_content and 'hand you over to the planning phase' in accumulated_content.lower():
+                if self._has_ready_flag(accumulated_content):
                     if not session['requirements_finalized']:
                         session['requirements_finalized'] = True
-                        self._log_final_requirements(session_id, session)
+                        print("REQUIREMENTS", json.dumps(session, indent=2))
+                        final_msg = "\n\nI'll now hand you over to the planning phase."
+                        yield {"content": final_msg}
                 break 
 
             # Case B: Execute tools
@@ -235,6 +275,11 @@ class RequirementGatheringAgent:
                         session['tech_analysis'] = result
                     elif tool_name == "quality_check":
                         session['quality_check'] = result
+                    elif tool_name == "mark_ready_to_plan":
+                        if result.get("ready_to_plan") is True and not session['requirements_finalized']:
+                            session['requirements_finalized'] = True
+                            print("REQUIREMENTS", json.dumps(session, indent=2))
+                            finalize_now = True
                     
                     # Check if tool execution failed
                     if result.get('status') == 'failed':
@@ -265,11 +310,9 @@ class RequirementGatheringAgent:
             })
             messages.extend(tool_outputs)
             
-            # If the handoff phrase appeared in this turn, finalize and log immediately
-            if accumulated_content and 'hand you over to the planning phase' in accumulated_content.lower():
-                if not session['requirements_finalized']:
-                    session['requirements_finalized'] = True
-                    self._log_final_requirements(session_id, session)
+            if finalize_now:
+                final_msg = "\n\nI'll now hand you over to the planning phase."
+                yield {"content": final_msg}
                 break
             
             # Loop continues - LLM will process tool results
@@ -279,4 +322,4 @@ class RequirementGatheringAgent:
             yield {"content": "\n\n*I've analyzed enough. Let's proceed based on what we have.*"}
             if not session['requirements_finalized']:
                 session['requirements_finalized'] = True
-                self._log_final_requirements(session_id, session)
+                print("REQUIREMENTS", json.dumps(session, indent=2))

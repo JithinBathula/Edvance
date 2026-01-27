@@ -80,6 +80,23 @@ class RequirementTools:
         {
             "type": "function",
             "function": {
+                "name": "mark_ready_to_plan",
+                "description": "Signal that requirements gathering is complete and provide a one-sentence summary.",
+                "strict": True,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ready_to_plan": {"type": "boolean"},
+                        "summary": {"type": "string"}
+                    },
+                    "required": ["ready_to_plan", "summary"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "suggest_alternative_projects",
                 "description": "Generate new Python project ideas.",
                 "parameters": {
