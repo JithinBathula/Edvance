@@ -60,7 +60,7 @@ class RequirementGatheringAgent:
         print("[requirements->planning]", json.dumps(payload, indent=2))
     
     def _tool_dispatch(self, tool_name: str, tool_args: Dict[str, Any], session: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool and    
+        """Execute a tool and return results."""
         print(f"Dispatching tool: {tool_name}")
         print(f"Arguments: {json.dumps(tool_args, indent=2)}")
         
