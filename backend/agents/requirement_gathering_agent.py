@@ -48,9 +48,19 @@ class RequirementGatheringAgent:
         """Reset session state"""
         if session_id in self.sessions:
             del self.sessions[session_id]
+
+    def _log_final_requirements(self, session_id: str, session: Dict[str, Any]) -> None:
+        """Print the requirements snapshot when handing off to planning."""
+        payload = {
+            "session_id": session_id,
+            "project_idea": session.get("project_idea"),
+            "tech_analysis": session.get("tech_analysis"),
+            "quality_check": session.get("quality_check"),
+        }
+        print("[requirements->planning]", json.dumps(payload, indent=2))
     
     def _tool_dispatch(self, tool_name: str, tool_args: Dict[str, Any], session: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool and return results."""
+        """Execute a tool and    
         print(f"Dispatching tool: {tool_name}")
         print(f"Arguments: {json.dumps(tool_args, indent=2)}")
         
@@ -200,7 +210,9 @@ class RequirementGatheringAgent:
             # Case A: No tools called - conversation done
             if not tool_calls:
                 if accumulated_content and 'hand you over to the planning phase' in accumulated_content.lower():
-                    session['requirements_finalized'] = True
+                    if not session['requirements_finalized']:
+                        session['requirements_finalized'] = True
+                        self._log_final_requirements(session_id, session)
                 break 
 
             # Case B: Execute tools
@@ -253,9 +265,18 @@ class RequirementGatheringAgent:
             })
             messages.extend(tool_outputs)
             
+            # If the handoff phrase appeared in this turn, finalize and log immediately
+            if accumulated_content and 'hand you over to the planning phase' in accumulated_content.lower():
+                if not session['requirements_finalized']:
+                    session['requirements_finalized'] = True
+                    self._log_final_requirements(session_id, session)
+                break
+            
             # Loop continues - LLM will process tool results
 
         # Loop exit
         if iteration_count >= MAX_ITERATIONS:
             yield {"content": "\n\n*I've analyzed enough. Let's proceed based on what we have.*"}
-            session['requirements_finalized'] = True
+            if not session['requirements_finalized']:
+                session['requirements_finalized'] = True
+                self._log_final_requirements(session_id, session)

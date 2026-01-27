@@ -42,16 +42,16 @@ QUALITY BAR:
 A learner should be able to read the milestones and clearly visualize the application gradually coming to life.
 
 RESPONSE FORMAT (JSON ONLY):
-{
+{{
   "project_title": "<concise, learner-facing project name>",
   "project_brief": "<2–3 sentence overview describing what will be built and why it matters>",
   "milestones": [
-    {
+    {{
       "subheading_title": "<clear, specific milestone title>",
       "description": "<what capability is built and what the learner understands by the end>"
-    }
+    }}
   ]
-}
+}}
 
 """
 
