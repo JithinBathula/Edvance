@@ -104,9 +104,9 @@ export default function App() {
   const handleRequirementsReady = (data: any) => {
     console.log("📋 Requirements ready:", data);
     setProjectRequirements({
-      idea: data.idea || data.title,
-      techStack: data.techStack || ['Python'],
-      experienceLevel: user?.onboarding?.experienceLevel || 'beginner',
+      session: data.session || data.session_data,
+      outline: data.outline,
+      experienceLevel: data.experienceLevel || user?.onboarding?.experienceLevel || 'beginner',
     });
     navigate("/project-planning");
   };

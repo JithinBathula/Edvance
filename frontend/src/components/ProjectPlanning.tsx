@@ -9,8 +9,8 @@ import { ArrowLeft, ArrowRight, Loader2, Sparkles, BookOpen } from 'lucide-react
 type Props = {
     user: User;
     requirements: {
-        idea: string;
-        techStack: string[];
+        session: any;
+        outline?: Outline | null;
         experienceLevel: string;
     };
     onProjectReady: (project: any) => void;
@@ -30,12 +30,26 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
     const [outline, setOutline] = useState<Outline | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // Generate outline on mount
+    // Generate outline on mount or use provided one
     useEffect(() => {
-        generateOutline();
+        if (requirements.outline) {
+            setOutline(requirements.outline);
+            setPhase('show-outline');
+        } else {
+            generateOutline();
+        }
     }, []);
 
+    const experienceLevel =
+        requirements.experienceLevel || user.onboarding?.experienceLevel || 'beginner';
+    const serializedSession = JSON.stringify(requirements.session ?? {}, null, 2);
+
     const generateOutline = async () => {
+        if (!requirements.session) {
+            setError('Missing session data for outline generation.');
+            return;
+        }
+
         setPhase('generating-outline');
         setError(null);
 
@@ -44,9 +58,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    requirements: requirements.idea,
-                    tech_stack: requirements.techStack || ['Python'],
-                    experience_level: requirements.experienceLevel || user.onboarding?.experienceLevel || 'beginner',
+                    session: requirements.session,
+                    experience_level: experienceLevel,
                 }),
             });
 
@@ -72,9 +85,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: user.id,
-                    requirements: requirements.idea,
-                    tech_stack: requirements.techStack || ['Python'],
-                    experience_level: requirements.experienceLevel || user.onboarding?.experienceLevel || 'beginner',
+                    requirements: serializedSession,
+                    experience_level: experienceLevel,
                     outline: outline,
                 }),
             });

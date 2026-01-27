@@ -18,15 +18,12 @@ Do not include explanations, markdown, or extra text.
 
 
 outline_user_prompt = """
-Use the information below to generate a complete project outline.
+Use the collected requirements session (JSON below) to generate a complete project outline.
 
-USER REQUIREMENTS:
-{requirements}
+REQUIREMENTS SESSION (verbatim JSON):
+{session_json}
 
-TECH STACK:
-{tech_stack}
-
-USER EXPERIENCE LEVEL:
+Experience Level:
 {experience_level}
 
 STRUCTURE & CONSTRAINTS:
@@ -52,7 +49,6 @@ RESPONSE FORMAT (JSON ONLY):
     }}
   ]
 }}
-
 """
 
 

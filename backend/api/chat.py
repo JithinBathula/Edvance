@@ -93,9 +93,7 @@ def get_final_requirements(session_id: str):
             }), 404
 
         final_data = {
-            'project_idea': session_state.get('project_idea'),
-            'tech_stack': session_state.get('tech_analysis', {}).get('libraries'),
-            'complexity_check': session_state.get('quality_check'),
+            'session_data': session_state
         }
 
         return jsonify({'status': 'success', 'requirements': final_data}), 200

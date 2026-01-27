@@ -1,5 +1,6 @@
 import os
-from typing import Any, Dict, List, Sequence
+import json
+from typing import Any, Dict, List, Sequence, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -50,26 +51,23 @@ class CurriculumPlanner:
             },
         )
         return response.choices[0].message.content
-
+    
     def generate_outline(
         self,
         *,
-        requirements: Sequence[str] | str,
-        tech_stack: Sequence[str] | str,
+        session_snapshot: Dict[str, Any],
         experience_level: str,
     ) -> OutlineProject:
         """
-        Pass 1: Generates the project title, brief, and milestone list.
+        Generates an outline directly from the requirements agent session snapshot.
         """
-        tech_stack_text = self._stringify_stack(tech_stack)
-        requirements_text = self._format_requirements(requirements)
+        session_json = json.dumps(session_snapshot or {}, indent=2)
         messages = [
             {"role": "system", "content": prompt_bank.outline_system_prompt},
             {
                 "role": "user",
                 "content": prompt_bank.outline_user_prompt.format(
-                    requirements=requirements_text,
-                    tech_stack=tech_stack_text,
+                    session_json=session_json,
                     experience_level=experience_level.strip(),
                 ),
             },
@@ -132,7 +130,7 @@ class CurriculumPlanner:
         self,
         *,
         requirements: Sequence[str] | str,
-        tech_stack: Sequence[str] | str,
+        tech_stack: Optional[Sequence[str] | str] = None,
         experience_level: str,
         outline: OutlineProject | None = None,
     ) -> ProjectCurriculum:

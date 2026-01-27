@@ -54,17 +54,51 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     if (isReadyToProceed) {
       // Small delay for UX - let user see the final message
       const timer = setTimeout(() => {
-        const userMessages = messages.filter(m => m.role === 'user');
-        const projectIdea = userMessages[0]?.content || 'Custom Project';
 
-        toast.success("Requirements finalized. Preparing project plan!");
+        const proceed = async () => {
+          // Fetch the session data from the backend
+          try {
+            const session_id = getSessionId(user);
+            const reqRes = await fetch(`${BACKEND_URL}/chat/requirements/${session_id}`)
+            const reqJson = await reqRes.json();
 
-        onProjectCreated({
-          title: projectIdea.slice(0, 50),
-          idea: projectIdea,
-          techStack: ['Python'],
-          experienceLevel: user.onboarding?.experienceLevel || 'beginner',
-        });
+            if (!reqRes.ok || reqJson.status !== 'success') {
+              throw new Error(`HTTP error! status: ${reqRes.status}`);
+            }
+
+            const sessionData = reqJson.requirements.session_data;
+
+            const outlineRes = await fetch(`${BACKEND_URL}/planning/outline`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                session: sessionData,
+                experience_level: user.onboarding?.experienceLevel || 'beginner',
+              }),
+            });
+
+            if (!outlineRes.ok) {
+              throw new Error(`HTTP error! status: ${outlineRes.status}`);
+            }
+
+            const outlineJson = await outlineRes.json();
+
+            toast.success("Project plan created successfully!");
+
+            onProjectCreated({
+              session: sessionData,
+              outline: outlineJson,
+              experienceLevel: user.onboarding?.experienceLevel || 'beginner',
+            });
+
+          } catch (error) {
+            console.error("Error during project creation:", error);
+            toast.error("Failed to create project plan. Please try again.");
+            setIsReadyToProceed(false);
+          }
+        };
+
+        proceed();
       }, 1500);
       return () => clearTimeout(timer);
     }

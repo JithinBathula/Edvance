@@ -14,23 +14,25 @@ planner = CurriculumPlanner()
 
 @planning_bp.route("/outline", methods=["POST"])
 def generate_outline():
-    """Generate a project outline from the provided requirements."""
+    """Generate a project outline from either raw inputs or a requirements-agent session."""
     payload = request.get_json(silent=True) or {}
 
-    requirements = payload.get("requirements")
-    tech_stack = payload.get("tech_stack")
-    experience_level = payload.get("experience_level")
-
-    if requirements is None or tech_stack is None or experience_level is None:
-        return (
-            jsonify({"error": "requirements, tech_stack, and experience_level are required"}),
-            400,
-        )
+    session_snapshot = (
+        payload.get("session")
+        or payload.get("session_snapshot")
+        or payload.get("session_data")
+    )
+    experience_level = payload.get("experience_level") or "beginner"
 
     try:
+        if session_snapshot is None:
+            return (
+                jsonify({"error": "session data is required to generate an outline"}),
+                400,
+            )
+
         outline = planner.generate_outline(
-            requirements=requirements,
-            tech_stack=tech_stack,
+            session_snapshot=session_snapshot,
             experience_level=experience_level,
         )
         return jsonify(outline.model_dump())
@@ -47,19 +49,17 @@ def generate_curriculum():
 
     user_id = payload.get("user_id")
     requirements = payload.get("requirements")
-    tech_stack = payload.get("tech_stack")
     experience_level = payload.get("experience_level")
     outline_payload = payload.get("outline")
 
     if (
         requirements is None
-        or tech_stack is None
         or experience_level is None
         or outline_payload is None
     ):
         return (
             jsonify(
-                {"error": "requirements, tech_stack, experience_level, and outline are required"}
+                {"error": "requirements, experience_level, and outline are required"}
             ),
             400,
         )
@@ -72,7 +72,7 @@ def generate_curriculum():
     try:
         curriculum = planner.generate_curriculum(
             requirements=requirements,
-            tech_stack=tech_stack,
+            tech_stack=None,
             experience_level=experience_level,
             outline=outline,
         )
@@ -82,7 +82,7 @@ def generate_curriculum():
         # Auto-save to database if user_id provided
         if user_id:
             req_list = requirements if isinstance(requirements, list) else [requirements]
-            stack_list = tech_stack if isinstance(tech_stack, list) else [tech_stack]
+            stack_list: list[str] = []
             
             project = create_project(
                 user_id=user_id,
@@ -138,4 +138,3 @@ def get_project(project_id: str):
         return jsonify(project)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
-
