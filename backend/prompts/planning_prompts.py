@@ -20,9 +20,6 @@ Create a focused project outline based on the information below.
 REQUIREMENTS SESSION (verbatim JSON):
 {session_json}
 
-TECH STACK:
-{tech_stack}
-
 USER EXPERIENCE LEVEL & KNOWLEDGE:
 {experience_level}
 
