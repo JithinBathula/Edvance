@@ -6,7 +6,6 @@ import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
-import { ScrollArea } from "./ui/scroll-area";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -20,6 +19,7 @@ import {
   Loader2,
   X,
   AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 
 type Task = {
@@ -58,6 +58,15 @@ export function ProjectWorkspace({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const filesLoaded = useRef(false);
 
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(true);
+
+  // Screen Size State (Default to true/large)
+  // We use 1200px as a breakpoint. 
+  // - Full screen usually > 1200px.
+  // - Half screen usually < 1200px.
+  const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth > 1200);
+
   // Submission gate state
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
@@ -67,7 +76,16 @@ export function ProjectWorkspace({
   const currentTask = tasks[currentTaskIndex];
   const progress = (completedTasks.length / tasks.length) * 100;
 
-  // Load saved files ONCE on project load (not per task - files persist across tasks)
+  // Track Window Resize for Chat Width
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth > 1200);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     if (!filesLoaded.current && project.id) {
       loadSavedFiles();
@@ -83,7 +101,6 @@ export function ProjectWorkspace({
 
   const loadSavedFiles = async () => {
     try {
-      // Load files from first task (they're shared across all tasks)
       const firstTaskId = tasks[0]?.id;
       if (!firstTaskId) return;
 
@@ -95,14 +112,12 @@ export function ProjectWorkspace({
 
       if (data.success && data.code) {
         try {
-          // Try to parse as JSON (multi-file format)
           const parsed = JSON.parse(data.code);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setProjectFiles(parsed);
             return;
           }
         } catch {
-          // Legacy single-file format - wrap in array
           setProjectFiles([
             { name: 'main.py', content: data.code, language: 'python' }
           ]);
@@ -110,7 +125,6 @@ export function ProjectWorkspace({
         }
       }
 
-      // No saved code - use starter code if available
       const starterCode = currentTask?.starterCode || '# Write your code here\n';
       setProjectFiles([
         { name: 'main.py', content: starterCode, language: 'python' }
@@ -121,7 +135,6 @@ export function ProjectWorkspace({
   };
 
   const saveFiles = async (files: ProjectFile[]) => {
-    // Save to first task ID (shared across all tasks in project)
     const firstTaskId = tasks[0]?.id;
     if (!firstTaskId) return;
 
@@ -134,7 +147,7 @@ export function ProjectWorkspace({
         body: JSON.stringify({
           user_id: user.id,
           task_id: firstTaskId,
-          code: JSON.stringify(files), // Store as JSON
+          code: JSON.stringify(files),
         }),
       });
       const data = await response.json();
@@ -150,7 +163,6 @@ export function ProjectWorkspace({
   };
 
   const handleCompleteTask = async () => {
-    // Get the main file content for evaluation
     const mainFile = projectFiles.find(f => f.name === 'main.py') || projectFiles[0];
     const code = mainFile?.content || '';
 
@@ -158,7 +170,6 @@ export function ProjectWorkspace({
     setEvaluationFeedback(null);
 
     try {
-      // Call submission evaluation API
       const response = await fetch(`${BACKEND_URL}/submission/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,12 +189,9 @@ export function ProjectWorkspace({
       }
 
       if (data.is_correct) {
-        // Success! Save files and advance
         await saveFiles(projectFiles);
-
         const newCompleted = [...completedTasks, currentTask.id];
         setCompletedTasks(newCompleted);
-
         toast.success(data.feedback || 'Great job! Task completed.');
 
         if (currentTaskIndex < tasks.length - 1) {
@@ -193,7 +201,6 @@ export function ProjectWorkspace({
           await handleProjectComplete();
         }
       } else {
-        // Incorrect - show feedback modal
         setEvaluationFeedback(data.feedback);
         setShowFeedbackModal(true);
       }
@@ -211,9 +218,9 @@ export function ProjectWorkspace({
 
   if (showCompletion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full p-12 text-center bg-white">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-linear-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-4xl mb-4">Amazing Work! 🎉</h2>
@@ -222,7 +229,7 @@ export function ProjectWorkspace({
             <span className="font-semibold">{project.title}</span>
           </p>
 
-          <div className="bg-gradient-to-r from-purple-50 to-orange-50 rounded-xl p-6 mb-6">
+          <div className="bg-linear-to-r from-purple-50 to-orange-50 rounded-xl p-6 mb-6">
             <div className="flex items-center justify-center gap-3 mb-2">
               <Sparkles className="w-6 h-6 text-[#ffa200]" />
               <p className="text-2xl">+100 XP Earned!</p>
@@ -240,7 +247,7 @@ export function ProjectWorkspace({
 
           <Button
             onClick={onComplete}
-            className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+            className="bg-linear-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
           >
             Back to Home
           </Button>
@@ -257,10 +264,15 @@ export function ProjectWorkspace({
     );
   }
 
+  // Calculate chat width based on open state AND screen size
+  const chatWidth = isChatOpen 
+    ? (isLargeScreen ? '35rem' : '20rem') 
+    : '0px';
+
   return (
     <div className="h-screen flex flex-col bg-white">
       {/* Header */}
-      <header className="border-b bg-white px-4 py-3 flex items-center justify-between">
+      <header className="border-b bg-white px-4 py-3 flex items-center justify-between shrink-0 h-16">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
@@ -282,13 +294,26 @@ export function ProjectWorkspace({
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left - Task List */}
-        <div
-          className="flex-none overflow-hidden border-r border-gray-200 flex flex-col bg-gradient-to-b from-white to-gray-50 transition-all duration-200"
-          style={{ width: sidebarCollapsed ? '3rem' : '20%' }}
-        >
+      {/* Main Content - FLUID GRID LAYOUT */}
+      <div 
+        className="flex-1 overflow-hidden grid transition-all duration-300"
+        style={{
+          // Use 'fr' units for relative sizing
+          // If Sidebar collapsed: auto width, Else: 2fr
+          // Details: 3fr
+          // IDE: 7fr (Takes the most space)
+          // Chat: Responsive Fixed Width (0px, 20rem, or 35rem)
+          gridTemplateColumns: `
+            ${sidebarCollapsed ? 'auto' : '2fr'} 
+            3fr 
+            7fr 
+            ${chatWidth}
+          `
+        }}
+      >
+        
+        {/* Pane 1: Task List (2fr) */}
+        <div className="overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-b from-white to-gray-50 min-w-0">
           <div className="px-3 py-3 flex items-center justify-between border-b border-gray-200 bg-white">
             {!sidebarCollapsed && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tasks</span>}
             <button
@@ -309,20 +334,20 @@ export function ProjectWorkspace({
                       setShowHints(false);
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${idx === currentTaskIndex
-                      ? "bg-gradient-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
+                      ? "bg-linear-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
                       : completedTasks.includes(task.id)
                         ? "text-green-600 hover:bg-green-50"
                         : "text-gray-600 hover:bg-gray-100"
                       }`}
                   >
                     {completedTasks.includes(task.id) ? (
-                      <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center shrink-0">
                         <Check className="w-2.5 h-2.5 text-white" />
                       </div>
                     ) : (
-                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${idx === currentTaskIndex ? 'border-purple-400' : 'border-gray-300'}`} />
+                      <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${idx === currentTaskIndex ? 'border-purple-400' : 'border-gray-300'}`} />
                     )}
-                    <span className="text-xs font-medium leading-tight">{task.title}</span>
+                    <span className="text-xs font-medium leading-tight line-clamp-2">{task.title}</span>
                   </button>
                 ))}
               </div>
@@ -330,11 +355,8 @@ export function ProjectWorkspace({
           )}
         </div>
 
-        {/* Center - Task Details */}
-        <div
-          className="flex-none min-w-0 overflow-hidden border-r border-gray-200 flex flex-col bg-gradient-to-br from-purple-50 via-white to-orange-50"
-          style={{ width: '30%' }}
-        >
+        {/* Pane 2: Task Details (3fr) */}
+        <div className="min-w-0 overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-br from-purple-50 via-white to-orange-50">
           <div className="flex-1 overflow-y-auto p-6">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
             <div className="prose max-w-none mb-6">
@@ -343,7 +365,6 @@ export function ProjectWorkspace({
               </p>
             </div>
 
-            {/* Hints Section */}
             {currentTask.hints && currentTask.hints.length > 0 && (
               <div className="mb-6">
                 <button
@@ -374,11 +395,10 @@ export function ProjectWorkspace({
               </div>
             )}
 
-            {/* Complete Button */}
             <Button
               onClick={handleCompleteTask}
               disabled={saving || evaluating}
-              className="w-full bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] shadow-md hover:shadow-lg transition-shadow"
+              className="w-full bg-linear-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] shadow-md hover:shadow-lg transition-shadow"
             >
               {evaluating ? (
                 <>
@@ -394,8 +414,8 @@ export function ProjectWorkspace({
           </div>
         </div>
 
-        {/* Right - Monaco IDE */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col bg-gray-900">
+        {/* Pane 3: IDE (7fr) */}
+        <div className="min-w-0 overflow-hidden flex flex-col bg-gray-900">
           <div className="flex-1 p-1">
             <MonacoIDE
               files={projectFiles}
@@ -405,23 +425,43 @@ export function ProjectWorkspace({
             />
           </div>
         </div>
+
+        {/* Pane 4: Chatbot Sidebar (Responsive Fixed) */}
+        <div className={`border-l border-gray-200 bg-white flex flex-col transition-all duration-300 overflow-hidden ${isChatOpen ? 'w-full' : 'w-0'}`}>
+          {isChatOpen && (
+            <AIChatbot
+              context={`Working on: ${currentTask.title}`}
+              userProgress={completedTasks}
+              taskId={currentTask.id}
+              userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
+              taskDescription={currentTask.description}
+              testSpec={currentTask.testSpec}
+              onClose={() => setIsChatOpen(false)}
+              visible={true}
+            />
+          )}
+        </div>
+
       </div>
 
-      <AIChatbot
-        context={`Working on: ${currentTask.title}`}
-        userProgress={completedTasks}
-        taskId={currentTask.id}
-        userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
-        taskDescription={currentTask.description}
-        testSpec={currentTask.testSpec}
-      />
+      {/* Floating Chat Button */}
+      {!isChatOpen && (
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
+          style={{ backgroundColor: '#4285f4' }}
+          title="Open AI Chat"
+        >
+          <MessageCircle className="w-6 h-6 text-white" />
+        </button>
+      )}
 
       {/* Feedback Modal */}
       {showFeedbackModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="p-6 bg-white" style={{ maxWidth: '640px' }}>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5 text-orange-600" />
               </div>
               <div className="flex-1">
@@ -429,7 +469,7 @@ export function ProjectWorkspace({
                 <p className="text-gray-600 mb-4 whitespace-pre-wrap">{evaluationFeedback}</p>
                 <Button
                   onClick={() => setShowFeedbackModal(false)}
-                  className="w-full bg-gradient-to-r from-[#7622e5] to-[#b480f8]"
+                  className="w-full bg-linear-to-r from-[#7622e5] to-[#b480f8]"
                 >
                   Try Again
                 </Button>

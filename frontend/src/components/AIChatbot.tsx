@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { MessageCircle, Send, Bot, User, AlertTriangle, PanelRightClose } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
 import { BACKEND_URL } from '../utils/constants';
 
 type Message = {
@@ -11,14 +11,18 @@ type Message = {
   content: string;
 };
 
-// We add 'onClose' and 'visible' props to control it from the parent
 type Props = {
   context?: string;
   userProgress?: any;
   taskId?: string;
   userCode?: string;
-  onClose: () => void; // New prop to close the panel
-  visible: boolean;     // New prop to check if we should render
+  taskDescription?: string;
+  testSpec?: {
+    expected_state?: string;
+    verification_code?: string;
+  };
+  onClose?: () => void;
+  visible?: boolean;
 };
 
 export function AIChatbot({
@@ -26,8 +30,10 @@ export function AIChatbot({
   userProgress,
   taskId,
   userCode,
+  taskDescription,
+  testSpec,
   onClose,
-  visible
+  visible = true
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -96,67 +102,102 @@ export function AIChatbot({
     }
   };
 
+// If not visible, return null (handled by parent usually, but good for safety)
   if (!visible) return null;
-  return (
-    <div className="w-full h-full bg-white flex flex-col border-l border-gray-200">
-      {/* Header */}
-      <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-white">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-          <span className="font-medium text-sm text-gray-700">AI assistant</span>
-        </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-50 transition-colors"
-          title="Collapse Chat"
-        >
-          <PanelRightClose size={16} />
-        </button>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" ref={scrollRef}>
-        {messages.map((message, i) => (
-          <div key={i} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[90%] rounded-2xl p-3 text-sm shadow-sm leading-relaxed ${message.role === 'user'
-                ? 'bg-blue-600 text-white rounded-tr-none'
-                : 'bg-white border border-gray-200 text-gray-600 rounded-tl-none'
-              }`}>
-              {message.content}
-            </div>
+return (
+    <div className="h-full flex flex-col bg-white border-l border-gray-200 shadow-xl">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
+            <Sparkles className="w-4 h-4 text-blue-600" />
           </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none p-3 shadow-sm">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></div>
-                <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></div>
-              </div>
-            </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 text-sm">AI Tutor</h3>
+            <p className="text-xs text-gray-500">Always here to help</p>
           </div>
+        </div>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+            
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
       </div>
 
-      {/* Input */}
-      <div className="p-3 bg-white border-t border-gray-100">
-        <div className="relative">
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 p-4 bg-gray-50/50" ref={scrollRef}>
+        <div className="space-y-4">
+          {messages.map((message, i) => (
+            <div
+              key={i}
+              className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-blue-600" />
+                </div>
+              )}
+              {message.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-purple-600" />
+                </div>
+              )}
+              
+              <div
+                className={`rounded-2xl px-4 py-3 max-w-[85%] text-sm shadow-sm ${
+                  message.role === 'user'
+                    ? 'bg-purple-600 text-white rounded-tr-none'
+                    : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
+                }`}
+              >
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                <span className="text-xs text-gray-400">Thinking...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {error && (
+        <div className="flex items-center gap-2 text-orange-600 text-sm px-4 py-2 bg-orange-50 border-t border-orange-100">
+          <AlertTriangle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+        <div className="relative flex items-center gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Chat here..."
-            className="w-full pl-4 pr-10 py-2 bg-gray-50 border-gray-200 rounded-full text-sm focus:bg-white"
+            placeholder="Ask me anything..."
             disabled={isLoading}
+            className="pr-10"
           />
           <Button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className="absolute right-1 top-1 h-8 w-8 bg-blue-600 hover:bg-blue-700 rounded-full"
+            className="absolute right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
           >
-            <Send className="w-4 h-4 text-white" />
+            <Send className="w-4 h-4" />
           </Button>
         </div>
       </div>
