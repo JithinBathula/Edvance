@@ -20,7 +20,85 @@ import {
   X,
   AlertCircle,
   MessageCircle,
+  Code,
+  FileText,
 } from "lucide-react";
+
+// Component to format task description with code highlighting and structure
+function FormattedDescription({ text }: { text: string }) {
+  // Split into sentences but keep them as logical blocks
+  const paragraphs = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+
+  // Helper to format inline code and keywords
+  const formatText = (sentence: string) => {
+    // Replace 'quoted text' with styled code spans
+    return sentence
+      .replace(/'([^']+)'/g, '<code class="inline-code">$1</code>')
+      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+      // Highlight common programming keywords
+      .replace(/\b(API|JSON|ISO 8601|HTTP|GET|POST|PUT|DELETE)\b/gi, '<span class="keyword">$1</span>');
+  };
+
+  // Group sentences into logical sections if there are multiple
+  const renderContent = () => {
+    if (paragraphs.length <= 2) {
+      // Short description - render as flowing text
+      return (
+        <p
+          className="text-gray-600 text-base leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: formatText(text) }}
+        />
+      );
+    }
+
+    // Longer description - render with visual structure
+    return (
+      <div className="space-y-4">
+        {/* First paragraph as intro */}
+        <p
+          className="text-gray-700 text-base leading-relaxed font-medium"
+          dangerouslySetInnerHTML={{ __html: formatText(paragraphs[0]) }}
+        />
+
+        {/* Remaining as numbered points */}
+        <div className="space-y-3">
+          {paragraphs.slice(1).map((sentence, i) => (
+            <div key={i} className="flex items-start gap-3 pl-1">
+              <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+              <p
+                className="text-gray-600 text-base leading-relaxed flex-1"
+                dangerouslySetInnerHTML={{ __html: formatText(sentence) }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <style>{`
+        .inline-code {
+          background: linear-gradient(135deg, #f0e6ff 0%, #e8f0ff 100%);
+          color: #7622e5;
+          padding: 0.125rem 0.375rem;
+          border-radius: 0.25rem;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 0.875em;
+          font-weight: 500;
+        }
+        .keyword {
+          color: #059669;
+          font-weight: 600;
+        }
+      `}</style>
+      {renderContent()}
+    </>
+  );
+}
 
 type Task = {
   id: string;
@@ -265,8 +343,8 @@ export function ProjectWorkspace({
   }
 
   // Calculate chat width based on open state AND screen size
-  const chatWidth = isChatOpen 
-    ? (isLargeScreen ? '35rem' : '20rem') 
+  const chatWidth = isChatOpen
+    ? (isLargeScreen ? '35rem' : '20rem')
     : '0px';
 
   return (
@@ -295,23 +373,23 @@ export function ProjectWorkspace({
       </header>
 
       {/* Main Content - FLUID GRID LAYOUT */}
-      <div 
+      <div
         className="flex-1 overflow-hidden grid transition-all duration-300"
         style={{
           // Use 'fr' units for relative sizing
-          // If Sidebar collapsed: auto width, Else: 2fr
-          // Details: 3fr
-          // IDE: 7fr (Takes the most space)
-          // Chat: Responsive Fixed Width (0px, 20rem, or 35rem)
-          gridTemplateColumns: `
-            ${sidebarCollapsed ? 'auto' : '2fr'} 
-            3fr 
-            7fr 
-            ${chatWidth}
-          `
+          // When chat closed: task description and WebIDE split 50-50 of remaining space
+          // When chat open: use proportional layout
+          gridTemplateColumns: !isChatOpen
+            ? `${sidebarCollapsed ? 'auto' : '200px'} 1fr 1fr 0px`
+            : `
+              ${sidebarCollapsed ? 'auto' : '2fr'} 
+              3fr 
+              5fr 
+              ${chatWidth}
+            `
         }}
       >
-        
+
         {/* Pane 1: Task List (2fr) */}
         <div className="overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-b from-white to-gray-50 min-w-0">
           <div className="px-3 py-3 flex items-center justify-between border-b border-gray-200 bg-white">
@@ -360,9 +438,7 @@ export function ProjectWorkspace({
           <div className="flex-1 overflow-y-auto p-6">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
             <div className="prose max-w-none mb-6">
-              <p className="text-gray-600 text-base leading-relaxed whitespace-pre-wrap">
-                {currentTask.description}
-              </p>
+              <FormattedDescription text={currentTask.description} />
             </div>
 
             {currentTask.hints && currentTask.hints.length > 0 && (
@@ -379,17 +455,28 @@ export function ProjectWorkspace({
                   {showHints ? "Hide Hints" : "Show Hints"}
                 </button>
                 {showHints && (
-                  <div className="mt-3 bg-white/60 rounded-lg p-4 backdrop-blur-sm border border-purple-100">
-                    <ul className="space-y-3">
+                  <div className="mt-3 bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border border-purple-100 shadow-sm">
+                    <div className="space-y-5">
                       {currentTask.hints.map((hint, idx) => (
-                        <li
+                        <div
                           key={idx}
-                          className="text-base text-gray-700 pl-4 border-l-2 border-purple-300 leading-relaxed"
+                          className="flex items-start gap-4"
                         >
-                          {hint}
-                        </li>
+                          <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <p
+                            className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5"
+                            dangerouslySetInnerHTML={{
+                              __html: hint
+                                .replace(/'([^']+)'/g, '<code class="inline-code">$1</code>')
+                                .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+                                .replace(/\b([a-z_][a-z0-9_]*\(\))/gi, '<code class="inline-code">$1</code>')
+                            }}
+                          />
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </div>
@@ -459,27 +546,56 @@ export function ProjectWorkspace({
       {/* Feedback Modal */}
       {showFeedbackModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="p-6 bg-white" style={{ maxWidth: '640px' }}>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Not Quite Right</h3>
-                <p className="text-gray-600 mb-4 whitespace-pre-wrap">{evaluationFeedback}</p>
-                <Button
+          <Card className="bg-white rounded-xl shadow-2xl overflow-hidden" style={{ maxWidth: '560px', width: '100%' }}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Not Quite Right</h3>
+                    <p className="text-sm text-gray-500">Review the feedback below and try again</p>
+                  </div>
+                </div>
+                <button
                   onClick={() => setShowFeedbackModal(false)}
-                  className="w-full bg-linear-to-r from-[#7622e5] to-[#b480f8]"
+                  className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white/50 rounded-lg transition-colors"
                 >
-                  Try Again
-                </Button>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
+            </div>
+
+            {/* Content - formatted as list */}
+            <div className="px-6 py-5">
+              <div className="space-y-3">
+                {evaluationFeedback?.split(/(?<=\.)\s+/).filter(Boolean).map((sentence, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <p className="text-gray-700 text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{
+                        __html: sentence
+                          .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-purple-600 font-mono text-xs">$1</code>')
+                          .replace(/'([^']+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-purple-600 font-mono text-xs">$1</code>')
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <Button
                 onClick={() => setShowFeedbackModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
               >
-                <X className="w-5 h-5" />
-              </button>
+                Try Again
+              </Button>
             </div>
           </Card>
         </div>

@@ -308,7 +308,7 @@ export function MonacoIDE({
 
             {/* Terminal */}
             <div
-                style={{ height: isTerminalOpen ? '25%' : '30px' }}
+                style={{ height: isTerminalOpen ? '150px' : '36px' }}
                 className="border-t border-[#3c3c3c] bg-[#1e1e1e] flex flex-col overflow-hidden flex-none"
             >
                 <div
@@ -318,18 +318,23 @@ export function MonacoIDE({
                     <div className="flex items-center gap-2">
                         <TerminalSquare className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-400">Terminal</span>
+                        {output.length > 0 && (
+                            <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded">{output.length} lines</span>
+                        )}
                     </div>
                     {isTerminalOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                 </div>
-                <div className="p-3 flex-1 overflow-auto font-mono text-sm">
-                    {output.length === 0 ? (
-                        <div className="text-gray-500">Run your code to see output here...</div>
-                    ) : (
-                        output.map((line, i) => (
-                            <div key={i} className="text-green-400 mb-0.5">{line}</div>
-                        ))
-                    )}
-                </div>
+                {isTerminalOpen && (
+                    <div className="p-3 flex-1 overflow-auto font-mono text-sm">
+                        {output.length === 0 ? (
+                            <div className="text-gray-500">Run your code to see output here...</div>
+                        ) : (
+                            output.map((line, i) => (
+                                <div key={i} className="text-green-400 mb-0.5">{line}</div>
+                            ))
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
