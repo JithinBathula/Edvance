@@ -418,18 +418,20 @@ export function ProjectWorkspace({
                         setShowHints(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${idx === currentTaskIndex
-                        ? "bg-linear-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
+                        ? "bg-linear-to-r from-amber-100 to-orange-50 text-amber-700 shadow-sm border border-amber-200"
                         : completedTasks.includes(task.id)
-                          ? "text-green-600 hover:bg-green-50"
+                          ? "text-cyan-600 hover:bg-cyan-50"
                           : "text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       {completedTasks.includes(task.id) ? (
-                        <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center shrink-0">
-                          <Check className="w-2.5 h-2.5 text-white" />
+                        <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center shrink-0 text-[10px] font-bold text-white">
+                          {task.title.match(/(\d+\.\d+)/)?.[1] || (idx + 1)}
                         </div>
                       ) : (
-                        <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${idx === currentTaskIndex ? 'border-purple-400' : 'border-gray-300'}`} />
+                        <div className={`w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center text-[10px] font-bold ${idx === currentTaskIndex ? 'border-amber-400 text-amber-600 bg-amber-50' : 'border-gray-300 text-gray-500'}`}>
+                          {task.title.match(/(\d+\.\d+)/)?.[1] || (idx + 1)}
+                        </div>
                       )}
                       <span className="text-xs font-medium leading-tight line-clamp-2">{task.title}</span>
                     </button>
@@ -443,8 +445,8 @@ export function ProjectWorkspace({
         {!sidebarCollapsed && <ResizableHandle />}
 
         {/* Pane 2: Task Details */}
-        <ResizablePanel defaultSize={30} minSize={15} maxSize={50}>
-          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-br from-purple-50 via-white to-orange-50">
+        <ResizablePanel defaultSize={isChatOpen ? 25 : 42} minSize={15} maxSize={50}>
+          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-br from-amber-50 via-white to-cyan-50">
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
               <div className="prose max-w-none mb-6">
@@ -455,7 +457,7 @@ export function ProjectWorkspace({
                 <div className="mb-6">
                   <button
                     onClick={() => setShowHints(!showHints)}
-                    className="flex items-center gap-2 text-base font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                    className="flex items-center gap-2 text-base font-medium text-cyan-600 hover:text-cyan-700 transition-colors"
                   >
                     {showHints ? (
                       <ChevronDown className="w-5 h-5" />
@@ -465,14 +467,14 @@ export function ProjectWorkspace({
                     {showHints ? "Hide Hints" : "Show Hints"}
                   </button>
                   {showHints && (
-                    <div className="mt-3 bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border border-purple-100 shadow-sm">
+                    <div className="mt-3 bg-gradient-to-br from-cyan-50 to-white rounded-xl p-6 border border-cyan-100 shadow-sm">
                       <div className="space-y-5">
                         {currentTask.hints.map((hint, idx) => (
                           <div
                             key={idx}
                             className="flex items-start gap-4"
                           >
-                            <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5">
+                            <span className="w-7 h-7 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5">
                               {idx + 1}
                             </span>
                             <p
@@ -495,7 +497,7 @@ export function ProjectWorkspace({
               <Button
                 onClick={handleCompleteTask}
                 disabled={saving || evaluating}
-                className="w-full bg-linear-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] shadow-md hover:shadow-lg transition-shadow"
+                className="w-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md hover:shadow-lg transition-shadow"
               >
                 {evaluating ? (
                   <>
@@ -515,7 +517,7 @@ export function ProjectWorkspace({
         <ResizableHandle />
 
         {/* Pane 3: IDE */}
-        <ResizablePanel defaultSize={isChatOpen ? 35 : 55} minSize={20}>
+        <ResizablePanel defaultSize={isChatOpen ? 35 : 42} minSize={20}>
           <div className="h-full overflow-hidden flex flex-col bg-gray-900">
             <div className="flex-1 p-1">
               <MonacoIDE

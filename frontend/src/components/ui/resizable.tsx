@@ -41,8 +41,8 @@ function ResizableHandle({
     <ResizablePrimitive.PanelResizeHandle
       data-slot="resizable-handle"
       className={cn(
-        "relative flex w-1 items-center justify-center bg-transparent hover:bg-purple-200 active:bg-purple-300 transition-colors cursor-col-resize",
-        "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-gray-200 hover:after:bg-purple-400",
+        "relative flex w-1 items-center justify-center bg-transparent hover:bg-amber-100 active:bg-cyan-100 transition-colors cursor-col-resize",
+        "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-gray-200 hover:after:bg-amber-400 active:after:bg-cyan-500",
         "data-[panel-group-direction=vertical]:h-1 data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:cursor-row-resize",
         "data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:h-px data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:-translate-y-1/2 data-[panel-group-direction=vertical]:after:translate-x-0",
         className,
