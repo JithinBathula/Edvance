@@ -376,17 +376,12 @@ export function ProjectWorkspace({
       <div
         className="flex-1 overflow-hidden grid transition-all duration-300"
         style={{
-          // Use 'fr' units for relative sizing
-          // When chat closed: task description and WebIDE split 50-50 of remaining space
-          // When chat open: use proportional layout
+          // Task panel: 20% (or auto when collapsed)
+          // Task description + WebIDE: share remaining space 50-50
+          // Chat panel: 20% when open (or 0 when closed)
           gridTemplateColumns: !isChatOpen
-            ? `${sidebarCollapsed ? 'auto' : '200px'} 1fr 1fr 0px`
-            : `
-              ${sidebarCollapsed ? 'auto' : '2fr'} 
-              3fr 
-              5fr 
-              ${chatWidth}
-            `
+            ? `${sidebarCollapsed ? 'auto' : '20%'} 1fr 1fr 0px`
+            : `${sidebarCollapsed ? 'auto' : '15%'} 1fr 1fr 20%`
         }}
       >
 
