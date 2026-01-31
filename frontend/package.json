@@ -54,6 +54,7 @@
             "react-router-dom": "^7.9.6",
             "recharts": "^2.15.2",
             "remark-breaks": "^4.0.0",
+            "resizable-panels-react": "^2.0.8",
             "sonner": "^2.0.3",
             "tailwind-merge": "*",
             "vaul": "^1.1.2",

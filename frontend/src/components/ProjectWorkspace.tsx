@@ -6,6 +6,8 @@ import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui/resizable";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -135,6 +137,7 @@ export function ProjectWorkspace({
   const [saving, setSaving] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const filesLoaded = useRef(false);
+  const taskListPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(true);
@@ -372,159 +375,180 @@ export function ProjectWorkspace({
         </div>
       </header>
 
-      {/* Main Content - FLUID GRID LAYOUT */}
-      <div
-        className="flex-1 overflow-hidden grid transition-all duration-300"
-        style={{
-          // Task panel: 20% (or auto when collapsed)
-          // Task description + WebIDE: share remaining space 50-50
-          // Chat panel: 20% when open (or 0 when closed)
-          gridTemplateColumns: !isChatOpen
-            ? `${sidebarCollapsed ? 'auto' : '20%'} 1fr 1fr 0px`
-            : `${sidebarCollapsed ? 'auto' : '15%'} 1fr 1fr 20%`
-        }}
-      >
-
-        {/* Pane 1: Task List (2fr) */}
-        <div className="overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-b from-white to-gray-50 min-w-0">
-          <div className="px-3 py-3 flex items-center justify-between border-b border-gray-200 bg-white">
-            {!sidebarCollapsed && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tasks</span>}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
-            >
-              {sidebarCollapsed ? <PanelLeft className="w-4 h-4 text-gray-500" /> : <PanelLeftClose className="w-4 h-4 text-gray-500" />}
-            </button>
-          </div>
-          {!sidebarCollapsed && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-2">
-                {tasks.map((task, idx) => (
-                  <button
-                    key={task.id}
-                    onClick={() => {
-                      setCurrentTaskIndex(idx);
-                      setShowHints(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${idx === currentTaskIndex
-                      ? "bg-linear-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
-                      : completedTasks.includes(task.id)
-                        ? "text-green-600 hover:bg-green-50"
-                        : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                  >
-                    {completedTasks.includes(task.id) ? (
-                      <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center shrink-0">
-                        <Check className="w-2.5 h-2.5 text-white" />
-                      </div>
-                    ) : (
-                      <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${idx === currentTaskIndex ? 'border-purple-400' : 'border-gray-300'}`} />
-                    )}
-                    <span className="text-xs font-medium leading-tight line-clamp-2">{task.title}</span>
-                  </button>
-                ))}
-              </div>
+      {/* Main Content - RESIZABLE PANEL LAYOUT */}
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        {/* Pane 1: Task List */}
+        <ResizablePanel
+          ref={taskListPanelRef}
+          defaultSize={15}
+          minSize={3}
+          maxSize={25}
+          collapsible
+          collapsedSize={3}
+          onCollapse={() => setSidebarCollapsed(true)}
+          onExpand={() => setSidebarCollapsed(false)}
+        >
+          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-b from-white to-gray-50">
+            <div className="px-3 py-3 flex items-center justify-between border-b border-gray-200 bg-white">
+              {!sidebarCollapsed && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tasks</span>}
+              <button
+                onClick={() => {
+                  const panel = taskListPanelRef.current;
+                  if (panel) {
+                    if (sidebarCollapsed) {
+                      panel.expand();
+                    } else {
+                      panel.collapse();
+                    }
+                  }
+                }}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+              >
+                {sidebarCollapsed ? <PanelLeft className="w-4 h-4 text-gray-500" /> : <PanelLeftClose className="w-4 h-4 text-gray-500" />}
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Pane 2: Task Details (3fr) */}
-        <div className="min-w-0 overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-br from-purple-50 via-white to-orange-50">
-          <div className="flex-1 overflow-y-auto p-6">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
-            <div className="prose max-w-none mb-6">
-              <FormattedDescription text={currentTask.description} />
-            </div>
-
-            {currentTask.hints && currentTask.hints.length > 0 && (
-              <div className="mb-6">
-                <button
-                  onClick={() => setShowHints(!showHints)}
-                  className="flex items-center gap-2 text-base font-medium text-purple-600 hover:text-purple-700 transition-colors"
-                >
-                  {showHints ? (
-                    <ChevronDown className="w-5 h-5" />
-                  ) : (
-                    <ChevronRight className="w-5 h-5" />
-                  )}
-                  {showHints ? "Hide Hints" : "Show Hints"}
-                </button>
-                {showHints && (
-                  <div className="mt-3 bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border border-purple-100 shadow-sm">
-                    <div className="space-y-5">
-                      {currentTask.hints.map((hint, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-start gap-4"
-                        >
-                          <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5">
-                            {idx + 1}
-                          </span>
-                          <p
-                            className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5"
-                            dangerouslySetInnerHTML={{
-                              __html: hint
-                                .replace(/'([^']+)'/g, '<code class="inline-code">$1</code>')
-                                .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-                                .replace(/\b([a-z_][a-z0-9_]*\(\))/gi, '<code class="inline-code">$1</code>')
-                            }}
-                          />
+            {!sidebarCollapsed && (
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-2">
+                  {tasks.map((task, idx) => (
+                    <button
+                      key={task.id}
+                      onClick={() => {
+                        setCurrentTaskIndex(idx);
+                        setShowHints(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${idx === currentTaskIndex
+                        ? "bg-linear-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
+                        : completedTasks.includes(task.id)
+                          ? "text-green-600 hover:bg-green-50"
+                          : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      {completedTasks.includes(task.id) ? (
+                        <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                          <Check className="w-2.5 h-2.5 text-white" />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      ) : (
+                        <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${idx === currentTaskIndex ? 'border-purple-400' : 'border-gray-300'}`} />
+                      )}
+                      <span className="text-xs font-medium leading-tight line-clamp-2">{task.title}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-
-            <Button
-              onClick={handleCompleteTask}
-              disabled={saving || evaluating}
-              className="w-full bg-linear-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] shadow-md hover:shadow-lg transition-shadow"
-            >
-              {evaluating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Evaluating...
-                </>
-              ) : completedTasks.includes(currentTask.id)
-                ? "Completed ✓"
-                : currentTaskIndex < tasks.length - 1
-                  ? "Complete & Continue"
-                  : "Complete Project"}
-            </Button>
           </div>
-        </div>
+        </ResizablePanel>
 
-        {/* Pane 3: IDE (7fr) */}
-        <div className="min-w-0 overflow-hidden flex flex-col bg-gray-900">
-          <div className="flex-1 p-1">
-            <MonacoIDE
-              files={projectFiles}
-              onFilesChange={setProjectFiles}
-              onSave={saveFiles}
-              saving={saving}
-            />
+        {!sidebarCollapsed && <ResizableHandle />}
+
+        {/* Pane 2: Task Details */}
+        <ResizablePanel defaultSize={30} minSize={15} maxSize={50}>
+          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-br from-purple-50 via-white to-orange-50">
+            <div className="flex-1 overflow-y-auto p-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
+              <div className="prose max-w-none mb-6">
+                <FormattedDescription text={currentTask.description} />
+              </div>
+
+              {currentTask.hints && currentTask.hints.length > 0 && (
+                <div className="mb-6">
+                  <button
+                    onClick={() => setShowHints(!showHints)}
+                    className="flex items-center gap-2 text-base font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                  >
+                    {showHints ? (
+                      <ChevronDown className="w-5 h-5" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5" />
+                    )}
+                    {showHints ? "Hide Hints" : "Show Hints"}
+                  </button>
+                  {showHints && (
+                    <div className="mt-3 bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border border-purple-100 shadow-sm">
+                      <div className="space-y-5">
+                        {currentTask.hints.map((hint, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-start gap-4"
+                          >
+                            <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <p
+                              className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5"
+                              dangerouslySetInnerHTML={{
+                                __html: hint
+                                  .replace(/'([^']+)'/g, '<code class="inline-code">$1</code>')
+                                  .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+                                  .replace(/\b([a-z_][a-z0-9_]*\(\))/gi, '<code class="inline-code">$1</code>')
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Button
+                onClick={handleCompleteTask}
+                disabled={saving || evaluating}
+                className="w-full bg-linear-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] shadow-md hover:shadow-lg transition-shadow"
+              >
+                {evaluating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Evaluating...
+                  </>
+                ) : completedTasks.includes(currentTask.id)
+                  ? "Completed ✓"
+                  : currentTaskIndex < tasks.length - 1
+                    ? "Complete & Continue"
+                    : "Complete Project"}
+              </Button>
+            </div>
           </div>
-        </div>
+        </ResizablePanel>
 
-        {/* Pane 4: Chatbot Sidebar (Responsive Fixed) */}
-        <div className={`border-l border-gray-200 bg-white flex flex-col transition-all duration-300 overflow-hidden ${isChatOpen ? 'w-full' : 'w-0'}`}>
-          {isChatOpen && (
-            <AIChatbot
-              context={`Working on: ${currentTask.title}`}
-              userProgress={completedTasks}
-              taskId={currentTask.id}
-              userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
-              taskDescription={currentTask.description}
-              testSpec={currentTask.testSpec}
-              onClose={() => setIsChatOpen(false)}
-              visible={true}
-            />
-          )}
-        </div>
+        <ResizableHandle />
 
-      </div>
+        {/* Pane 3: IDE */}
+        <ResizablePanel defaultSize={isChatOpen ? 35 : 55} minSize={20}>
+          <div className="h-full overflow-hidden flex flex-col bg-gray-900">
+            <div className="flex-1 p-1">
+              <MonacoIDE
+                files={projectFiles}
+                onFilesChange={setProjectFiles}
+                onSave={saveFiles}
+                saving={saving}
+              />
+            </div>
+          </div>
+        </ResizablePanel>
+
+        {/* Pane 4: Chatbot Sidebar */}
+        {isChatOpen && (
+          <>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+              <div className="h-full border-l border-gray-200 bg-white flex flex-col overflow-hidden">
+                <AIChatbot
+                  context={`Working on: ${currentTask.title}`}
+                  userProgress={completedTasks}
+                  taskId={currentTask.id}
+                  userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
+                  taskDescription={currentTask.description}
+                  testSpec={currentTask.testSpec}
+                  onClose={() => setIsChatOpen(false)}
+                  visible={true}
+                />
+              </div>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
 
       {/* Floating Chat Button */}
       {!isChatOpen && (
