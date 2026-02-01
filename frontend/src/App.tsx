@@ -133,9 +133,9 @@ export default function App() {
   const RequireUser = ({ children }: { children: React.ReactNode }) => {
     if (loading) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-[#7622e5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-600">Loading...</p>
           </div>
         </div>
@@ -148,9 +148,9 @@ export default function App() {
   // Show loading spinner while checking session
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#7622e5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>

@@ -66,7 +66,7 @@ function FormattedDescription({ text }: { text: string }) {
         <div className="space-y-3">
           {paragraphs.slice(1).map((sentence, i) => (
             <div key={i} className="flex items-start gap-3 pl-1">
-              <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+              <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                 {i + 1}
               </span>
               <p
@@ -85,7 +85,7 @@ function FormattedDescription({ text }: { text: string }) {
       <style>{`
         .inline-code {
           background: linear-gradient(135deg, #f0e6ff 0%, #e8f0ff 100%);
-          color: #7622e5;
+          color: #f97316;
           padding: 0.125rem 0.375rem;
           border-radius: 0.25rem;
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -299,7 +299,7 @@ export function ProjectWorkspace({
 
   if (showCompletion) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-orange-50 to-orange-50 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full p-12 text-center bg-white">
           <div className="w-20 h-20 bg-linear-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
             <Trophy className="w-10 h-10 text-white" />
@@ -310,7 +310,7 @@ export function ProjectWorkspace({
             <span className="font-semibold">{project.title}</span>
           </p>
 
-          <div className="bg-linear-to-r from-purple-50 to-orange-50 rounded-xl p-6 mb-6">
+          <div className="bg-linear-to-r from-orange-50 to-orange-50 rounded-xl p-6 mb-6">
             <div className="flex items-center justify-center gap-3 mb-2">
               <Sparkles className="w-6 h-6 text-[#ffa200]" />
               <p className="text-2xl">+100 XP Earned!</p>
@@ -328,7 +328,7 @@ export function ProjectWorkspace({
 
           <Button
             onClick={onComplete}
-            className="bg-linear-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+            className="bg-linear-to-r from-[#f97316] to-[#fb923c] hover:from-[#ea580c] hover:to-[#f97316]"
           >
             Back to Home
           </Button>
@@ -410,32 +410,51 @@ export function ProjectWorkspace({
             {!sidebarCollapsed && (
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2">
-                  {tasks.map((task, idx) => (
-                    <button
-                      key={task.id}
-                      onClick={() => {
-                        setCurrentTaskIndex(idx);
-                        setShowHints(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${idx === currentTaskIndex
-                        ? "bg-linear-to-r from-amber-100 to-orange-50 text-amber-700 shadow-sm border border-amber-200"
-                        : completedTasks.includes(task.id)
-                          ? "text-cyan-600 hover:bg-cyan-50"
-                          : "text-gray-600 hover:bg-gray-100"
-                        }`}
-                    >
-                      {completedTasks.includes(task.id) ? (
-                        <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center shrink-0 text-[10px] font-bold text-white">
-                          {task.title.match(/(\d+\.\d+)/)?.[1] || (idx + 1)}
+                  {(() => {
+                    // Group tasks by their major number (1, 2, 3, etc.)
+                    const groupedTasks: { [key: string]: { name: string; tasks: Array<typeof tasks[0] & { originalIdx: number }> } } = {};
+                    tasks.forEach((task, idx) => {
+                      const match = task.title.match(/(\d+)\.(\d+)/);
+                      const majorNum = match ? match[1] : String(idx + 1);
+                      const taskName = task.title.replace(/[:\s]*\d+\.\d+$/, '').trim();
+                      if (!groupedTasks[majorNum]) {
+                        groupedTasks[majorNum] = { name: taskName, tasks: [] };
+                      }
+                      groupedTasks[majorNum].tasks.push({ ...task, originalIdx: idx });
+                    });
+
+                    return Object.entries(groupedTasks).map(([majorNum, group]) => (
+                      <div key={majorNum} className="mb-3">
+                        {/* Group Header */}
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1">
+                          Task {majorNum}: {group.name}
                         </div>
-                      ) : (
-                        <div className={`w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center text-[10px] font-bold ${idx === currentTaskIndex ? 'border-amber-400 text-amber-600 bg-amber-50' : 'border-gray-300 text-gray-500'}`}>
-                          {task.title.match(/(\d+\.\d+)/)?.[1] || (idx + 1)}
-                        </div>
-                      )}
-                      <span className="text-xs font-medium leading-tight line-clamp-2">{task.title}</span>
-                    </button>
-                  ))}
+                        {/* Subtasks */}
+                        {group.tasks.map((task) => {
+                          const idx = task.originalIdx;
+                          const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';
+                          return (
+                            <button
+                              key={task.id}
+                              onClick={() => {
+                                setCurrentTaskIndex(idx);
+                                setShowHints(false);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                              style={idx === currentTaskIndex
+                                ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
+                                : completedTasks.includes(task.id)
+                                  ? { color: '#059669', borderLeft: '3px solid #10b981' }
+                                  : { color: '#374151', borderLeft: '3px solid transparent' }
+                              }
+                            >
+                              <span className="text-xs font-medium">• {majorNum}.{subNum}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
             )}
@@ -446,7 +465,7 @@ export function ProjectWorkspace({
 
         {/* Pane 2: Task Details */}
         <ResizablePanel defaultSize={isChatOpen ? 25 : 42} minSize={15} maxSize={50}>
-          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-br from-amber-50 via-white to-cyan-50">
+          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
               <div className="prose max-w-none mb-6">
@@ -457,7 +476,8 @@ export function ProjectWorkspace({
                 <div className="mb-6">
                   <button
                     onClick={() => setShowHints(!showHints)}
-                    className="flex items-center gap-2 text-base font-medium text-cyan-600 hover:text-cyan-700 transition-colors"
+                    className="flex items-center gap-2 text-base font-medium transition-colors"
+                    style={{ color: '#0891b2' }}
                   >
                     {showHints ? (
                       <ChevronDown className="w-5 h-5" />
@@ -467,14 +487,14 @@ export function ProjectWorkspace({
                     {showHints ? "Hide Hints" : "Show Hints"}
                   </button>
                   {showHints && (
-                    <div className="mt-3 bg-gradient-to-br from-cyan-50 to-white rounded-xl p-6 border border-cyan-100 shadow-sm">
+                    <div className="mt-3 rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(to bottom right, #ecfeff, white)', border: '1px solid #cffafe' }}>
                       <div className="space-y-5">
                         {currentTask.hints.map((hint, idx) => (
                           <div
                             key={idx}
                             className="flex items-start gap-4"
                           >
-                            <span className="w-7 h-7 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5">
+                            <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5" style={{ backgroundColor: '#cffafe', color: '#0891b2' }}>
                               {idx + 1}
                             </span>
                             <p
@@ -497,7 +517,8 @@ export function ProjectWorkspace({
               <Button
                 onClick={handleCompleteTask}
                 disabled={saving || evaluating}
-                className="w-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md hover:shadow-lg transition-shadow"
+                className="w-full shadow-md hover:shadow-lg transition-shadow"
+                style={{ background: 'linear-gradient(to right, #f59e0b, #f97316)' }}
               >
                 {evaluating ? (
                   <>
@@ -594,14 +615,14 @@ export function ProjectWorkspace({
               <div className="space-y-3">
                 {evaluationFeedback?.split(/(?<=\.)\s+/).filter(Boolean).map((sentence, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                       {i + 1}
                     </span>
                     <p className="text-gray-700 text-sm leading-relaxed"
                       dangerouslySetInnerHTML={{
                         __html: sentence
-                          .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-purple-600 font-mono text-xs">$1</code>')
-                          .replace(/'([^']+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-purple-600 font-mono text-xs">$1</code>')
+                          .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
+                          .replace(/'([^']+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
                       }}
                     />
                   </div>
@@ -613,7 +634,7 @@ export function ProjectWorkspace({
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
               <Button
                 onClick={() => setShowFeedbackModal(false)}
-                className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
+                className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800"
               >
                 Try Again
               </Button>
