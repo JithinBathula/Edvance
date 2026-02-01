@@ -102,10 +102,10 @@ export function AIChatbot({
     }
   };
 
-// If not visible, return null (handled by parent usually, but good for safety)
+  // If not visible, return null (handled by parent usually, but good for safety)
   if (!visible) return null;
 
-return (
+  return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200 shadow-xl">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50 flex items-center justify-between shrink-0">
@@ -119,10 +119,10 @@ return (
           </div>
         </div>
         {onClose && (
-          <button 
+          <button
             onClick={onClose}
             className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-            
+
           >
             <X className="w-4 h-4" />
           </button>
@@ -130,8 +130,8 @@ return (
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4 bg-gray-50/50" ref={scrollRef}>
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 p-4 bg-gray-50/50">
+        <div ref={scrollRef} className="space-y-4">
           {messages.map((message, i) => (
             <div
               key={i}
@@ -147,13 +147,12 @@ return (
                   <User className="w-4 h-4 text-purple-600" />
                 </div>
               )}
-              
+
               <div
-                className={`rounded-2xl px-4 py-3 max-w-[85%] text-sm shadow-sm ${
-                  message.role === 'user'
+                className={`rounded-2xl px-4 py-3 max-w-[85%] text-sm shadow-sm ${message.role === 'user'
                     ? 'bg-purple-600 text-white rounded-tr-none'
                     : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
-                }`}
+                  }`}
               >
                 <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
               </div>

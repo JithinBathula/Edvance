@@ -33,12 +33,22 @@ function FormattedDescription({ text }: { text: string }) {
 
   // Helper to format inline code and keywords
   const formatText = (sentence: string) => {
-    // Replace 'quoted text' with styled code spans
-    return sentence
-      .replace(/'([^']+)'/g, '<code class="inline-code">$1</code>')
-      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+    // First, escape any raw < > that could break HTML (except our own tags)
+    let result = sentence
+      // Convert React/JSX component tags like <Rect>, <Line>, <Circle> to styled code
+      .replace(/<([A-Z][a-zA-Z0-9]*)>/g, '<code class="inline-code">&lt;$1&gt;</code>')
+      .replace(/<([A-Z][a-zA-Z0-9]*)\s*\/>/g, '<code class="inline-code">&lt;$1 /&gt;</code>')
+      // Backtick code - this is the main one for code in descriptions
+      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+    // Now apply other formatting (these shouldn't conflict with the code blocks)
+    result = result
+      // Only match single-quoted text without spaces (code doesn't have spaces)
+      .replace(/'([^'\s]+)'/g, '<code class="inline-code">$1</code>')
       // Highlight common programming keywords
       .replace(/\b(API|JSON|ISO 8601|HTTP|GET|POST|PUT|DELETE)\b/gi, '<span class="keyword">$1</span>');
+
+    return result;
   };
 
   // Group sentences into logical sections if there are multiple
@@ -379,6 +389,8 @@ export function ProjectWorkspace({
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         {/* Pane 1: Task List */}
         <ResizablePanel
+          id="task-list"
+          order={1}
           ref={taskListPanelRef}
           defaultSize={15}
           minSize={3}
@@ -464,7 +476,7 @@ export function ProjectWorkspace({
         {!sidebarCollapsed && <ResizableHandle />}
 
         {/* Pane 2: Task Details */}
-        <ResizablePanel defaultSize={isChatOpen ? 25 : 42} minSize={15} maxSize={50}>
+        <ResizablePanel id="task-details" order={2} defaultSize={isChatOpen ? 25 : 43} minSize={15} maxSize={50}>
           <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
@@ -538,7 +550,7 @@ export function ProjectWorkspace({
         <ResizableHandle />
 
         {/* Pane 3: IDE */}
-        <ResizablePanel defaultSize={isChatOpen ? 35 : 42} minSize={20}>
+        <ResizablePanel id="ide" order={3} defaultSize={isChatOpen ? 40 : 42} minSize={20}>
           <div className="h-full overflow-hidden flex flex-col bg-gray-900">
             <div className="flex-1 p-1">
               <MonacoIDE
@@ -555,7 +567,7 @@ export function ProjectWorkspace({
         {isChatOpen && (
           <>
             <ResizableHandle />
-            <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+            <ResizablePanel id="chat" order={4} defaultSize={20} minSize={15} maxSize={35}>
               <div className="h-full border-l border-gray-200 bg-white flex flex-col overflow-hidden">
                 <AIChatbot
                   context={`Working on: ${currentTask.title}`}
@@ -622,7 +634,8 @@ export function ProjectWorkspace({
                       dangerouslySetInnerHTML={{
                         __html: sentence
                           .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
-                          .replace(/'([^']+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
+                          // Only match single-quoted text without spaces
+                          .replace(/'([^'\s]+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
                       }}
                     />
                   </div>
