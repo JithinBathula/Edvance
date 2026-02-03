@@ -158,6 +158,8 @@ export function CodeSandboxIDE({
   const [newFileName, setNewFileName] = useState('');
   const [localFiles, setLocalFiles] = useState<ProjectFile[]>(files);
   const [editorKey, setEditorKey] = useState(0);
+  const [activeFile, setActiveFile] = useState<string>(files[0]?.name ? `/${files[0].name}` : '/main.py');
+  const [isSaving, setIsSaving] = useState(false);
   const terminalRef = useRef<any>(null);
   const clientRef = useRef<any>(null);
   const connectingRef = useRef(false);
@@ -346,6 +348,12 @@ export function CodeSandboxIDE({
               onClick={async () => {
                 const sp = sandpackRef.current;
                 if (!sp) return;
+
+                setIsSaving(true);
+
+                // Remember current active file
+                const currentActive = sp.activeFile;
+
                 const currentFiles = Object.entries(sp.files)
                   .map(([path, file]: [string, any]) => ({
                     name: path.replace(/^\//, ''),
@@ -354,18 +362,21 @@ export function CodeSandboxIDE({
                   }))
                   .filter((file) => isAllowedFile(file.name, mode));
 
-                // Save to backend
                 await onSave(currentFiles);
 
-                // After save, refresh editor with saved content
+                // Set active file before remount so it opens to same file
+                setActiveFile(currentActive);
                 setLocalFiles(currentFiles);
                 setEditorKey(k => k + 1);
+
+                // Small delay to let remount complete
+                setTimeout(() => setIsSaving(false), 300);
               }}
-              disabled={saving}
+              disabled={saving || isSaving}
               variant="ghost"
               className="text-slate-300 hover:text-white hover:bg-slate-800/60"
             >
-              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              {saving || isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
               Save
             </Button>
           )}
@@ -387,16 +398,23 @@ export function CodeSandboxIDE({
       </div>
 
       {/* Editor Area */}
-      <div className="ide-editor-area">
+      <div className="ide-editor-area" style={{ position: 'relative' }}>
+        {isSaving && (
+          <div className="ide-saving-overlay">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Saving...</span>
+          </div>
+        )}
         <SandpackProvider
           key={editorKey}
           files={sandpackFiles}
           customSetup={{
-            entry: visibleFiles[0] || '/main.py',
+            entry: activeFile || visibleFiles[0] || '/main.py',
           }}
           theme={edvanceTheme}
           options={{
             visibleFiles,
+            activeFile: activeFile,
           }}
         >
           <SandpackRef sandpackRef={sandpackRef} />
