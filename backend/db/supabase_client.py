@@ -314,36 +314,51 @@ def update_progress(
 ) -> Dict[str, Any]:
     """
     Update progress for a user-task pair.
+    Uses upsert to create the record if it doesn't exist.
     """
-    update_data = {}
-    
+    # Build the data to upsert
+    upsert_data = {
+        "user_id": user_id,
+        "task_id": task_id,
+    }
+
     if status is not None:
         if status not in ("not_started", "in_progress", "completed"):
             raise ValueError(f"Invalid status: {status}")
-        update_data["status"] = status
-        
-        if status == "in_progress" and "started_at" not in update_data:
-            update_data["started_at"] = datetime.utcnow().isoformat()
+        upsert_data["status"] = status
+
+        if status == "in_progress":
+            upsert_data["started_at"] = datetime.utcnow().isoformat()
         elif status == "completed":
-            update_data["completed_at"] = datetime.utcnow().isoformat()
-    
+            upsert_data["completed_at"] = datetime.utcnow().isoformat()
+    else:
+        # Default status if not provided
+        upsert_data["status"] = "in_progress"
+
     if submitted_code is not None:
-        update_data["submitted_code"] = submitted_code
-    
+        upsert_data["submitted_code"] = submitted_code
+
     if passed is not None:
-        update_data["passed"] = passed
-    
+        upsert_data["passed"] = passed
+    else:
+        # Default to False if not provided
+        upsert_data["passed"] = False
+
     if feedback is not None:
-        update_data["feedback"] = feedback
-    
-    if not update_data:
-        return get_or_create_progress(user_id, task_id)
-    
-    result = supabase.table("user_progress").update(update_data).eq("user_id", user_id).eq("task_id", task_id).execute()
-    
+        upsert_data["feedback"] = feedback
+
+    # Use upsert to insert or update
+    # on_conflict specifies which columns make a record unique
+    result = supabase.table("user_progress").upsert(
+        upsert_data,
+        on_conflict="user_id,task_id"
+    ).execute()
+
     if result.data:
         return result.data[0]
-    raise Exception("Failed to update progress")
+
+    # Fallback: if upsert somehow fails, try get_or_create
+    return get_or_create_progress(user_id, task_id)
 
 
 def get_user_progress_for_project(user_id: str, project_id: str) -> List[Dict[str, Any]]:
