@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { User } from "../App";
 import { BACKEND_URL } from "../utils/constants";
-import { MonacoIDE, ProjectFile } from "./MonacoIDE";
+import { CodeSandboxIDE } from "./CodeSandboxIDE";
+import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -88,26 +89,14 @@ export function ProjectWorkspace({
       if (!firstTaskId) return;
 
       const response = await fetch(
-        `${BACKEND_URL}/progress/load/${firstTaskId}?user_id=${user.id}`,
+        `${BACKEND_URL}/workspace/${project.id}?user_id=${user.id}`,
         { credentials: 'include' }
       );
       const data = await response.json();
 
-      if (data.success && data.code) {
-        try {
-          // Try to parse as JSON (multi-file format)
-          const parsed = JSON.parse(data.code);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProjectFiles(parsed);
-            return;
-          }
-        } catch {
-          // Legacy single-file format - wrap in array
-          setProjectFiles([
-            { name: 'main.py', content: data.code, language: 'python' }
-          ]);
-          return;
-        }
+      if (data.success && Array.isArray(data.files) && data.files.length > 0) {
+        setProjectFiles(data.files);
+        return;
       }
 
       // No saved code - use starter code if available
@@ -121,25 +110,25 @@ export function ProjectWorkspace({
   };
 
   const saveFiles = async (files: ProjectFile[]) => {
-    // Save to first task ID (shared across all tasks in project)
+    // Save to project repo; include task ID if available
     const firstTaskId = tasks[0]?.id;
-    if (!firstTaskId) return;
 
     setSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/progress/save`, {
+      const response = await fetch(`${BACKEND_URL}/workspace/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           user_id: user.id,
+          project_id: project.id,
           task_id: firstTaskId,
-          code: JSON.stringify(files), // Store as JSON
+          files: files,
         }),
       });
       const data = await response.json();
       if (data.success) {
-        toast.success(`Saved (v${data.version})`);
+        toast.success(`Saved`);
       }
     } catch (err) {
       console.error('Error saving files:', err);
@@ -148,6 +137,7 @@ export function ProjectWorkspace({
       setSaving(false);
     }
   };
+
 
   const handleCompleteTask = async () => {
     // Get the main file content for evaluation
@@ -167,6 +157,7 @@ export function ProjectWorkspace({
           user_id: user.id,
           task_id: currentTask.id,
           code: code,
+          project_id: project.id,
         }),
       });
 
@@ -395,13 +386,16 @@ export function ProjectWorkspace({
         </div>
 
         {/* Right - Monaco IDE */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col bg-gray-900">
-          <div className="flex-1 p-1">
-            <MonacoIDE
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col bg-[#0b1020]">
+          <div className="flex-1 p-3">
+            <CodeSandboxIDE
               files={projectFiles}
               onFilesChange={setProjectFiles}
               onSave={saveFiles}
               saving={saving}
+              userId={user.id}
+              projectId={project.id}
+              vmType={project?.vm_type}
             />
           </div>
         </div>
@@ -411,6 +405,8 @@ export function ProjectWorkspace({
         context={`Working on: ${currentTask.title}`}
         userProgress={completedTasks}
         taskId={currentTask.id}
+        userId={user.id}
+        projectId={project.id}
         userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
         taskDescription={currentTask.description}
         testSpec={currentTask.testSpec}

@@ -51,6 +51,7 @@ def generate_curriculum():
     requirements = payload.get("requirements")
     experience_level = payload.get("experience_level")
     outline_payload = payload.get("outline")
+    vm_type = payload.get("vm_type")
 
     if (
         requirements is None
@@ -70,6 +71,8 @@ def generate_curriculum():
         return jsonify({"error": "Invalid outline payload", "details": exc.errors()}), 400
 
     try:
+        if not vm_type:
+            vm_type = outline.vm_type
         curriculum = planner.generate_curriculum(
             requirements=requirements,
             tech_stack=None,
@@ -91,8 +94,10 @@ def generate_curriculum():
                 requirements=req_list,
                 tech_stack=stack_list,
                 experience_level=experience_level,
+                vm_type=vm_type,
             )
             result["project_id"] = project["id"]
+            result["vm_type"] = project.get("vm_type")
             
             for idx, milestone_data in enumerate(result["milestones"], start=1):
                 milestone = create_milestone(
@@ -117,6 +122,8 @@ def generate_curriculum():
         
         return jsonify(result)
     except (CurriculumGenerationError, ValidationError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         return jsonify({"error": f"Failed to generate curriculum: {exc}"}), 500

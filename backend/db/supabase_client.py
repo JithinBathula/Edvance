@@ -121,6 +121,25 @@ def update_user_xp(user_id: str, xp_to_add: int) -> Dict[str, Any]:
 # PROJECT OPERATIONS
 # =============================================================================
 
+def _normalize_vm_type(vm_type: Optional[str]) -> str:
+    if not vm_type:
+        return "python"
+    normalized = vm_type.strip().lower()
+    aliases = {
+        "py": "python",
+        "python": "python",
+        "python3": "python",
+        "js": "javascript",
+        "javascript": "javascript",
+        "node": "javascript",
+        "nodejs": "javascript",
+        "web": "javascript",
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+    raise ValueError(f"Invalid vm_type: {vm_type}")
+
+
 def create_project(
     user_id: str,
     title: str,
@@ -128,11 +147,13 @@ def create_project(
     requirements: List[str],
     tech_stack: List[str],
     experience_level: str,
+    vm_type: Optional[str] = None,
     content_type: str = "custom_project"
 ) -> Dict[str, Any]:
     """
     Create a new project record.
     """
+    normalized_vm_type = _normalize_vm_type(vm_type)
     project_data = {
         "user_id": user_id,
         "title": title,
@@ -141,7 +162,8 @@ def create_project(
         "status": "draft",
         "requirements": requirements,
         "tech_stack": tech_stack,
-        "experience_level": experience_level
+        "experience_level": experience_level,
+        "vm_type": normalized_vm_type,
     }
     
     result = supabase.table("projects").insert(project_data).execute()
@@ -184,6 +206,36 @@ def update_project_status(project_id: str, status: str) -> Dict[str, Any]:
     if result.data:
         return result.data[0]
     raise Exception(f"Failed to update project {project_id}")
+
+
+def update_project_repo_info(project_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Update repo-related metadata for a project.
+    """
+    if not updates:
+        raise ValueError("Updates required")
+    result = supabase.table("projects").update(updates).eq("id", project_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update repo info for project {project_id}")
+
+
+def get_project_repo_info(project_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch repo-related metadata for a project.
+    """
+    fields = [
+        "id",
+        "user_id",
+        "repo_path",
+        "repo_default_branch",
+        "codesandbox_id",
+        "vm_type",
+    ]
+    result = supabase.table("projects").select(", ".join(fields)).eq("id", project_id).limit(1).execute()
+    if result.data:
+        return result.data[0]
+    return None
 
 
 # =============================================================================
@@ -421,7 +473,7 @@ def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all projects for a user with basic info for listing.
     """
-    result = supabase.table("projects").select("id, title, brief, status, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    result = supabase.table("projects").select("id, title, brief, status, vm_type, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
     return result.data or []
 
 
@@ -504,4 +556,3 @@ def update_user_course_progress(
     if result.data:
         return result.data[0]
     raise Exception("Failed to update course progress")
-

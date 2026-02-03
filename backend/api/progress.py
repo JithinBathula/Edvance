@@ -121,6 +121,7 @@ def get_project_full(project_id: str):
                 'title': project['title'],
                 'brief': project.get('brief'),
                 'status': project['status'],
+                'vm_type': project.get('vm_type'),
                 'tasks': tasks
             }
         }), 200

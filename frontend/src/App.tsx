@@ -103,10 +103,12 @@ export default function App() {
 
   const handleRequirementsReady = (data: any) => {
     console.log("📋 Requirements ready:", data);
+    const outlineVmType = data?.outline?.vm_type || data?.outline?.vmType;
     setProjectRequirements({
       session: data.session || data.session_data,
       outline: data.outline,
       experienceLevel: data.experienceLevel || user?.onboarding?.experienceLevel || 'beginner',
+      vmType: data.vm_type || data.vmType || outlineVmType || 'python',
     });
     navigate("/project-planning");
   };

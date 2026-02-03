@@ -183,6 +183,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
                     const lowerContent = fullContent.toLowerCase();
                     const handoffPhrases = [
                       'hand you over to the planning',
+                      'awesome! let’s build this.',
+                      "awesome! let's build this."
                     ];
 
                     if (!isReadyToProceed && handoffPhrases.some(phrase => lowerContent.includes(phrase))) {
