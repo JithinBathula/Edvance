@@ -2635,6 +2635,8 @@ html {
   overflow: hidden;
   background: #011627;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .ide-saving-overlay {
@@ -2735,24 +2737,59 @@ html {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   background: #011627;
 }
 
-/* Code editor fills available space */
+/* Code editor base sizing */
+.ide-main .sp-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #011627 !important;
+}
+
+/* Code editor takes top half in web mode */
+.ide-container[data-mode="web"] .ide-main .sp-editor {
+  flex: 0 0 50%;
+  max-height: 50%;
+  height: 50%;
+}
+
+/* Code editor fills full height in python mode */
+.ide-container[data-mode="python"] .ide-main .sp-editor {
+  flex: 1 1 0;
+  max-height: 100%;
+  height: 100%;
+}
+
+/* Code editor fills its container */
 .ide-main .sp-code-editor {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   background: #011627 !important;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Preview section */
 .ide-preview {
-  height: 40%;
+  flex: 0 0 50%;
+  max-height: 50%;
+  min-height: 0;
+  overflow: hidden;
   border-top: 1px solid rgba(30, 41, 59, 0.7);
   background: #0d1b2a;
+  display: flex;
+  flex-direction: column;
 }
 
 .ide-preview-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -2762,6 +2799,21 @@ html {
   letter-spacing: 0.2em;
   color: #64748b;
   border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+/* Ensure Sandpack preview fills its half */
+.ide-preview .sp-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make Sandpack preview iframe scrollable */
+.ide-preview .sp-preview-container,
+.ide-preview .sp-preview-iframe {
+  height: 100%;
+  overflow: auto;
 }
 
 /* Terminal */
@@ -2775,7 +2827,8 @@ html {
 }
 
 .ide-terminal.open {
-  height: 25%;
+  flex: 1;
+  height: auto;
 }
 
 .ide-terminal-header {
@@ -2851,23 +2904,34 @@ html {
 /* All Sandpack surfaces use same dark bg */
 .sp-wrapper,
 .sp-layout,
-.sp-stack,
-.sp-editor,
 .sp-tabs,
 .sp-tabs-scrollable-container,
 .sp-code-editor {
   background: #011627 !important;
 }
 
+/* Prevent Sandpack internal elements from growing */
+.ide-main .sp-stack {
+  background: #011627 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
 /* CodeMirror editor - the actual editor */
 .cm-editor {
   background: #011627 !important;
-  height: 100% !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 /* The scroller wraps all content */
 .cm-scroller {
   background: #011627 !important;
+  flex: 1 !important;
+  min-height: 0 !important;
   overflow: auto !important;
 }
 
@@ -2897,6 +2961,11 @@ html {
 }
 
 /* Tab styling */
+.ide-main .sp-tabs {
+  flex-shrink: 0 !important;
+  min-height: 0 !important;
+}
+
 .sp-tab-button {
   background: #011627 !important;
   color: #6988a1 !important;

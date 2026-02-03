@@ -333,7 +333,7 @@ export function CodeSandboxIDE({
   };
 
   return (
-    <div className="ide-container">
+    <div className="ide-container" data-mode={mode}>
       {/* Header */}
       <div className="ide-header">
         <div className="ide-header-left">
