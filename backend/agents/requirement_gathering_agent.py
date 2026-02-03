@@ -280,10 +280,13 @@ class RequirementGatheringAgent:
                             session['requirements_finalized'] = True
                             print("REQUIREMENTS", json.dumps(session, indent=2))
                             finalize_now = True
+                        elif session['requirements_finalized']:
+                            print("Session already finalized - forcing handoff anyway")
+                            finalize_now = True
                     
                     # Check if tool execution failed
                     if result.get('status') == 'failed':
-                        print(f"⚠️  Tool {tool_name} failed: {result.get('error')}")
+                        print(f"Tool {tool_name} failed: {result.get('error')}")
                         # Continue anyway - let the LLM handle the failure
                     
                 except json.JSONDecodeError as e:
