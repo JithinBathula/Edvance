@@ -50,9 +50,8 @@ export function ProjectWorkspace({
 }: Props) {
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([
-    { name: 'main.py', content: '# Write your code here\n', language: 'python' }
-  ]);
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(true);
   const [showHints, setShowHints] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -83,10 +82,15 @@ export function ProjectWorkspace({
   }, [project]);
 
   const loadSavedFiles = async () => {
+    setFilesLoading(true);
     try {
       // Load files from first task (they're shared across all tasks)
       const firstTaskId = tasks[0]?.id;
-      if (!firstTaskId) return;
+      if (!firstTaskId) {
+        setProjectFiles([{ name: 'main.py', content: '# Write your code here\n', language: 'python' }]);
+        setFilesLoading(false);
+        return;
+      }
 
       const response = await fetch(
         `${BACKEND_URL}/workspace/${project.id}?user_id=${user.id}`,
@@ -106,6 +110,9 @@ export function ProjectWorkspace({
       ]);
     } catch (err) {
       console.error('Error loading files:', err);
+      setProjectFiles([{ name: 'main.py', content: '# Write your code here\n', language: 'python' }]);
+    } finally {
+      setFilesLoading(false);
     }
   };
 
@@ -388,15 +395,21 @@ export function ProjectWorkspace({
         {/* Right - Monaco IDE */}
         <div className="flex-1 min-w-0 overflow-hidden flex flex-col bg-[#0b1020]">
           <div className="flex-1 p-3">
-            <CodeSandboxIDE
-              files={projectFiles}
-              onFilesChange={setProjectFiles}
-              onSave={saveFiles}
-              saving={saving}
-              userId={user.id}
-              projectId={project.id}
-              vmType={project?.vm_type}
-            />
+            {filesLoading ? (
+              <div className="h-full flex items-center justify-center text-slate-400">
+                Loading...
+              </div>
+            ) : (
+              <CodeSandboxIDE
+                files={projectFiles}
+                onFilesChange={setProjectFiles}
+                onSave={saveFiles}
+                saving={saving}
+                userId={user.id}
+                projectId={project.id}
+                vmType={project?.vm_type}
+              />
+            )}
           </div>
         </div>
       </div>

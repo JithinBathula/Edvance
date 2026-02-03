@@ -19,6 +19,8 @@ import {
   TerminalSquare,
   ChevronDown,
   ChevronRight,
+  Plus,
+  X,
 } from 'lucide-react';
 import { ProjectFile } from '../types/workspace';
 import { BACKEND_URL } from '../utils/constants';
@@ -125,32 +127,14 @@ type Props = {
   vmType?: string;
 };
 
-function SandpackSync({
-  onFilesChange,
-  mode,
+// Component to store sandpack ref for saving
+function SandpackRef({
+  sandpackRef,
 }: {
-  onFilesChange: (files: ProjectFile[]) => void;
-  mode: 'python' | 'web';
+  sandpackRef: React.MutableRefObject<ReturnType<typeof useSandpack>['sandpack'] | null>;
 }) {
   const { sandpack } = useSandpack();
-  const lastSerialized = useRef<string>('');
-
-  useEffect(() => {
-    const nextFiles = Object.entries(sandpack.files)
-      .map(([path, file]) => ({
-        name: path.replace(/^\//, ''),
-        content: file.code,
-        language: detectLanguage(path),
-      }))
-      .filter((file) => isAllowedFile(file.name, mode));
-
-    const serialized = JSON.stringify(nextFiles);
-    if (serialized !== lastSerialized.current) {
-      lastSerialized.current = serialized;
-      onFilesChange(nextFiles);
-    }
-  }, [sandpack.files, onFilesChange]);
-
+  sandpackRef.current = sandpack;
   return null;
 }
 
@@ -170,16 +154,20 @@ export function CodeSandboxIDE({
   const [terminalInput, setTerminalInput] = useState('');
   const [terminalLoading, setTerminalLoading] = useState(false);
   const [terminalError, setTerminalError] = useState<string | null>(null);
+  const [showNewFile, setShowNewFile] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+  const [localFiles, setLocalFiles] = useState<ProjectFile[]>(files);
+  const [editorKey, setEditorKey] = useState(0);
   const terminalRef = useRef<any>(null);
   const clientRef = useRef<any>(null);
   const connectingRef = useRef(false);
+  const sandpackRef = useRef<any>(null);
 
-  const filteredFiles = useMemo(() => filterFilesByMode(files, mode), [files, mode]);
+  const filteredFiles = useMemo(() => filterFilesByMode(localFiles, mode), [localFiles, mode]);
   const visibleFiles = useMemo(
     () => filteredFiles.map((file) => toSandpackPath(file.name)),
     [filteredFiles]
   );
-  const activeFile = visibleFiles[0];
 
   const sandpackFiles = useMemo(() => {
     const mapped: Record<string, { code: string }> = {};
@@ -310,6 +298,38 @@ export function CodeSandboxIDE({
     }
   };
 
+  const createNewFile = async () => {
+    if (!newFileName.trim()) return;
+
+    let fileName = newFileName.trim();
+    if (mode === 'python' && !fileName.endsWith('.py')) {
+      fileName += '.py';
+    }
+
+    if (filteredFiles.some(f => f.name === fileName)) {
+      return;
+    }
+
+    const newFile: ProjectFile = {
+      name: fileName,
+      content: mode === 'python' ? '# New file\n' : '',
+      language: detectLanguage(fileName),
+    };
+
+    const updatedFiles = [...localFiles, newFile];
+
+    // Save to backend first
+    if (onSave) {
+      await onSave(updatedFiles);
+    }
+
+    // Then refresh editor
+    setLocalFiles(updatedFiles);
+    setEditorKey(k => k + 1);
+    setNewFileName('');
+    setShowNewFile(false);
+  };
+
   return (
     <div className="ide-container">
       {/* Header */}
@@ -323,7 +343,24 @@ export function CodeSandboxIDE({
           {onSave && (
             <Button
               size="sm"
-              onClick={() => onSave(filteredFiles)}
+              onClick={async () => {
+                const sp = sandpackRef.current;
+                if (!sp) return;
+                const currentFiles = Object.entries(sp.files)
+                  .map(([path, file]: [string, any]) => ({
+                    name: path.replace(/^\//, ''),
+                    content: file.code,
+                    language: detectLanguage(path),
+                  }))
+                  .filter((file) => isAllowedFile(file.name, mode));
+
+                // Save to backend
+                await onSave(currentFiles);
+
+                // After save, refresh editor with saved content
+                setLocalFiles(currentFiles);
+                setEditorKey(k => k + 1);
+              }}
               disabled={saving}
               variant="ghost"
               className="text-slate-300 hover:text-white hover:bg-slate-800/60"
@@ -352,23 +389,52 @@ export function CodeSandboxIDE({
       {/* Editor Area */}
       <div className="ide-editor-area">
         <SandpackProvider
-          template={mode === 'python' ? 'node' : 'vanilla'}
+          key={editorKey}
           files={sandpackFiles}
+          customSetup={{
+            entry: visibleFiles[0] || '/main.py',
+          }}
           theme={edvanceTheme}
           options={{
-            readOnly,
             visibleFiles,
-            activeFile,
           }}
         >
-          <SandpackSync onFilesChange={onFilesChange} mode={mode} />
+          <SandpackRef sandpackRef={sandpackRef} />
           <SandpackLayout>
             {/* File Explorer */}
             <div className="ide-sidebar">
               <div className="ide-sidebar-header">
                 <Code2 className="w-3.5 h-3.5" />
                 Files
+                <button
+                  onClick={() => setShowNewFile(true)}
+                  className="ml-auto p-1 hover:bg-slate-700 rounded"
+                  title="New File"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
+              {showNewFile && (
+                <div className="ide-new-file">
+                  <input
+                    type="text"
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') createNewFile();
+                      if (e.key === 'Escape') setShowNewFile(false);
+                    }}
+                    placeholder={mode === 'python' ? 'filename.py' : 'filename'}
+                    autoFocus
+                  />
+                  <button onClick={createNewFile} className="ide-new-file-btn">
+                    <Plus className="w-3 h-3" />
+                  </button>
+                  <button onClick={() => setShowNewFile(false)} className="ide-new-file-btn">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <div className="ide-file-list">
                 <SandpackFileExplorer autoHiddenFiles />
               </div>
