@@ -2573,57 +2573,301 @@ html {
   }
 }
 
-/* Sandpack workspace styling */
-.edvance-sandpack {
+/* ============================================
+   IDE Component Styles
+   ============================================ */
+
+.ide-container {
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  background: transparent;
-}
-
-.edvance-sandpack-layout {
-  height: 100%;
-  background: transparent;
-}
-
-.edvance-sandpack .sp-file-explorer {
-  background: #000;
-}
-
-.edvance-sandpack .sp-file-explorer-list {
-  background: #000;
-}
-
-.edvance-sandpack .sp-file-explorer * {
-  color: #cbd5f5;
-}
-
-.edvance-sandpack .sp-file-explorer .sp-active-file {
-  background: rgba(59, 130, 246, 0.15);
-  color: #e2e8f0;
-}
-
-.edvance-sandpack .sp-tab-button {
-  color: #cbd5f5;
-  border-bottom-color: transparent;
-}
-
-.edvance-sandpack .sp-tab-button[data-active="true"] {
-  color: #ffffff;
-  border-bottom-color: #34d399;
-}
-
-.edvance-sandpack .sp-code-editor {
-  background: #0b1220;
-}
-
-.edvance-sandpack-layout,
-.edvance-sandpack .sp-editor,
-.edvance-sandpack .sp-code-editor,
-.edvance-sandpack .sp-cm {
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  background: #011627;
 }
 
-.edvance-sandpack .sp-preview {
-  background: #0b1220;
+.ide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: #0d1b2a;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ide-header-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ide-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.8);
+}
+
+.ide-title {
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.ide-mode {
+  color: #64748b;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.ide-editor-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #011627;
+}
+
+/* Sandpack Layout */
+.ide-editor-area .sp-wrapper {
+  height: 100%;
+  background: #011627 !important;
+}
+
+.ide-editor-area .sp-layout {
+  height: 100%;
+  background: #011627 !important;
+  border: none !important;
+}
+
+/* Sidebar */
+.ide-sidebar {
+  width: 15rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0d1b2a;
+  border-right: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-file-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ide-file-list .sp-file-explorer {
+  background: #0d1b2a !important;
+}
+
+/* Main editor area */
+.ide-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #011627;
+}
+
+/* Code editor fills available space */
+.ide-main .sp-code-editor {
+  flex: 1;
+  min-height: 0;
+  background: #011627 !important;
+}
+
+/* Preview section */
+.ide-preview {
+  height: 40%;
+  border-top: 1px solid rgba(30, 41, 59, 0.7);
+  background: #0d1b2a;
+}
+
+.ide-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+/* Terminal */
+.ide-terminal {
+  height: 30px;
+  border-top: 1px solid rgba(30, 41, 59, 0.8);
+  background: #011627;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ide-terminal.open {
+  height: 25%;
+}
+
+.ide-terminal-header {
+  flex-shrink: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: #0d1b2a;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+  cursor: pointer;
+  color: #94a3b8;
+}
+
+.ide-terminal-header:hover {
+  background: #152238;
+}
+
+.ide-terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #cbd5e1;
+}
+
+.ide-terminal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ide-terminal-output {
+  flex: 1;
+  padding: 0.75rem;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  color: #6ee7b7;
+}
+
+.ide-terminal-input {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #0d1b2a;
+  border-top: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-terminal-input input {
+  flex: 1;
+  background: #011627;
+  color: white;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid #334155;
+}
+
+.ide-terminal-input input:focus {
+  outline: none;
+  border-color: #34d399;
+}
+
+/* ============================================
+   Sandpack Overrides - CRITICAL FOR BACKGROUND
+   ============================================ */
+
+/* All Sandpack surfaces use same dark bg */
+.sp-wrapper,
+.sp-layout,
+.sp-stack,
+.sp-editor,
+.sp-tabs,
+.sp-tabs-scrollable-container,
+.sp-code-editor {
+  background: #011627 !important;
+}
+
+/* CodeMirror editor - the actual editor */
+.cm-editor {
+  background: #011627 !important;
+  height: 100% !important;
+}
+
+/* The scroller wraps all content */
+.cm-scroller {
+  background: #011627 !important;
+  overflow: auto !important;
+}
+
+/* Gutters (line numbers) */
+.cm-gutters {
+  background: #011627 !important;
+  border-right: 1px solid #1e3a5f !important;
+}
+
+/* The content area - THIS IS THE KEY */
+.cm-content {
+  background: #011627 !important;
+}
+
+/* Individual lines */
+.cm-line {
+  background: transparent !important;
+}
+
+/* Active line highlight */
+.cm-activeLine {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.cm-activeLineGutter {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Tab styling */
+.sp-tab-button {
+  background: #011627 !important;
+  color: #6988a1 !important;
+}
+
+.sp-tab-button[data-active="true"] {
+  color: #ffffff !important;
+  border-bottom-color: #34d399 !important;
+}
+
+/* File explorer */
+.sp-file-explorer {
+  background: #0d1b2a !important;
+}
+
+.sp-file-explorer-list {
+  background: #0d1b2a !important;
+}
+
+/* Preview */
+.sp-preview-container {
+  background: #ffffff;
 }

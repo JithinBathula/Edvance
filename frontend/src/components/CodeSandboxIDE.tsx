@@ -7,7 +7,7 @@ import {
   SandpackPreview,
   useSandpack,
 } from '@codesandbox/sandpack-react';
-import { nightOwl } from '@codesandbox/sandpack-themes';
+import type { SandpackTheme } from '@codesandbox/sandpack-react';
 import { connectToSandbox } from '@codesandbox/sdk/browser';
 import { Button } from './ui/button';
 import {
@@ -22,6 +22,39 @@ import {
 } from 'lucide-react';
 import { ProjectFile } from '../types/workspace';
 import { BACKEND_URL } from '../utils/constants';
+
+// Custom theme with consistent dark background
+const edvanceTheme: SandpackTheme = {
+  colors: {
+    surface1: '#011627',
+    surface2: '#011627',
+    surface3: '#011627',
+    clickable: '#6988a1',
+    base: '#808080',
+    disabled: '#4D4D4D',
+    hover: '#c5e4fd',
+    accent: '#c792ea',
+    error: '#ff453a',
+    errorSurface: '#011627',
+  },
+  syntax: {
+    plain: '#d6deeb',
+    comment: { color: '#999999', fontStyle: 'italic' },
+    keyword: '#c792ea',
+    tag: '#7fdbca',
+    punctuation: '#d6deeb',
+    definition: '#82aaff',
+    property: '#addb67',
+    static: '#f78c6c',
+    string: '#ecc48d',
+  },
+  font: {
+    body: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    mono: '"Fira Code", "Fira Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace',
+    size: '14px',
+    lineHeight: '1.6',
+  },
+};
 
 const detectLanguage = (filename: string) => {
   const lower = filename.toLowerCase();
@@ -174,12 +207,17 @@ export function CodeSandboxIDE({
     return data.session;
   };
 
-  const connectTerminal = async () => {
-    if (!userId || !projectId) return;
-    if (clientRef.current || connectingRef.current) return;
+  const connectTerminal = async (): Promise<boolean> => {
+    if (!userId || !projectId) return false;
+    if (connectingRef.current) return false;
+
+    // Allow reconnection if we don't have a terminal
+    if (terminalRef.current) return true;
+
     connectingRef.current = true;
     setTerminalLoading(true);
     setTerminalError(null);
+
     try {
       const session = await fetchSession();
       const sandboxClient = await connectToSandbox({
@@ -195,8 +233,11 @@ export function CodeSandboxIDE({
       terminal.onOutput((chunk: string) => {
         setTerminalOutput((prev) => prev + chunk);
       });
+      return true;
     } catch (err: any) {
+      console.error('Terminal connection error:', err);
       setTerminalError(err?.message || 'Failed to connect terminal');
+      return false;
     } finally {
       setTerminalLoading(false);
       connectingRef.current = false;
@@ -210,12 +251,14 @@ export function CodeSandboxIDE({
     return () => {
       if (terminalRef.current) {
         terminalRef.current.kill?.();
+        terminalRef.current = null;
       }
       if (clientRef.current?.disconnect) {
         clientRef.current.disconnect();
+        clientRef.current = null;
       }
     };
-  }, [mode]);
+  }, [mode, userId, projectId]);
 
   const syncFilesToSandbox = async () => {
     if (!clientRef.current) return;
@@ -224,37 +267,59 @@ export function CodeSandboxIDE({
       content: file.content,
     }));
     if (payload.length === 0) return;
-    await clientRef.current.fs.batchWrite(payload);
+    try {
+      await clientRef.current.fs.batchWrite(payload);
+    } catch (err) {
+      console.error('Failed to sync files:', err);
+    }
   };
 
   const runPython = async () => {
-    if (!terminalRef.current) {
-      await connectTerminal();
+    setTerminalError(null);
+
+    // Ensure terminal is connected
+    const connected = await connectTerminal();
+    if (!connected || !terminalRef.current) {
+      setTerminalError('Terminal not connected. Please wait and try again.');
+      return;
     }
-    if (!terminalRef.current) return;
-    await syncFilesToSandbox();
-    await terminalRef.current.run('python main.py');
+
+    try {
+      await syncFilesToSandbox();
+      await terminalRef.current.run('python main.py');
+    } catch (err: any) {
+      console.error('Run error:', err);
+      setTerminalError(err?.message || 'Failed to run code');
+    }
   };
 
-  const sendInput = () => {
-    if (!terminalRef.current || !terminalInput.trim()) return;
-    terminalRef.current.write(`${terminalInput}\n`);
-    setTerminalInput('');
+  const sendInput = async () => {
+    if (!terminalInput.trim()) return;
+
+    if (!terminalRef.current) {
+      setTerminalError('Terminal not connected');
+      return;
+    }
+
+    try {
+      await terminalRef.current.write(`${terminalInput}\n`);
+      setTerminalInput('');
+    } catch (err: any) {
+      console.error('Send input error:', err);
+      setTerminalError(err?.message || 'Failed to send input');
+    }
   };
 
   return (
-    <div className="flex flex-col h-full w-full rounded-2xl overflow-hidden border border-slate-800/80 bg-gradient-to-br from-[#0b1020] via-[#0b1424] to-[#0a0f1a] shadow-[0_18px_60px_rgba(6,12,24,0.55)]">
-      <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-800/70 bg-gradient-to-r from-[#0f172a] via-[#0f182b] to-[#0b1220]">
-        <div className="flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-200 font-semibold">Workspace</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-              {mode === 'python' ? 'Python VM' : 'Web Preview'}
-            </span>
-          </div>
+    <div className="ide-container">
+      {/* Header */}
+      <div className="ide-header">
+        <div className="ide-header-left">
+          <div className="ide-status-dot" />
+          <span className="ide-title">Workspace</span>
+          <span className="ide-mode">{mode === 'python' ? 'Python VM' : 'Web Preview'}</span>
         </div>
-        <div className="flex gap-2">
+        <div className="ide-header-right">
           {onSave && (
             <Button
               size="sm"
@@ -284,53 +349,45 @@ export function CodeSandboxIDE({
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden p-3">
+      {/* Editor Area */}
+      <div className="ide-editor-area">
         <SandpackProvider
           template={mode === 'python' ? 'node' : 'vanilla'}
           files={sandpackFiles}
-          theme={nightOwl}
+          theme={edvanceTheme}
           options={{
             readOnly,
             visibleFiles,
             activeFile,
-            classes: {
-              'sp-wrapper': 'edvance-sandpack',
-              'sp-layout': 'edvance-sandpack-layout',
-              'sp-tab-button': 'edvance-sandpack-tab',
-            },
           }}
         >
           <SandpackSync onFilesChange={onFilesChange} mode={mode} />
-          <SandpackLayout className="h-full">
-            <div className="w-60 shrink-0 border-r border-slate-800/80 bg-[#0f172a] text-sm flex flex-col">
-              <div className="px-3 py-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400 border-b border-slate-800/70">
+          <SandpackLayout>
+            {/* File Explorer */}
+            <div className="ide-sidebar">
+              <div className="ide-sidebar-header">
                 <Code2 className="w-3.5 h-3.5" />
                 Files
               </div>
-              <div className="flex-1 min-h-0 overflow-auto">
-                <SandpackFileExplorer className="h-full" autoHiddenFiles />
+              <div className="ide-file-list">
+                <SandpackFileExplorer autoHiddenFiles />
               </div>
             </div>
-            <div className="flex-1 min-w-0 flex flex-col bg-[#0b1220]">
-              <div className="flex-1 min-h-0">
-                <SandpackCodeEditor
-                  showLineNumbers
-                  showTabs
-                  wrapContent
-                  className="h-full"
-                  style={{ height: '100%' }}
-                />
-              </div>
+
+            {/* Code Editor */}
+            <div className="ide-main">
+              <SandpackCodeEditor
+                showLineNumbers
+                showTabs
+                wrapContent={false}
+              />
               {mode === 'web' && (
-                <div className="h-[40%] border-t border-slate-800/70 bg-[#0f172a]">
-                  <div className="px-3 py-2 text-xs uppercase tracking-[0.2em] text-slate-400 border-b border-slate-800/70 flex items-center gap-2">
+                <div className="ide-preview">
+                  <div className="ide-preview-header">
                     <Globe2 className="w-3.5 h-3.5" />
                     Preview
                   </div>
-                  <SandpackPreview
-                    showOpenInCodeSandbox={false}
-                    style={{ height: 'calc(100% - 34px)' }}
-                  />
+                  <SandpackPreview showOpenInCodeSandbox={false} />
                 </div>
               )}
             </div>
@@ -338,38 +395,32 @@ export function CodeSandboxIDE({
         </SandpackProvider>
       </div>
 
+      {/* Terminal */}
       {mode === 'python' && (
-        <div
-          style={{ height: terminalOpen ? '25%' : '30px' }}
-          className="border-t border-slate-800/80 bg-[#0b1020] flex flex-col overflow-hidden flex-none"
-        >
-          <div
-            className="px-4 h-9 flex-none bg-[#0f172a] border-b border-slate-800/70 flex items-center justify-between cursor-pointer hover:bg-[#152238]"
-            onClick={() => setTerminalOpen(!terminalOpen)}
-          >
-            <div className="flex items-center gap-2">
-              <TerminalSquare className="w-4 h-4 text-slate-400" />
-              <span className="text-sm text-slate-300">Terminal</span>
+        <div className={`ide-terminal ${terminalOpen ? 'open' : ''}`}>
+          <div className="ide-terminal-header" onClick={() => setTerminalOpen(!terminalOpen)}>
+            <div className="ide-terminal-title">
+              <TerminalSquare className="w-4 h-4" />
+              <span>Terminal</span>
             </div>
-            {terminalOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            {terminalOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </div>
           {terminalOpen && (
-            <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-3 flex-1 overflow-auto font-mono text-sm whitespace-pre-wrap text-emerald-300">
+            <div className="ide-terminal-body">
+              <div className="ide-terminal-output">
                 {terminalError ? (
-                  <div className="text-rose-400">{terminalError}</div>
+                  <span className="text-rose-400">{terminalError}</span>
                 ) : (
                   terminalOutput || 'Run your code to see output here...'
                 )}
               </div>
-              <div className="border-t border-slate-800/70 p-2 flex gap-2 bg-[#0f172a]">
+              <div className="ide-terminal-input">
                 <input
                   type="text"
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && sendInput()}
                   placeholder="Enter input..."
-                  className="flex-1 bg-[#0b1220] text-white text-sm px-2 py-1 rounded border border-slate-700 focus:outline-none focus:border-emerald-400"
                 />
                 <Button size="sm" onClick={sendInput} disabled={!terminalInput.trim()}>
                   Send
