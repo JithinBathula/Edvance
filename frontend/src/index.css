@@ -2739,6 +2739,7 @@ html {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  height: 100%;
   background: #011627;
 }
 
@@ -2754,9 +2755,8 @@ html {
 
 /* Code editor takes top half in web mode */
 .ide-container[data-mode="web"] .ide-main .sp-editor {
-  flex: 0 0 50%;
-  max-height: 50%;
-  height: 50%;
+  flex: 1 1 0;
+  max-height: none;
 }
 
 /* Code editor fills full height in python mode */
@@ -2786,6 +2786,12 @@ html {
   background: #0d1b2a;
   display: flex;
   flex-direction: column;
+}
+
+/* Preview takes bottom half in web mode */
+.ide-container[data-mode="web"] .ide-preview {
+  flex: 1 1 0;
+  max-height: none;
 }
 
 .ide-preview-header {
