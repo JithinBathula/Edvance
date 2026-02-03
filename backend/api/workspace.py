@@ -83,11 +83,31 @@ def load_workspace(project_id: str):
 
     files = read_repo_files(repo_path)
     if not files:
-        default_files = [{
-            "name": "main.py",
-            "content": "# Write your code here\n",
-            "language": "python",
-        }]
+        vm_type = project.get("vm_type", "python")
+        if vm_type == "javascript":
+            default_files = [
+                {
+                    "name": "index.html",
+                    "content": "<!DOCTYPE html>\n<html>\n<head>\n  <title>My Project</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <h1>Hello World</h1>\n  <script src=\"index.js\"></script>\n</body>\n</html>\n",
+                    "language": "html",
+                },
+                {
+                    "name": "index.js",
+                    "content": "// Write your code here\nconsole.log('Hello World!');\n",
+                    "language": "javascript",
+                },
+                {
+                    "name": "style.css",
+                    "content": "body {\n  font-family: Arial, sans-serif;\n  margin: 20px;\n}\n",
+                    "language": "css",
+                },
+            ]
+        else:
+            default_files = [{
+                "name": "main.py",
+                "content": "# Write your code here\n",
+                "language": "python",
+            }]
         write_repo_files(repo_path, default_files)
         commit_repo(repo_path, "Initialize workspace")
         files = default_files

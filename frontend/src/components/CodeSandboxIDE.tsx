@@ -374,7 +374,7 @@ export function CodeSandboxIDE({
               }}
               disabled={saving || isSaving}
               variant="ghost"
-              className="text-slate-300 hover:text-white hover:bg-slate-800/60"
+              className="text-white hover:bg-slate-800/60"
             >
               {saving || isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
               Save
@@ -385,7 +385,7 @@ export function CodeSandboxIDE({
               size="sm"
               onClick={runPython}
               disabled={terminalLoading || readOnly}
-              className="bg-emerald-500/90 hover:bg-emerald-400 text-slate-950"
+              className="bg-emerald-500/90 hover:bg-emerald-400 text-white"
             >
               {terminalLoading ? (
                 <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Connecting</>
