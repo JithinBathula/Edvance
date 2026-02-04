@@ -36,12 +36,50 @@ export default function App() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [projectRequirements, setProjectRequirements] = useState<any>(null);
-  const [currentProject, setCurrentProject] = useState<any>(null);
+
+  // Restore project state from localStorage on mount
+  const [projectRequirements, setProjectRequirements] = useState<any>(() => {
+    const saved = localStorage.getItem('edvance_project_requirements');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [currentProject, setCurrentProject] = useState<any>(() => {
+    const saved = localStorage.getItem('edvance_current_project');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   // Check for existing session on app load
   useEffect(() => {
     const checkSession = async () => {
+      // First, try to restore from localStorage
+      const savedUser = localStorage.getItem('edvance_user');
+      const sessionExpiry = localStorage.getItem('edvance_session_expiry');
+
+      // Check if localStorage session is still valid (within 1 hour)
+      if (savedUser && sessionExpiry) {
+        const expiryTime = parseInt(sessionExpiry, 10);
+        const now = Date.now();
+
+        if (now < expiryTime) {
+          // Session still valid, restore user immediately
+          try {
+            const userData = JSON.parse(savedUser);
+            setUser(userData);
+            console.log('✅ Session restored from localStorage');
+            setLoading(false);
+            return; // Skip backend check if localStorage is valid
+          } catch (e) {
+            console.error('Failed to parse saved user data');
+          }
+        } else {
+          // Session expired, clear localStorage
+          console.log('⏰ Session expired (1 hour), clearing localStorage');
+          localStorage.removeItem('edvance_user');
+          localStorage.removeItem('edvance_session_expiry');
+        }
+      }
+
+      // If no valid localStorage session, check backend
       try {
         const response = await fetch(`${BACKEND_URL}/auth/me`, {
           credentials: 'include',
@@ -50,15 +88,16 @@ export default function App() {
 
         if (data.success && data.user) {
           setUser(data.user);
-          // Navigate based on onboarding status
-          if (data.user.onboarding) {
-            navigate("/dashboard", { replace: true });
-          } else {
-            navigate("/onboarding", { replace: true });
-          }
+
+          // Save to localStorage with 1 hour expiry
+          const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour from now
+          localStorage.setItem('edvance_user', JSON.stringify(data.user));
+          localStorage.setItem('edvance_session_expiry', expiryTime.toString());
+
+          console.log('✅ Session verified with backend and saved to localStorage');
         }
       } catch (err) {
-        console.log("No existing session");
+        console.log("No existing backend session");
       } finally {
         setLoading(false);
       }
@@ -69,6 +108,12 @@ export default function App() {
 
   const handleLogin = (userData: User) => {
     setUser(userData);
+
+    // Save to localStorage with 1 hour expiry
+    const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour from now
+    localStorage.setItem('edvance_user', JSON.stringify(userData));
+    localStorage.setItem('edvance_session_expiry', expiryTime.toString());
+
     if (userData.onboarding) {
       navigate("/dashboard");
     } else {
@@ -78,6 +123,12 @@ export default function App() {
 
   const handleSignup = (userData: User) => {
     setUser(userData);
+
+    // Save to localStorage with 1 hour expiry
+    const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour from now
+    localStorage.setItem('edvance_user', JSON.stringify(userData));
+    localStorage.setItem('edvance_session_expiry', expiryTime.toString());
+
     navigate("/onboarding");
   };
 
@@ -90,42 +141,64 @@ export default function App() {
     } catch (err) {
       console.error("Logout error:", err);
     }
+
+    // Clear all localStorage
+    localStorage.removeItem('edvance_user');
+    localStorage.removeItem('edvance_session_expiry');
+    localStorage.removeItem('edvance_current_project');
+    localStorage.removeItem('edvance_project_requirements');
+
     setUser(null);
+    setCurrentProject(null);
+    setProjectRequirements(null);
     navigate("/");
   };
 
   const handleOnboardingComplete = (onboardingData: OnboardingData) => {
     if (user) {
-      setUser({ ...user, onboarding: onboardingData });
+      const updatedUser = { ...user, onboarding: onboardingData };
+      setUser(updatedUser);
+
+      // Update localStorage
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
     navigate("/dashboard");
   };
 
   const handleRequirementsReady = (data: any) => {
     console.log("📋 Requirements ready:", data);
-    setProjectRequirements({
+    const requirements = {
       session: data.session || data.session_data,
       outline: data.outline,
       experienceLevel: data.experienceLevel || user?.onboarding?.experienceLevel || 'beginner',
-    });
+    };
+    setProjectRequirements(requirements);
+    localStorage.setItem('edvance_project_requirements', JSON.stringify(requirements));
     navigate("/project-planning");
   };
 
   const handleProjectReady = (project: any) => {
     console.log("📦 Project ready:", project);
     setCurrentProject(project);
+    localStorage.setItem('edvance_current_project', JSON.stringify(project));
     navigate("/project");
   };
 
   const handleBackToLanding = () => {
     setCurrentProject(null);
     setProjectRequirements(null);
+    localStorage.removeItem('edvance_current_project');
+    localStorage.removeItem('edvance_project_requirements');
     navigate("/dashboard");
   };
 
   const handleProfileUpdate = (onboardingData: OnboardingData) => {
     if (user) {
-      setUser({ ...user, onboarding: onboardingData });
+      const updatedUser = { ...user, onboarding: onboardingData };
+      setUser(updatedUser);
+
+      // Update localStorage
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
     navigate("/dashboard");
   };
