@@ -58,6 +58,7 @@ def generate_curriculum():
     requirements = payload.get("requirements")
     experience_level = payload.get("experience_level")
     outline_payload = payload.get("outline")
+    vm_type = payload.get("vm_type")
     first_milestone_only = payload.get("first_milestone_only", True)  # NEW: default to first only
 
     if (
@@ -110,10 +111,12 @@ def generate_curriculum():
                 requirements=req_list,
                 tech_stack=stack_list,
                 experience_level=experience_level,
+                vm_type=vm_type,
             )
             result["project_id"] = project["id"]
             result["outline"] = outline_payload  # NEW: Store full outline for later generation
-
+            result["vm_type"] = project.get("vm_type")
+            
             # NEW: If first milestone only, add placeholder milestones from outline
             if first_milestone_only:
                 all_milestones = []
@@ -252,6 +255,8 @@ def generate_curriculum():
 
         return jsonify(result)
     except (CurriculumGenerationError, ValidationError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         return jsonify({"error": f"Failed to generate curriculum: {exc}"}), 500

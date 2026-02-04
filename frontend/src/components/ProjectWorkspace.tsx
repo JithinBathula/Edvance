@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { User } from "../App";
 import { BACKEND_URL } from "../utils/constants";
-import { MonacoIDE, ProjectFile } from "./MonacoIDE";
+import { CodeSandboxIDE } from "./CodeSandboxIDE";
+import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -47,6 +48,7 @@ export function ProjectWorkspace({
   onBack,
   onComplete,
 }: Props) {
+  const [filesLoading, setFilesLoading] = useState(true);
   // State for fresh project data from API
   const [project, setProject] = useState(initialProject);
   const [projectLoading, setProjectLoading] = useState(true);
@@ -71,6 +73,7 @@ export function ProjectWorkspace({
   const [saving, setSaving] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const filesLoaded = useRef(false);
+  const lastProjectSignature = useRef<string>('');
 
   // Submission gate state
   const [evaluating, setEvaluating] = useState(false);
@@ -79,7 +82,24 @@ export function ProjectWorkspace({
 
   const tasks: Task[] = project.tasks || [];
   const currentTask = tasks[currentTaskIndex];
-  const progress = (completedTasks.length / tasks.length) * 100;
+  const hasTasks = tasks.length > 0 && !!currentTask;
+  const safeCurrentTask: Task = currentTask || {
+    id: 'generating',
+    title: 'Generating tasks...',
+    description: 'Tasks are being generated. The editor is ready while we load the task details.',
+    hints: [],
+    starterCode: '# Write your code here\n',
+  };
+  const progress = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
+
+  const buildProjectSignature = (milestones: any[] = []) =>
+    JSON.stringify(
+      milestones.map((milestone) => ({
+        id: milestone.id,
+        status: milestone.tasks && milestone.tasks.length > 0 ? 'ready' : 'generating',
+        taskIds: (milestone.tasks || []).map((task: any) => task.id),
+      }))
+    );
 
   // Fetch fresh project data from API on mount to get latest milestones/tasks
   useEffect(() => {
@@ -134,6 +154,8 @@ export function ProjectWorkspace({
           milestones: milestones,
         };
 
+        const signature = buildProjectSignature(milestones);
+        lastProjectSignature.current = signature;
         setProject(updatedProject);
 
         // Update localStorage with fresh data
@@ -212,6 +234,11 @@ export function ProjectWorkspace({
           milestones: milestones,
         };
 
+        const signature = buildProjectSignature(milestones);
+        if (signature === lastProjectSignature.current) {
+          return;
+        }
+        lastProjectSignature.current = signature;
         setProject(updatedProject);
         localStorage.setItem('edvance_current_project', JSON.stringify(updatedProject));
 
@@ -243,6 +270,12 @@ export function ProjectWorkspace({
     }
   }, [project]);
 
+  useEffect(() => {
+    if (tasks.length > 0 && currentTaskIndex >= tasks.length) {
+      setCurrentTaskIndex(tasks.length - 1);
+    }
+  }, [tasks.length, currentTaskIndex]);
+
   // Persist current task to localStorage
   useEffect(() => {
     localStorage.setItem(`edvance_project_${project.id}_current_task`, currentTaskIndex.toString());
@@ -254,32 +287,25 @@ export function ProjectWorkspace({
   }, [completedTasks, project.id]);
 
   const loadSavedFiles = async () => {
+    setFilesLoading(true);
     try {
       // Load files from first task (they're shared across all tasks)
       const firstTaskId = tasks[0]?.id;
-      if (!firstTaskId) return;
+      if (!firstTaskId) {
+        setProjectFiles([{ name: 'main.py', content: '# Write your code here\n', language: 'python' }]);
+        setFilesLoading(false);
+        return;
+      }
 
       const response = await fetch(
-        `${BACKEND_URL}/progress/load/${firstTaskId}?user_id=${user.id}`,
+        `${BACKEND_URL}/workspace/${project.id}?user_id=${user.id}`,
         { credentials: 'include' }
       );
       const data = await response.json();
 
-      if (data.success && data.code) {
-        try {
-          // Try to parse as JSON (multi-file format)
-          const parsed = JSON.parse(data.code);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProjectFiles(parsed);
-            return;
-          }
-        } catch {
-          // Legacy single-file format - wrap in array
-          setProjectFiles([
-            { name: 'main.py', content: data.code, language: 'python' }
-          ]);
-          return;
-        }
+      if (data.success && Array.isArray(data.files) && data.files.length > 0) {
+        setProjectFiles(data.files);
+        return;
       }
 
       // No saved code - use starter code if available
@@ -289,29 +315,32 @@ export function ProjectWorkspace({
       ]);
     } catch (err) {
       console.error('Error loading files:', err);
+      setProjectFiles([{ name: 'main.py', content: '# Write your code here\n', language: 'python' }]);
+    } finally {
+      setFilesLoading(false);
     }
   };
 
   const saveFiles = async (files: ProjectFile[]) => {
-    // Save to first task ID (shared across all tasks in project)
+    // Save to project repo; include task ID if available
     const firstTaskId = tasks[0]?.id;
-    if (!firstTaskId) return;
 
     setSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/progress/save`, {
+      const response = await fetch(`${BACKEND_URL}/workspace/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           user_id: user.id,
+          project_id: project.id,
           task_id: firstTaskId,
-          code: JSON.stringify(files), // Store as JSON
+          files: files,
         }),
       });
       const data = await response.json();
       if (data.success) {
-        toast.success(`Saved (v${data.version})`);
+        toast.success(`Saved`);
       }
     } catch (err) {
       console.error('Error saving files:', err);
@@ -320,6 +349,7 @@ export function ProjectWorkspace({
       setSaving(false);
     }
   };
+
 
   const handleCompleteTask = async () => {
     // Get the main file content for evaluation
@@ -339,6 +369,7 @@ export function ProjectWorkspace({
           user_id: user.id,
           task_id: currentTask.id,
           code: code,
+          project_id: project.id,
         }),
       });
 
@@ -440,7 +471,7 @@ export function ProjectWorkspace({
     );
   }
 
-  if (projectLoading || !currentTask) {
+  if (projectLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50">
         <div className="text-center">
@@ -462,7 +493,7 @@ export function ProjectWorkspace({
           <div>
             <h1 className="font-semibold">{project.title}</h1>
             <p className="text-sm text-gray-500">
-              Task {currentTaskIndex + 1} of {tasks.length}
+              {hasTasks ? `Task ${currentTaskIndex + 1} of ${tasks.length}` : 'Loading tasks...'}
             </p>
           </div>
         </div>
@@ -595,15 +626,15 @@ export function ProjectWorkspace({
           style={{ width: '30%' }}
         >
           <div className="flex-1 overflow-y-auto p-6">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
             <div className="prose max-w-none mb-6">
               <p className="text-gray-600 text-base leading-relaxed whitespace-pre-wrap">
-                {currentTask.description}
+                {safeCurrentTask.description}
               </p>
             </div>
 
             {/* Hints Section */}
-            {currentTask.hints && currentTask.hints.length > 0 && (
+            {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
               <div className="mb-6">
                 <button
                   onClick={() => setShowHints(!showHints)}
@@ -619,7 +650,7 @@ export function ProjectWorkspace({
                 {showHints && (
                   <div className="mt-3 bg-white/60 rounded-lg p-4 backdrop-blur-sm border border-purple-100">
                     <ul className="space-y-3">
-                      {currentTask.hints.map((hint, idx) => (
+                      {safeCurrentTask.hints.map((hint, idx) => (
                         <li
                           key={idx}
                           className="text-base text-gray-700 pl-4 border-l-2 border-purple-300 leading-relaxed"
@@ -636,7 +667,7 @@ export function ProjectWorkspace({
             {/* Complete Button */}
             <Button
               onClick={handleCompleteTask}
-              disabled={saving || evaluating}
+              disabled={saving || evaluating || !hasTasks}
               className="w-full bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] shadow-md hover:shadow-lg transition-shadow"
             >
               {evaluating ? (
@@ -644,35 +675,48 @@ export function ProjectWorkspace({
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Evaluating...
                 </>
-              ) : completedTasks.includes(currentTask.id)
+              ) : hasTasks && completedTasks.includes(safeCurrentTask.id)
                 ? "Completed ✓"
-                : currentTaskIndex < tasks.length - 1
+                : hasTasks && currentTaskIndex < tasks.length - 1
                   ? "Complete & Continue"
-                  : "Complete Project"}
+                  : hasTasks
+                    ? "Complete Project"
+                    : "Waiting for tasks..."}
             </Button>
           </div>
         </div>
 
         {/* Right - Monaco IDE */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col bg-gray-900">
-          <div className="flex-1 p-1">
-            <MonacoIDE
-              files={projectFiles}
-              onFilesChange={setProjectFiles}
-              onSave={saveFiles}
-              saving={saving}
-            />
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col bg-[#0b1020]">
+          <div className="flex-1 p-3">
+            {filesLoading ? (
+              <div className="h-full flex items-center justify-center text-slate-400">
+                Loading...
+              </div>
+            ) : (
+              <CodeSandboxIDE
+                files={projectFiles}
+                onFilesChange={setProjectFiles}
+                onSave={saveFiles}
+                saving={saving}
+                userId={user.id}
+                projectId={project.id}
+                vmType={project?.vm_type}
+              />
+            )}
           </div>
         </div>
       </div>
 
       <AIChatbot
-        context={`Working on: ${currentTask.title}`}
+        context={`Working on: ${safeCurrentTask.title}`}
         userProgress={completedTasks}
-        taskId={currentTask.id}
+        taskId={safeCurrentTask.id}
+        userId={user.id}
+        projectId={project.id}
         userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
-        taskDescription={currentTask.description}
-        testSpec={currentTask.testSpec}
+        taskDescription={safeCurrentTask.description}
+        testSpec={safeCurrentTask.testSpec}
       />
 
       {/* Feedback Modal */}

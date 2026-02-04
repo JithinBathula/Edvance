@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev-server": {
+      "name": "Dev Server",
+      "command": "npm run dev",
+      "preview": {
+        "port": 5173
+      },
+      "runAtStart": true
+    }
+  }
+}

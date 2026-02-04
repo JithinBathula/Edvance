@@ -15,6 +15,8 @@ type Props = {
   context?: string;
   userProgress?: any;
   taskId?: string;
+  userId?: string;
+  projectId?: string;
   userCode?: string;
   taskDescription?: string;
   testSpec?: {
@@ -27,6 +29,8 @@ export function AIChatbot({
   context,
   userProgress,
   taskId,
+  userId,
+  projectId,
   userCode,
   taskDescription,
   testSpec
@@ -66,6 +70,8 @@ export function AIChatbot({
         body: JSON.stringify({
           message: userMessage,
           task_id: taskId,
+          user_id: userId,
+          project_id: projectId,
           code: userCode || '',
           history: messages.slice(-10).map(m => ({
             role: m.role,

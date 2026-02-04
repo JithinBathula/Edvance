@@ -2572,3 +2572,477 @@ html {
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
 }
+
+/* ============================================
+   IDE Component Styles
+   ============================================ */
+
+.ide-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  background: #011627;
+}
+
+.ide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: #0d1b2a;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ide-header-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ide-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.8);
+}
+
+.ide-title {
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.ide-mode {
+  color: #64748b;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.ide-editor-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #011627;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-saving-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(1, 22, 39, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  z-index: 50;
+  color: #34d399;
+  font-size: 0.875rem;
+}
+
+/* Sandpack Layout */
+.ide-editor-area .sp-wrapper {
+  height: 100%;
+  background: #011627 !important;
+}
+
+.ide-editor-area .sp-layout {
+  height: 100%;
+  background: #011627 !important;
+  border: none !important;
+}
+
+/* Sidebar */
+.ide-sidebar {
+  width: 15rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0d1b2a;
+  border-right: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-new-file {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-new-file input {
+  flex: 1;
+  min-width: 0;
+  background: #011627;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #334155;
+  border-radius: 0.25rem;
+}
+
+.ide-new-file input:focus {
+  outline: none;
+  border-color: #34d399;
+}
+
+.ide-new-file-btn {
+  padding: 0.25rem;
+  color: #64748b;
+  border-radius: 0.25rem;
+}
+
+.ide-new-file-btn:hover {
+  background: #1e3a5f;
+  color: #e2e8f0;
+}
+
+.ide-file-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ide-file-list .sp-file-explorer {
+  background: #0d1b2a !important;
+}
+
+/* Main editor area */
+.ide-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+  background: #011627;
+}
+
+/* Code editor base sizing */
+.ide-main .sp-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #011627 !important;
+}
+
+/* Code editor takes top half in web mode */
+.ide-container[data-mode="web"] .ide-main .sp-editor {
+  flex: 1 1 0;
+  max-height: none;
+}
+
+/* Code editor fills full height in python mode */
+.ide-container[data-mode="python"] .ide-main .sp-editor {
+  flex: 1 1 0;
+  max-height: 100%;
+  height: 100%;
+}
+
+/* Code editor fills its container */
+.ide-main .sp-code-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #011627 !important;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Preview section */
+.ide-preview {
+  flex: 0 0 50%;
+  max-height: 50%;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(30, 41, 59, 0.7);
+  background: #0d1b2a;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Preview takes bottom half in web mode */
+.ide-container[data-mode="web"] .ide-preview {
+  flex: 1 1 0;
+  max-height: none;
+}
+
+.ide-preview-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+/* Ensure Sandpack preview fills its half */
+.ide-preview .sp-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make Sandpack preview iframe scrollable */
+.ide-preview .sp-preview-container,
+.ide-preview .sp-preview-iframe {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Terminal */
+.ide-terminal {
+  height: 30px;
+  border-top: 1px solid rgba(30, 41, 59, 0.8);
+  background: #011627;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ide-terminal.open {
+  flex: 1;
+  height: auto;
+}
+
+.ide-terminal-header {
+  flex-shrink: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: #0d1b2a;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+  cursor: pointer;
+  color: #94a3b8;
+}
+
+.ide-terminal-header:hover {
+  background: #152238;
+}
+
+.ide-terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #cbd5e1;
+}
+
+.ide-terminal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-left: 0.5rem;
+}
+
+.ide-terminal-status::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: #64748b;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
+}
+
+.ide-terminal-status[data-status="connecting"]::before {
+  background: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+}
+
+.ide-terminal-status[data-status="connected"]::before {
+  background: #34d399;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2);
+}
+
+.ide-terminal-status[data-status="error"]::before {
+  background: #f87171;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.2);
+}
+
+.ide-terminal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ide-terminal-error {
+  padding: 0.4rem 0.75rem;
+  background: rgba(127, 29, 29, 0.25);
+  border-bottom: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+.ide-terminal-output {
+  flex: 1;
+  overflow: hidden;
+  background: #011627;
+}
+
+.ide-terminal-xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.ide-terminal-xterm .xterm {
+  height: 100%;
+  padding: 0.75rem;
+}
+
+.ide-terminal-xterm .xterm-viewport {
+  overflow: auto;
+}
+
+.ide-terminal-input {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #0d1b2a;
+  border-top: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.ide-terminal-input input {
+  flex: 1;
+  background: #011627;
+  color: white;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid #334155;
+}
+
+.ide-terminal-input input:focus {
+  outline: none;
+  border-color: #34d399;
+}
+
+/* ============================================
+   Sandpack Overrides - CRITICAL FOR BACKGROUND
+   ============================================ */
+
+/* All Sandpack surfaces use same dark bg */
+.sp-wrapper,
+.sp-layout,
+.sp-tabs,
+.sp-tabs-scrollable-container,
+.sp-code-editor {
+  background: #011627 !important;
+}
+
+/* Prevent Sandpack internal elements from growing */
+.ide-main .sp-stack {
+  background: #011627 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* CodeMirror editor - the actual editor */
+.cm-editor {
+  background: #011627 !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* The scroller wraps all content */
+.cm-scroller {
+  background: #011627 !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+/* Gutters (line numbers) */
+.cm-gutters {
+  background: #011627 !important;
+  border-right: 1px solid #1e3a5f !important;
+}
+
+/* The content area - THIS IS THE KEY */
+.cm-content {
+  background: #011627 !important;
+}
+
+/* Individual lines */
+.cm-line {
+  background: transparent !important;
+}
+
+/* Active line highlight */
+.cm-activeLine {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.cm-activeLineGutter {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Tab styling */
+.ide-main .sp-tabs {
+  flex-shrink: 0 !important;
+  min-height: 0 !important;
+}
+
+.sp-tab-button {
+  background: #011627 !important;
+  color: #6988a1 !important;
+}
+
+.sp-tab-button[data-active="true"] {
+  color: #ffffff !important;
+  border-bottom-color: #34d399 !important;
+}
+
+/* File explorer */
+.sp-file-explorer {
+  background: #0d1b2a !important;
+}
+
+.sp-file-explorer-list {
+  background: #0d1b2a !important;
+}
+
+/* Preview */
+.sp-preview-container {
+  background: #ffffff;
+}
