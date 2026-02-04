@@ -88,7 +88,7 @@ def load_workspace(project_id: str):
             default_files = [
                 {
                     "name": "index.html",
-                    "content": "<!DOCTYPE html>\n<html>\n<head>\n  <title>My Project</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <h1>Hello World</h1>\n  <script src=\"index.js\"></script>\n</body>\n</html>\n",
+                    "content": "<!DOCTYPE html>\n<html>\n<head>\n  <title>My Project</title>\n  <link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body>\n  <h1>Hello World</h1>\n  <script src=\"index.js\"></script>\n</body>\n</html>\n",
                     "language": "html",
                 },
                 {
@@ -97,7 +97,7 @@ def load_workspace(project_id: str):
                     "language": "javascript",
                 },
                 {
-                    "name": "style.css",
+                    "name": "styles.css",
                     "content": "body {\n  font-family: Arial, sans-serif;\n  margin: 20px;\n}\n",
                     "language": "css",
                 },

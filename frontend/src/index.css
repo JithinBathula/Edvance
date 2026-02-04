@@ -2870,14 +2870,32 @@ html {
   overflow: hidden;
 }
 
+.ide-terminal-error {
+  padding: 0.4rem 0.75rem;
+  background: rgba(127, 29, 29, 0.25);
+  border-bottom: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
 .ide-terminal-output {
   flex: 1;
+  overflow: hidden;
+  background: #011627;
+}
+
+.ide-terminal-xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.ide-terminal-xterm .xterm {
+  height: 100%;
   padding: 0.75rem;
+}
+
+.ide-terminal-xterm .xterm-viewport {
   overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem;
-  white-space: pre-wrap;
-  color: #6ee7b7;
 }
 
 .ide-terminal-input {

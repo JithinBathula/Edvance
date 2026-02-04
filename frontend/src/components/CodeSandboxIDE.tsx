@@ -9,6 +9,10 @@ import {
 } from '@codesandbox/sandpack-react';
 import type { SandpackTheme } from '@codesandbox/sandpack-react';
 import { connectToSandbox } from '@codesandbox/sdk/browser';
+import { python } from '@codemirror/lang-python';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 import { Button } from './ui/button';
 import {
   Code2,
@@ -56,6 +60,12 @@ const edvanceTheme: SandpackTheme = {
     size: '14px',
     lineHeight: '1.6',
   },
+};
+
+const pythonLanguage = {
+  name: 'python',
+  extensions: ['py'],
+  language: python(),
 };
 
 const detectLanguage = (filename: string) => {
@@ -127,6 +137,8 @@ type Props = {
   vmType?: string;
 };
 
+type TerminalStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
 // Component to store sandpack ref for saving
 function SandpackRef({
   sandpackRef,
@@ -150,8 +162,6 @@ export function CodeSandboxIDE({
 }: Props) {
   const mode = resolveMode(files, vmType);
   const [terminalOpen, setTerminalOpen] = useState(true);
-  const [terminalOutput, setTerminalOutput] = useState<string>('');
-  const [terminalInput, setTerminalInput] = useState('');
   const [terminalLoading, setTerminalLoading] = useState(false);
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [showNewFile, setShowNewFile] = useState(false);
@@ -164,12 +174,23 @@ export function CodeSandboxIDE({
   const clientRef = useRef<any>(null);
   const connectingRef = useRef(false);
   const sandpackRef = useRef<any>(null);
+  const terminalContainerRef = useRef<HTMLDivElement | null>(null);
+  const xtermRef = useRef<Terminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const terminalHistoryRef = useRef<string>('');
+  const terminalWrittenRef = useRef(0);
 
   const filteredFiles = useMemo(() => filterFilesByMode(localFiles, mode), [localFiles, mode]);
   const visibleFiles = useMemo(
     () => filteredFiles.map((file) => toSandpackPath(file.name)),
     [filteredFiles]
   );
+  const webEntry = useMemo(() => {
+    const indexHtml = visibleFiles.find((file) => file.toLowerCase() === '/index.html');
+    if (indexHtml) return indexHtml;
+    const anyHtml = visibleFiles.find((file) => file.toLowerCase().endsWith('.html'));
+    return anyHtml || visibleFiles[0] || '/index.html';
+  }, [visibleFiles]);
 
   const sandpackFiles = useMemo(() => {
     const mapped: Record<string, { code: string }> = {};
@@ -179,6 +200,81 @@ export function CodeSandboxIDE({
     });
     return mapped;
   }, [filteredFiles]);
+
+  const writeToTerminal = (chunk?: string) => {
+    if (!chunk) return;
+    terminalHistoryRef.current += chunk;
+    if (xtermRef.current) {
+      xtermRef.current.write(chunk);
+      terminalWrittenRef.current = terminalHistoryRef.current.length;
+    }
+  };
+
+  const flushTerminalHistory = () => {
+    if (!xtermRef.current) return;
+    const history = terminalHistoryRef.current;
+    if (!history) return;
+    const alreadyWritten = terminalWrittenRef.current;
+    if (alreadyWritten > 0 && alreadyWritten < history.length) {
+      xtermRef.current.write(history.slice(alreadyWritten));
+    } else if (alreadyWritten === 0) {
+      xtermRef.current.write(history);
+    }
+    terminalWrittenRef.current = history.length;
+  };
+
+  const initializeXterm = () => {
+    if (xtermRef.current || !terminalContainerRef.current) return;
+
+    const term = new Terminal({
+      convertEol: true,
+      cursorBlink: true,
+      fontFamily: '"Fira Code", "Fira Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace',
+      fontSize: 13,
+      lineHeight: 1.4,
+      scrollback: 2000,
+      theme: {
+        background: '#011627',
+        foreground: '#6ee7b7',
+        cursor: '#6ee7b7',
+        selection: 'rgba(148, 163, 184, 0.35)',
+      },
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalContainerRef.current);
+    fitAddon.fit();
+
+    term.onData((data) => {
+      if (!terminalRef.current) return;
+      try {
+        terminalRef.current.write(data);
+      } catch (err) {
+        console.error('Terminal input error:', err);
+        setTerminalError('Failed to send input');
+      }
+    });
+
+    if (!terminalRef.current) {
+      term.options.disableStdin = true;
+    }
+
+    xtermRef.current = term;
+    fitAddonRef.current = fitAddon;
+    flushTerminalHistory();
+
+    requestAnimationFrame(() => fitAddon.fit());
+  };
+
+  const disposeXterm = () => {
+    if (xtermRef.current) {
+      xtermRef.current.dispose();
+      xtermRef.current = null;
+    }
+    fitAddonRef.current = null;
+    terminalWrittenRef.current = 0;
+  };
 
   const fetchSession = async () => {
     const response = await fetch(`${BACKEND_URL}/sandbox/python/session`, {
@@ -219,10 +315,14 @@ export function CodeSandboxIDE({
       const terminal = await sandboxClient.terminals.create();
       terminalRef.current = terminal;
       const initial = await terminal.open();
-      setTerminalOutput(initial || '');
+      writeToTerminal(initial || '');
       terminal.onOutput((chunk: string) => {
-        setTerminalOutput((prev) => prev + chunk);
+        writeToTerminal(chunk);
       });
+      if (xtermRef.current) {
+        xtermRef.current.options.disableStdin = false;
+        xtermRef.current.focus();
+      }
       return true;
     } catch (err: any) {
       console.error('Terminal connection error:', err);
@@ -239,6 +339,9 @@ export function CodeSandboxIDE({
       connectTerminal();
     }
     return () => {
+      disposeXterm();
+      terminalHistoryRef.current = '';
+      terminalWrittenRef.current = 0;
       if (terminalRef.current) {
         terminalRef.current.kill?.();
         terminalRef.current = null;
@@ -249,6 +352,28 @@ export function CodeSandboxIDE({
       }
     };
   }, [mode, userId, projectId]);
+
+  useEffect(() => {
+    if (mode !== 'python') return;
+    if (terminalOpen) {
+      initializeXterm();
+      flushTerminalHistory();
+      requestAnimationFrame(() => fitAddonRef.current?.fit());
+    } else {
+      disposeXterm();
+    }
+  }, [mode, terminalOpen]);
+
+  useEffect(() => {
+    if (mode !== 'python' || !terminalOpen) return;
+    const handleResize = () => {
+      fitAddonRef.current?.fit();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [mode, terminalOpen]);
 
   const syncFilesToSandbox = async () => {
     if (!clientRef.current) return;
@@ -280,23 +405,6 @@ export function CodeSandboxIDE({
     } catch (err: any) {
       console.error('Run error:', err);
       setTerminalError(err?.message || 'Failed to run code');
-    }
-  };
-
-  const sendInput = async () => {
-    if (!terminalInput.trim()) return;
-
-    if (!terminalRef.current) {
-      setTerminalError('Terminal not connected');
-      return;
-    }
-
-    try {
-      await terminalRef.current.write(`${terminalInput}\n`);
-      setTerminalInput('');
-    } catch (err: any) {
-      console.error('Send input error:', err);
-      setTerminalError(err?.message || 'Failed to send input');
     }
   };
 
@@ -408,8 +516,9 @@ export function CodeSandboxIDE({
         <SandpackProvider
           key={editorKey}
           files={sandpackFiles}
+          template={mode === 'web' ? 'static' : undefined}
           customSetup={{
-            entry: activeFile || visibleFiles[0] || '/main.py',
+            entry: mode === 'web' ? webEntry : activeFile || visibleFiles[0] || '/main.py',
           }}
           theme={edvanceTheme}
           options={{
@@ -464,6 +573,7 @@ export function CodeSandboxIDE({
                 showLineNumbers
                 showTabs
                 wrapContent={false}
+                additionalLanguages={[pythonLanguage]}
               />
               {mode === 'web' && (
                 <div className="ide-preview">
@@ -491,24 +601,13 @@ export function CodeSandboxIDE({
           </div>
           {terminalOpen && (
             <div className="ide-terminal-body">
+              {terminalError && (
+                <div className="ide-terminal-error">
+                  {terminalError}
+                </div>
+              )}
               <div className="ide-terminal-output">
-                {terminalError ? (
-                  <span className="text-rose-400">{terminalError}</span>
-                ) : (
-                  terminalOutput || 'Run your code to see output here...'
-                )}
-              </div>
-              <div className="ide-terminal-input">
-                <input
-                  type="text"
-                  value={terminalInput}
-                  onChange={(e) => setTerminalInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendInput()}
-                  placeholder="Enter input..."
-                />
-                <Button size="sm" onClick={sendInput} disabled={!terminalInput.trim()}>
-                  Send
-                </Button>
+                <div ref={terminalContainerRef} className="ide-terminal-xterm" />
               </div>
             </div>
           )}
