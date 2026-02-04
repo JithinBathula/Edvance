@@ -44,14 +44,29 @@ type Props = {
 
 export function ProjectWorkspace({
   user,
-  project,
+  project: initialProject,
   onBack,
   onComplete,
 }: Props) {
-  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
-  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(true);
+  // State for fresh project data from API
+  const [project, setProject] = useState(initialProject);
+  const [projectLoading, setProjectLoading] = useState(true);
+
+  // Restore current task from localStorage
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(() => {
+    const saved = localStorage.getItem(`edvance_project_${initialProject.id}_current_task`);
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Restore completed tasks from localStorage
+  const [completedTasks, setCompletedTasks] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`edvance_project_${initialProject.id}_completed_tasks`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([
+    { name: 'main.py', content: '# Write your code here\n', language: 'python' }
+  ]);
   const [showHints, setShowHints] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -67,19 +82,177 @@ export function ProjectWorkspace({
   const currentTask = tasks[currentTaskIndex];
   const progress = (completedTasks.length / tasks.length) * 100;
 
+  // Fetch fresh project data from API on mount to get latest milestones/tasks
+  useEffect(() => {
+    const fetchProjectData = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/planning/project/${initialProject.id}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.error) {
+          console.error('Failed to fetch project:', data.error);
+          setProjectLoading(false);
+          return;
+        }
+
+        // Transform database structure into component format
+        const transformedTasks: Task[] = [];
+        const milestones: any[] = [];
+
+        data.milestones?.forEach((milestone: any) => {
+          const milestoneTasks: Task[] = [];
+
+          milestone.tasks?.forEach((task: any) => {
+            const taskObj = {
+              id: task.id,
+              title: task.task_id_slug,
+              description: task.instruction_theory,
+              hints: task.hints || [],
+              starterCode: task.starter_code || '# Write your code here\n',
+              testSpec: task.test_specification,
+            };
+            transformedTasks.push(taskObj);
+            milestoneTasks.push(taskObj);
+          });
+
+          milestones.push({
+            id: milestone.id,
+            title: milestone.title,
+            description: milestone.description,
+            position: milestone.position,
+            tasks: milestoneTasks,
+            status: milestoneTasks.length > 0 ? 'ready' : 'generating',
+          });
+        });
+
+        // Update project with fresh data
+        const updatedProject = {
+          ...initialProject,
+          ...data,
+          tasks: transformedTasks,
+          milestones: milestones,
+        };
+
+        setProject(updatedProject);
+
+        // Update localStorage with fresh data
+        localStorage.setItem('edvance_current_project', JSON.stringify(updatedProject));
+
+        console.log(`✅ Loaded ${transformedTasks.length} tasks from ${data.milestones?.length || 0} milestones`);
+      } catch (err) {
+        console.error('Error fetching project data:', err);
+      } finally {
+        setProjectLoading(false);
+      }
+    };
+
+    fetchProjectData();
+  }, [initialProject.id]);
+
+  // Auto-refresh project data while milestones are being generated
+  useEffect(() => {
+    // Check if any milestones are still generating
+    const hasGeneratingMilestones = project.milestones?.some(
+      (m: any) => m.status === 'generating'
+    );
+
+    if (!hasGeneratingMilestones) {
+      return; // All milestones ready, no need to poll
+    }
+
+    console.log('🔄 Background generation in progress, polling for updates...');
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/planning/project/${initialProject.id}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.error) {
+          console.error('Polling error:', data.error);
+          return;
+        }
+
+        // Transform data same as above
+        const transformedTasks: Task[] = [];
+        const milestones: any[] = [];
+
+        data.milestones?.forEach((milestone: any) => {
+          const milestoneTasks: Task[] = [];
+
+          milestone.tasks?.forEach((task: any) => {
+            const taskObj = {
+              id: task.id,
+              title: task.task_id_slug,
+              description: task.instruction_theory,
+              hints: task.hints || [],
+              starterCode: task.starter_code || '# Write your code here\n',
+              testSpec: task.test_specification,
+            };
+            transformedTasks.push(taskObj);
+            milestoneTasks.push(taskObj);
+          });
+
+          milestones.push({
+            id: milestone.id,
+            title: milestone.title,
+            description: milestone.description,
+            position: milestone.position,
+            tasks: milestoneTasks,
+            status: milestoneTasks.length > 0 ? 'ready' : 'generating',
+          });
+        });
+
+        const updatedProject = {
+          ...initialProject,
+          ...data,
+          tasks: transformedTasks,
+          milestones: milestones,
+        };
+
+        setProject(updatedProject);
+        localStorage.setItem('edvance_current_project', JSON.stringify(updatedProject));
+
+        // Check if all milestones are now ready
+        const stillGenerating = milestones.some((m: any) => m.status === 'generating');
+        if (!stillGenerating) {
+          console.log('✅ All milestones generated! Stopping polling.');
+          clearInterval(pollInterval);
+        }
+      } catch (err) {
+        console.error('Error polling project data:', err);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [project.milestones, initialProject.id]);
+
   // Load saved files ONCE on project load (not per task - files persist across tasks)
   useEffect(() => {
-    if (!filesLoaded.current && project.id) {
+    if (!filesLoaded.current && project.id && !projectLoading) {
       loadSavedFiles();
       filesLoaded.current = true;
     }
-  }, [project.id]);
+  }, [project.id, projectLoading]);
 
   useEffect(() => {
     if (project.progress?.completedTasks) {
       setCompletedTasks(project.progress.completedTasks);
     }
   }, [project]);
+
+  // Persist current task to localStorage
+  useEffect(() => {
+    localStorage.setItem(`edvance_project_${project.id}_current_task`, currentTaskIndex.toString());
+  }, [currentTaskIndex, project.id]);
+
+  // Persist completed tasks to localStorage
+  useEffect(() => {
+    localStorage.setItem(`edvance_project_${project.id}_completed_tasks`, JSON.stringify(completedTasks));
+  }, [completedTasks, project.id]);
 
   const loadSavedFiles = async () => {
     setFilesLoading(true);
@@ -182,6 +355,25 @@ export function ProjectWorkspace({
         const newCompleted = [...completedTasks, currentTask.id];
         setCompletedTasks(newCompleted);
 
+        // If next task was adapted, update the project tasks
+        if (data.next_task && currentTaskIndex < tasks.length - 1) {
+          const nextTaskIndex = currentTaskIndex + 1;
+          const adaptedTask = data.next_task;
+
+          // Update the next task with adapted content
+          project.tasks[nextTaskIndex] = {
+            ...project.tasks[nextTaskIndex],
+            description: adaptedTask.instruction_theory,
+            hints: adaptedTask.hints || project.tasks[nextTaskIndex].hints,
+            // Keep other properties the same
+          };
+
+          // Update localStorage with the modified project
+          localStorage.setItem('edvance_current_project', JSON.stringify(project));
+
+          console.log('✅ Next task updated with adapted content');
+        }
+
         toast.success(data.feedback || 'Great job! Task completed.');
 
         if (currentTaskIndex < tasks.length - 1) {
@@ -247,10 +439,13 @@ export function ProjectWorkspace({
     );
   }
 
-  if (!currentTask) {
+  if (projectLoading || !currentTask) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading project...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-[#7622e5]" />
+          <p className="text-gray-600">Loading project data...</p>
+        </div>
       </div>
     );
   }
@@ -299,30 +494,95 @@ export function ProjectWorkspace({
           {!sidebarCollapsed && (
             <div className="flex-1 overflow-y-auto">
               <div className="p-2">
-                {tasks.map((task, idx) => (
-                  <button
-                    key={task.id}
-                    onClick={() => {
-                      setCurrentTaskIndex(idx);
-                      setShowHints(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${idx === currentTaskIndex
-                      ? "bg-gradient-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
-                      : completedTasks.includes(task.id)
-                        ? "text-green-600 hover:bg-green-50"
-                        : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                  >
-                    {completedTasks.includes(task.id) ? (
-                      <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                {project.milestones && project.milestones.length > 0 ? (
+                  // New: Show tasks grouped by milestones
+                  project.milestones.map((milestone: any) => (
+                  <div key={milestone.id} className="mb-4">
+                    {/* Milestone Header */}
+                    <div className="px-2 py-1.5 mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                          {milestone.title}
+                        </span>
+                        {milestone.status === 'generating' && (
+                          <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />
+                        )}
                       </div>
+                    </div>
+
+                    {/* Milestone Tasks */}
+                    {milestone.tasks.length > 0 ? (
+                      milestone.tasks.map((task: Task) => {
+                        const idx = tasks.findIndex(t => t.id === task.id);
+                        return (
+                          <button
+                            key={task.id}
+                            onClick={() => {
+                              setCurrentTaskIndex(idx);
+                              setShowHints(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${
+                              idx === currentTaskIndex
+                                ? "bg-gradient-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
+                                : completedTasks.includes(task.id)
+                                ? "text-green-600 hover:bg-green-50"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
+                          >
+                            {completedTasks.includes(task.id) ? (
+                              <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <Check className="w-2.5 h-2.5 text-white" />
+                              </div>
+                            ) : (
+                              <div
+                                className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                                  idx === currentTaskIndex ? "border-purple-400" : "border-gray-300"
+                                }`}
+                              />
+                            )}
+                            <span className="text-xs font-medium leading-tight">{task.title}</span>
+                          </button>
+                        );
+                      })
                     ) : (
-                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${idx === currentTaskIndex ? 'border-purple-400' : 'border-gray-300'}`} />
+                      <div className="px-3 py-2 text-xs text-gray-400 italic">
+                        Generating tasks...
+                      </div>
                     )}
-                    <span className="text-xs font-medium leading-tight">{task.title}</span>
-                  </button>
-                ))}
+                  </div>
+                  ))
+                ) : (
+                  // Fallback: Show flat task list if no milestones structure
+                  tasks.map((task, idx) => (
+                    <button
+                      key={task.id}
+                      onClick={() => {
+                        setCurrentTaskIndex(idx);
+                        setShowHints(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2.5 transition-all duration-150 ${
+                        idx === currentTaskIndex
+                          ? "bg-gradient-to-r from-purple-100 to-purple-50 text-purple-700 shadow-sm border border-purple-200"
+                          : completedTasks.includes(task.id)
+                          ? "text-green-600 hover:bg-green-50"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {completedTasks.includes(task.id) ? (
+                        <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      ) : (
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                            idx === currentTaskIndex ? "border-purple-400" : "border-gray-300"
+                          }`}
+                        />
+                      )}
+                      <span className="text-xs font-medium leading-tight">{task.title}</span>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           )}

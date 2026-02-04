@@ -176,3 +176,170 @@ class CurriculumPlanner:
             experience_level=experience_level,
         )
         return curriculum.model_dump()
+
+    def generate_first_milestone_only(
+        self,
+        *,
+        requirements: Sequence[str] | str,
+        tech_stack: Optional[Sequence[str] | str] = None,
+        experience_level: str,
+        outline: OutlineProject,
+    ) -> ProjectCurriculum:
+        """
+        Generate ONLY the first milestone with all its tasks.
+        Remaining milestones will be generated later (in background or on-demand).
+
+        Returns ProjectCurriculum with only the first milestone populated.
+        """
+        if not outline.milestones:
+            raise CurriculumGenerationError("Outline must have at least one milestone")
+
+        # Generate only the first milestone
+        first_milestone_outline = outline.milestones[0]
+        first_milestone = self.generate_tasks_for_milestone(
+            project_title=outline.project_title,
+            project_brief=outline.project_brief,
+            requirements=requirements,
+            tech_stack=tech_stack,
+            experience_level=experience_level,
+            milestone=first_milestone_outline,
+            milestone_position=1,
+        )
+
+        try:
+            return ProjectCurriculum(
+                project_title=outline.project_title,
+                project_brief=outline.project_brief,
+                milestones=[first_milestone],
+            )
+        except ValidationError as exc:
+            raise CurriculumGenerationError(f"First milestone generation failed: {exc}") from exc
+
+    def adapt_task_to_student_code(
+        self,
+        *,
+        student_code: str,
+        next_task: Dict[str, Any],
+        project_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Adapt the next task to match the student's coding style, variable names,
+        and function names from their previous submission.
+
+        Args:
+            student_code: The student's submitted code from the previous task
+            next_task: The next task that needs to be adapted (as dict)
+            project_context: Context about the project (title, brief, etc.)
+
+        Returns:
+            Adapted task with updated instructions, requirements, and hints
+        """
+        from prompts import planning_prompts as prompt_bank
+
+        adaptation_prompt = f"""You are adapting a learning task to match a student's coding style.
+
+STUDENT'S PREVIOUS CODE:
+```python
+{student_code}
+```
+
+NEXT TASK TO ADAPT:
+Task ID: {next_task.get('task_id', 'N/A')}
+Instructions: {next_task.get('instruction_theory', '')}
+
+Coding Requirements:
+{chr(10).join(f"- {req}" for req in next_task.get('coding_requirements', []))}
+
+PROJECT CONTEXT:
+{json.dumps(project_context, indent=2)}
+
+YOUR JOB:
+Analyze the student's code and identify:
+1. Variable naming patterns (e.g., snake_case style, specific names they chose)
+2. Function names they used
+3. Code organization style
+4. Any patterns in their approach
+
+Then adapt the next task to reference THEIR specific variable names, function names,
+and code structure. This makes it easier for them to build incrementally.
+
+IMPORTANT GUIDELINES:
+- Reference their actual variable/function names in the instructions
+- If they used specific variable names (e.g., "hp" for health points), use those names
+- If they created specific functions, reference them by name
+- Keep the learning objectives the same, just adapt the language to match their code
+- Make it feel like a natural continuation of THEIR code, not generic instructions
+
+Return a JSON with the adapted task in this exact format:
+{{
+  "task_id": "{next_task.get('task_id', '')}",
+  "instruction_theory": "Adapted instructions that reference their specific code...",
+  "coding_requirements": ["Updated requirement 1", "Updated requirement 2", ...],
+  "hints": ["Adapted hint 1", "Adapted hint 2", ...],
+  "test_specification": {{
+    "expected_state": "What should exist after this task",
+    "verification_code": "Python code to verify correctness"
+  }}
+}}
+"""
+
+        messages = [
+            {"role": "system", "content": "You are an expert programming educator who personalizes learning content."},
+            {"role": "user", "content": adaptation_prompt}
+        ]
+
+        try:
+            # Don't use response_format with Claude models on OpenRouter
+            # Instead, rely on clear instructions in the prompt
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.3,
+            )
+
+            # Get the content and validate it's not empty
+            content = response.choices[0].message.content
+
+            if not content or not content.strip():
+                print(f"⚠️  LLM returned empty response")
+                print(f"Response object: {response}")
+                return next_task
+
+            print(f"📝 LLM response (first 200 chars): {content[:200]}")
+
+            # Strip markdown code blocks if present (Claude often wraps JSON in ```json)
+            content = content.strip()
+            if content.startswith("```"):
+                # Remove code block markers
+                lines = content.split('\n')
+                if lines[0].startswith("```"):
+                    lines = lines[1:]  # Remove opening ```
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]  # Remove closing ```
+                content = '\n'.join(lines).strip()
+
+            try:
+                adapted_task_json = json.loads(content)
+            except json.JSONDecodeError as e:
+                print(f"⚠️  Failed to parse LLM response as JSON: {e}")
+                print(f"Raw content (first 500 chars): {content[:500]}")
+                return next_task
+
+            # Validate and merge with original task
+            adapted = {
+                "task_id": adapted_task_json.get("task_id", next_task.get("task_id")),
+                "instruction_theory": adapted_task_json.get("instruction_theory", next_task.get("instruction_theory")),
+                "coding_requirements": adapted_task_json.get("coding_requirements", next_task.get("coding_requirements", [])),
+                "hints": adapted_task_json.get("hints", next_task.get("hints", [])),
+                "test_specification": adapted_task_json.get("test_specification", next_task.get("test_specification", {}))
+            }
+
+            print(f"✅ Task successfully adapted with personalized content")
+            return adapted
+
+        except Exception as exc:
+            print(f"⚠️  Task adaptation failed with exception: {exc}")
+            import traceback
+            traceback.print_exc()
+            # Return original task if adaptation fails
+            return next_task
