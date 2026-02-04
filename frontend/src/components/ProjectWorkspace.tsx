@@ -48,6 +48,7 @@ export function ProjectWorkspace({
   onBack,
   onComplete,
 }: Props) {
+  const [filesLoading, setFilesLoading] = useState(true);
   // State for fresh project data from API
   const [project, setProject] = useState(initialProject);
   const [projectLoading, setProjectLoading] = useState(true);
