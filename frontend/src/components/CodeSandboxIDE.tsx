@@ -438,21 +438,26 @@ export function CodeSandboxIDE({
     }
 
     try {
-      if (onSave) {
-        const sp = sandpackRef.current;
-        if (sp) {
-          const currentFiles = Object.entries(sp.files)
+      const sp = sandpackRef.current;
+      const currentFiles = sp
+        ? Object.entries(sp.files)
             .map(([path, file]: [string, any]) => ({
               name: path.replace(/^\//, ''),
               content: file.code,
               language: detectLanguage(path),
             }))
-            .filter((file) => isAllowedFile(file.name, mode));
-          await onSave(currentFiles);
-          setLocalFiles(currentFiles);
-        }
+            .filter((file) => isAllowedFile(file.name, mode))
+        : filteredFiles;
+
+      if (onSave && currentFiles.length > 0) {
+        await onSave(currentFiles);
       }
-      await syncFilesToSandbox();
+      if (currentFiles.length > 0) {
+        setLocalFiles(currentFiles);
+        await syncFilesToSandboxWith(currentFiles);
+      } else {
+        await syncFilesToSandbox();
+      }
       await terminalRef.current.run('python main.py');
     } catch (err: any) {
       console.error('Run error:', err);
