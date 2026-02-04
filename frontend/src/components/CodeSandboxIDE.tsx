@@ -164,6 +164,7 @@ export function CodeSandboxIDE({
   const [terminalOpen, setTerminalOpen] = useState(true);
   const [terminalLoading, setTerminalLoading] = useState(false);
   const [terminalError, setTerminalError] = useState<string | null>(null);
+  const [terminalStatus, setTerminalStatus] = useState<TerminalStatus>('disconnected');
   const [showNewFile, setShowNewFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [localFiles, setLocalFiles] = useState<ProjectFile[]>(files);
@@ -207,6 +208,30 @@ export function CodeSandboxIDE({
     if (xtermRef.current) {
       xtermRef.current.write(chunk);
       terminalWrittenRef.current = terminalHistoryRef.current.length;
+    }
+  };
+
+  const resetTerminalDisplay = () => {
+    terminalHistoryRef.current = '';
+    terminalWrittenRef.current = 0;
+    if (xtermRef.current) {
+      xtermRef.current.reset();
+      xtermRef.current.clear();
+    }
+  };
+
+  const syncFilesToSandboxWith = async (filesToSync: ProjectFile[]) => {
+    if (!clientRef.current) return;
+    const filtered = filterFilesByMode(filesToSync, mode);
+    const payload = filtered.map((file) => ({
+      path: file.name,
+      content: file.content,
+    }));
+    if (payload.length === 0) return;
+    try {
+      await clientRef.current.fs.batchWrite(payload);
+    } catch (err) {
+      console.error('Failed to sync files:', err);
     }
   };
 
@@ -276,6 +301,21 @@ export function CodeSandboxIDE({
     terminalWrittenRef.current = 0;
   };
 
+  const resetTerminalConnection = () => {
+    if (terminalRef.current) {
+      terminalRef.current.kill?.();
+      terminalRef.current = null;
+    }
+    if (clientRef.current?.disconnect) {
+      clientRef.current.disconnect();
+      clientRef.current = null;
+    }
+    if (xtermRef.current) {
+      xtermRef.current.options.disableStdin = true;
+    }
+    setTerminalStatus('disconnected');
+  };
+
   const fetchSession = async () => {
     const response = await fetch(`${BACKEND_URL}/sandbox/python/session`, {
       method: 'POST',
@@ -293,16 +333,27 @@ export function CodeSandboxIDE({
     return data.session;
   };
 
-  const connectTerminal = async (): Promise<boolean> => {
+  const connectTerminal = async (
+    forceReconnect = false,
+    suppressInitialOutput = false
+  ): Promise<boolean> => {
     if (!userId || !projectId) return false;
     if (connectingRef.current) return false;
 
     // Allow reconnection if we don't have a terminal
-    if (terminalRef.current) return true;
+    if (terminalRef.current && !forceReconnect) {
+      setTerminalStatus('connected');
+      return true;
+    }
+    if (forceReconnect) {
+      resetTerminalDisplay();
+      resetTerminalConnection();
+    }
 
     connectingRef.current = true;
     setTerminalLoading(true);
     setTerminalError(null);
+    setTerminalStatus('connecting');
 
     try {
       const session = await fetchSession();
@@ -315,7 +366,9 @@ export function CodeSandboxIDE({
       const terminal = await sandboxClient.terminals.create();
       terminalRef.current = terminal;
       const initial = await terminal.open();
-      writeToTerminal(initial || '');
+      if (!suppressInitialOutput) {
+        writeToTerminal(initial || '');
+      }
       terminal.onOutput((chunk: string) => {
         writeToTerminal(chunk);
       });
@@ -323,10 +376,12 @@ export function CodeSandboxIDE({
         xtermRef.current.options.disableStdin = false;
         xtermRef.current.focus();
       }
+      setTerminalStatus('connected');
       return true;
     } catch (err: any) {
       console.error('Terminal connection error:', err);
       setTerminalError(err?.message || 'Failed to connect terminal');
+      setTerminalStatus('error');
       return false;
     } finally {
       setTerminalLoading(false);
@@ -342,14 +397,7 @@ export function CodeSandboxIDE({
       disposeXterm();
       terminalHistoryRef.current = '';
       terminalWrittenRef.current = 0;
-      if (terminalRef.current) {
-        terminalRef.current.kill?.();
-        terminalRef.current = null;
-      }
-      if (clientRef.current?.disconnect) {
-        clientRef.current.disconnect();
-        clientRef.current = null;
-      }
+      resetTerminalConnection();
     };
   }, [mode, userId, projectId]);
 
@@ -376,30 +424,34 @@ export function CodeSandboxIDE({
   }, [mode, terminalOpen]);
 
   const syncFilesToSandbox = async () => {
-    if (!clientRef.current) return;
-    const payload = filteredFiles.map((file) => ({
-      path: file.name,
-      content: file.content,
-    }));
-    if (payload.length === 0) return;
-    try {
-      await clientRef.current.fs.batchWrite(payload);
-    } catch (err) {
-      console.error('Failed to sync files:', err);
-    }
+    await syncFilesToSandboxWith(filteredFiles);
   };
 
   const runPython = async () => {
     setTerminalError(null);
 
     // Ensure terminal is connected
-    const connected = await connectTerminal();
+    const connected = await connectTerminal(terminalStatus !== 'connected');
     if (!connected || !terminalRef.current) {
       setTerminalError('Terminal not connected. Please wait and try again.');
       return;
     }
 
     try {
+      if (onSave) {
+        const sp = sandpackRef.current;
+        if (sp) {
+          const currentFiles = Object.entries(sp.files)
+            .map(([path, file]: [string, any]) => ({
+              name: path.replace(/^\//, ''),
+              content: file.code,
+              language: detectLanguage(path),
+            }))
+            .filter((file) => isAllowedFile(file.name, mode));
+          await onSave(currentFiles);
+          setLocalFiles(currentFiles);
+        }
+      }
       await syncFilesToSandbox();
       await terminalRef.current.run('python main.py');
     } catch (err: any) {
@@ -438,6 +490,10 @@ export function CodeSandboxIDE({
     setEditorKey(k => k + 1);
     setNewFileName('');
     setShowNewFile(false);
+
+    if (mode === 'python') {
+      await syncFilesToSandboxWith(updatedFiles);
+    }
   };
 
   return (
@@ -475,6 +531,9 @@ export function CodeSandboxIDE({
                 // Set active file before remount so it opens to same file
                 setActiveFile(currentActive);
                 setLocalFiles(currentFiles);
+                if (mode === 'python') {
+                  await syncFilesToSandboxWith(currentFiles);
+                }
                 setEditorKey(k => k + 1);
 
                 // Small delay to let remount complete
@@ -596,6 +655,15 @@ export function CodeSandboxIDE({
             <div className="ide-terminal-title">
               <TerminalSquare className="w-4 h-4" />
               <span>Terminal</span>
+              <span className="ide-terminal-status" data-status={terminalStatus}>
+                {terminalStatus === 'connecting'
+                  ? 'Connecting'
+                  : terminalStatus === 'connected'
+                    ? 'Connected'
+                    : terminalStatus === 'error'
+                      ? 'Error'
+                      : 'Disconnected'}
+              </span>
             </div>
             {terminalOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </div>
