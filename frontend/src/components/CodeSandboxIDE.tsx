@@ -501,6 +501,35 @@ export function CodeSandboxIDE({
     }
   };
 
+  const handleCodeUpdate = (newCode: string) => {
+    const sp = sandpackRef.current;
+    const path = sp?.activeFile || activeFile;
+    const fileName = path.replace(/^\//, '');
+    setLocalFiles((prev) => {
+      let found = false;
+      const updated = prev.map((file) => {
+        if (file.name === fileName) {
+          found = true;
+          return {
+            ...file,
+            content: newCode,
+            language: detectLanguage(fileName),
+          };
+        }
+        return file;
+      });
+      if (!found) {
+        updated.push({
+          name: fileName,
+          content: newCode,
+          language: detectLanguage(fileName),
+        });
+      }
+      onFilesChange(updated);
+      return updated;
+    });
+  };
+
   return (
     <div className="ide-container" data-mode={mode}>
       {/* Header */}
@@ -638,6 +667,7 @@ export function CodeSandboxIDE({
                 showTabs
                 wrapContent={false}
                 additionalLanguages={[pythonLanguage]}
+                onCodeUpdate={handleCodeUpdate}
               />
               {mode === 'web' && (
                 <div className="ide-preview">
