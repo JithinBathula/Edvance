@@ -295,14 +295,8 @@ export function ProjectWorkspace({
   const loadSavedFiles = async () => {
     setFilesLoading(true);
     try {
-      const firstTaskId = tasks[0]?.id;
-      if (!firstTaskId) {
-        setProjectFiles([{ name: 'main.py', content: '# Write your code here\n', language: 'python' }]);
-        return;
-      }
-
       const response = await fetch(
-        `${BACKEND_URL}/progress/load/${firstTaskId}?user_id=${user.id}&project_id=${project.id}`,
+        `${BACKEND_URL}/workspace/${project.id}?user_id=${user.id}`,
         { credentials: 'include' }
       );
       const data = await response.json();
@@ -324,24 +318,21 @@ export function ProjectWorkspace({
   };
 
   const saveFiles = async (files: ProjectFile[]) => {
-    const firstTaskId = tasks[0]?.id;
-
     setSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/progress/save`, {
+      const response = await fetch(`${BACKEND_URL}/workspace/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           user_id: user.id,
           project_id: project.id,
-          task_id: firstTaskId,
           files: files,
         }),
       });
       const data = await response.json();
       if (data.success) {
-        toast.success(`Saved (v${data.version})`);
+        toast.success('Saved');
       }
     } catch (err) {
       console.error('Error saving files:', err);
@@ -369,6 +360,7 @@ export function ProjectWorkspace({
           user_id: user.id,
           task_id: safeCurrentTask.id,
           code: code,
+          project_id: project.id,
         }),
       });
 
@@ -709,7 +701,7 @@ export function ProjectWorkspace({
                   taskId={safeCurrentTask.id}
                   userId={user.id}
                   projectId={project.id}
-                  userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
+                  userCode={projectFiles.map(f => `# === ${f.name} ===\n${f.content || ''}`).join('\n\n')}
                   taskDescription={safeCurrentTask.description}
                   testSpec={safeCurrentTask.testSpec}
                   onClose={() => setIsChatOpen(false)}
