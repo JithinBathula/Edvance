@@ -27,7 +27,7 @@ assistant_user_prompt = """CURRENT TASK CONTEXT:
 ## Test Requirements
 {test_specification}
 
-## Student's Current Code
+## Student's Current Code (All Files)
 ```python
 {user_code}
 ```

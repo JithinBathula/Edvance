@@ -352,9 +352,10 @@ export function ProjectWorkspace({
 
 
   const handleCompleteTask = async () => {
-    // Get the main file content for evaluation
-    const mainFile = projectFiles.find(f => f.name === 'main.py') || projectFiles[0];
-    const code = mainFile?.content || '';
+    // Format all files for evaluation
+    const code = projectFiles
+      .map(f => `# === ${f.name} ===\n${f.content || ''}`)
+      .join('\n\n');
 
     setEvaluating(true);
     setEvaluationFeedback(null);
@@ -714,7 +715,7 @@ export function ProjectWorkspace({
         taskId={safeCurrentTask.id}
         userId={user.id}
         projectId={project.id}
-        userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
+        userCode={projectFiles.map(f => `# === ${f.name} ===\n${f.content || ''}`).join('\n\n')}
         taskDescription={safeCurrentTask.description}
         testSpec={safeCurrentTask.testSpec}
       />

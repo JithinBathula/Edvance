@@ -36,7 +36,7 @@ def chat():
         }), 400
     
     try:
-        # If project_id provided, load code from repo
+        # If project_id provided, load all files from repo
         if project_id:
             project = get_project_by_id(project_id)
             if project and data.get('user_id') and str(project.get('user_id')) == str(data.get('user_id')):
@@ -45,8 +45,11 @@ def chat():
                 ensure_repo_initialized(repo_path)
                 files = read_repo_files(repo_path)
                 if files:
-                    main_file = next((f for f in files if f['name'] == 'main.py'), files[0])
-                    code = main_file.get('content', '')
+                    # Format all files for context
+                    code = "\n\n".join(
+                        f"# === {f['name']} ===\n{f.get('content', '')}"
+                        for f in files
+                    )
 
         # Fetch task context if task_id provided
         task_instructions = ''

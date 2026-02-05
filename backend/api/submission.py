@@ -48,7 +48,7 @@ def evaluate_submission():
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
         
-        # If project_id provided, load code from repo
+        # If project_id provided, load all files from repo
         if project_id:
             project = get_project_by_id(project_id)
             if project and str(project.get('user_id')) == str(user_id):
@@ -57,8 +57,11 @@ def evaluate_submission():
                 ensure_repo_initialized(repo_path)
                 files = read_repo_files(repo_path)
                 if files:
-                    main_file = next((f for f in files if f['name'] == 'main.py'), files[0])
-                    code = main_file.get('content', '')
+                    # Format all files for evaluation
+                    code = "\n\n".join(
+                        f"# === {f['name']} ===\n{f.get('content', '')}"
+                        for f in files
+                    )
 
         # Evaluate the submission
         result = evaluator.evaluate(
