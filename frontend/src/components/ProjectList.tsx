@@ -11,6 +11,7 @@ type Project = {
     brief: string;
     status: 'draft' | 'in_progress' | 'completed';
     created_at: string;
+    vm_type?: string;
 };
 
 type Props = {

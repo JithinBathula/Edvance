@@ -58,7 +58,28 @@ class OutlineMilestone(BaseModel):
 class OutlineProject(BaseModel):
     project_title: str
     project_brief: str
+    vm_type: str = "python"
     milestones: List[OutlineMilestone] = Field(default_factory=list)
+
+    @field_validator("vm_type", mode="before")
+    @classmethod
+    def normalize_vm_type(cls, value: str | None) -> str:
+        if value is None:
+            return "python"
+        normalized = str(value).strip().lower()
+        aliases = {
+            "py": "python",
+            "python": "python",
+            "python3": "python",
+            "js": "javascript",
+            "javascript": "javascript",
+            "node": "javascript",
+            "nodejs": "javascript",
+            "web": "javascript",
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        raise ValueError("vm_type must be 'python' or 'javascript'")
 
     @model_validator(mode="after")
     def validate_outline(self) -> "OutlineProject":

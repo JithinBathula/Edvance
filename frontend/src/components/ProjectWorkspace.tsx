@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { User } from "../App";
 import { BACKEND_URL } from "../utils/constants";
-import { MonacoIDE, ProjectFile } from "./MonacoIDE";
+import { CodeSandboxIDE } from "./CodeSandboxIDE";
+import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -22,8 +23,6 @@ import {
   X,
   AlertCircle,
   MessageCircle,
-  Code,
-  FileText,
 } from "lucide-react";
 
 // Component to format task description with code highlighting and structure
@@ -133,12 +132,27 @@ type Props = {
 
 export function ProjectWorkspace({
   user,
-  project,
+  project: initialProject,
   onBack,
   onComplete,
 }: Props) {
-  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
-  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
+  const [filesLoading, setFilesLoading] = useState(true);
+  // State for fresh project data from API
+  const [project, setProject] = useState(initialProject);
+  const [projectLoading, setProjectLoading] = useState(true);
+
+  // Restore current task from localStorage
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(() => {
+    const saved = localStorage.getItem(`edvance_project_${initialProject.id}_current_task`);
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Restore completed tasks from localStorage
+  const [completedTasks, setCompletedTasks] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`edvance_project_${initialProject.id}_completed_tasks`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([
     { name: 'main.py', content: '# Write your code here\n', language: 'python' }
   ]);
@@ -147,15 +161,13 @@ export function ProjectWorkspace({
   const [saving, setSaving] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const filesLoaded = useRef(false);
+  const lastProjectSignature = useRef<string>('');
   const taskListPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(true);
 
   // Screen Size State (Default to true/large)
-  // We use 1200px as a breakpoint. 
-  // - Full screen usually > 1200px.
-  // - Half screen usually < 1200px.
   const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth > 1200);
 
   // Submission gate state
@@ -165,7 +177,34 @@ export function ProjectWorkspace({
 
   const tasks: Task[] = project.tasks || [];
   const currentTask = tasks[currentTaskIndex];
-  const progress = (completedTasks.length / tasks.length) * 100;
+  const hasTasks = tasks.length > 0 && !!currentTask;
+  const safeCurrentTask: Task = currentTask || {
+    id: 'generating',
+    title: 'Generating tasks...',
+    description: 'Tasks are being generated. The editor is ready while we load the task details.',
+    hints: [],
+    starterCode: '# Write your code here\n',
+  };
+  const progress = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
+
+  const buildProjectSignature = (milestones: any[] = []) =>
+    JSON.stringify(
+      milestones.map((milestone) => ({
+        id: milestone.id,
+        status: milestone.tasks && milestone.tasks.length > 0 ? 'ready' : 'generating',
+        taskIds: (milestone.tasks || []).map((task: any) => task.id),
+      }))
+    );
+
+  // Persist current task index
+  useEffect(() => {
+    localStorage.setItem(`edvance_project_${initialProject.id}_current_task`, String(currentTaskIndex));
+  }, [currentTaskIndex, initialProject.id]);
+
+  // Persist completed tasks
+  useEffect(() => {
+    localStorage.setItem(`edvance_project_${initialProject.id}_completed_tasks`, JSON.stringify(completedTasks));
+  }, [completedTasks, initialProject.id]);
 
   // Track Window Resize for Chat Width
   useEffect(() => {
@@ -177,12 +216,75 @@ export function ProjectWorkspace({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch fresh project data on mount
   useEffect(() => {
-    if (!filesLoaded.current && project.id) {
+    const fetchProject = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/progress/projects/${initialProject.id}/full`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data.success && data.project) {
+          setProject(data.project);
+          lastProjectSignature.current = buildProjectSignature(data.project.milestones);
+        }
+      } catch (err) {
+        console.error('Error fetching project:', err);
+      } finally {
+        setProjectLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [initialProject.id]);
+
+  // Poll for milestone updates (tasks are generated async)
+  useEffect(() => {
+    if (!project.milestones || project.milestones.length === 0) return;
+
+    const hasGeneratingMilestones = project.milestones.some(
+      (m: any) => !m.tasks || m.tasks.length === 0
+    );
+
+    if (!hasGeneratingMilestones) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/progress/projects/${initialProject.id}/full`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.success && data.project) {
+          const newSignature = buildProjectSignature(data.project.milestones);
+          if (newSignature !== lastProjectSignature.current) {
+            lastProjectSignature.current = newSignature;
+            setProject(data.project);
+          }
+
+          const stillGenerating = data.project.milestones.some(
+            (m: any) => !m.tasks || m.tasks.length === 0
+          );
+
+          if (!stillGenerating) {
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [project.milestones, initialProject.id]);
+
+  // Load saved files ONCE on project load
+  useEffect(() => {
+    if (!filesLoaded.current && project.id && !projectLoading) {
       loadSavedFiles();
       filesLoaded.current = true;
     }
-  }, [project.id]);
+  }, [project.id, projectLoading]);
 
   useEffect(() => {
     if (project.progress?.completedTasks) {
@@ -191,29 +293,23 @@ export function ProjectWorkspace({
   }, [project]);
 
   const loadSavedFiles = async () => {
+    setFilesLoading(true);
     try {
       const firstTaskId = tasks[0]?.id;
-      if (!firstTaskId) return;
+      if (!firstTaskId) {
+        setProjectFiles([{ name: 'main.py', content: '# Write your code here\n', language: 'python' }]);
+        return;
+      }
 
       const response = await fetch(
-        `${BACKEND_URL}/progress/load/${firstTaskId}?user_id=${user.id}`,
+        `${BACKEND_URL}/progress/load/${firstTaskId}?user_id=${user.id}&project_id=${project.id}`,
         { credentials: 'include' }
       );
       const data = await response.json();
 
-      if (data.success && data.code) {
-        try {
-          const parsed = JSON.parse(data.code);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProjectFiles(parsed);
-            return;
-          }
-        } catch {
-          setProjectFiles([
-            { name: 'main.py', content: data.code, language: 'python' }
-          ]);
-          return;
-        }
+      if (data.success && Array.isArray(data.files) && data.files.length > 0) {
+        setProjectFiles(data.files);
+        return;
       }
 
       const starterCode = currentTask?.starterCode || '# Write your code here\n';
@@ -222,12 +318,13 @@ export function ProjectWorkspace({
       ]);
     } catch (err) {
       console.error('Error loading files:', err);
+    } finally {
+      setFilesLoading(false);
     }
   };
 
   const saveFiles = async (files: ProjectFile[]) => {
     const firstTaskId = tasks[0]?.id;
-    if (!firstTaskId) return;
 
     setSaving(true);
     try {
@@ -237,8 +334,9 @@ export function ProjectWorkspace({
         credentials: 'include',
         body: JSON.stringify({
           user_id: user.id,
+          project_id: project.id,
           task_id: firstTaskId,
-          code: JSON.stringify(files),
+          files: files,
         }),
       });
       const data = await response.json();
@@ -267,7 +365,7 @@ export function ProjectWorkspace({
         credentials: 'include',
         body: JSON.stringify({
           user_id: user.id,
-          task_id: currentTask.id,
+          task_id: safeCurrentTask.id,
           code: code,
         }),
       });
@@ -281,8 +379,36 @@ export function ProjectWorkspace({
 
       if (data.is_correct) {
         await saveFiles(projectFiles);
-        const newCompleted = [...completedTasks, currentTask.id];
+
+        const newCompleted = [...completedTasks, safeCurrentTask.id];
         setCompletedTasks(newCompleted);
+
+        // If next task was adapted, update the project tasks
+        if (data.next_task && currentTaskIndex < tasks.length - 1) {
+          const updatedTasks = [...tasks];
+          updatedTasks[currentTaskIndex + 1] = {
+            ...updatedTasks[currentTaskIndex + 1],
+            description: data.next_task.description || updatedTasks[currentTaskIndex + 1].description,
+            hints: data.next_task.hints || updatedTasks[currentTaskIndex + 1].hints,
+          };
+
+          const updatedMilestones = project.milestones?.map((milestone: any) => ({
+            ...milestone,
+            tasks: milestone.tasks?.map((task: any) => {
+              const updatedTask = updatedTasks.find((t: any) => t.id === task.id);
+              return updatedTask || task;
+            }),
+          }));
+
+          setProject({
+            ...project,
+            milestones: updatedMilestones,
+            tasks: updatedTasks,
+          });
+
+          console.log('✅ Next task updated with adapted content');
+        }
+
         toast.success(data.feedback || 'Great job! Task completed.');
 
         if (currentTaskIndex < tasks.length - 1) {
@@ -309,9 +435,9 @@ export function ProjectWorkspace({
 
   if (showCompletion) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-orange-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full p-12 text-center bg-white">
-          <div className="w-20 h-20 bg-linear-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-4xl mb-4">Amazing Work! 🎉</h2>
@@ -320,7 +446,7 @@ export function ProjectWorkspace({
             <span className="font-semibold">{project.title}</span>
           </p>
 
-          <div className="bg-linear-to-r from-orange-50 to-orange-50 rounded-xl p-6 mb-6">
+          <div className="bg-gradient-to-r from-purple-50 to-orange-50 rounded-xl p-6 mb-6">
             <div className="flex items-center justify-center gap-3 mb-2">
               <Sparkles className="w-6 h-6 text-[#ffa200]" />
               <p className="text-2xl">+100 XP Earned!</p>
@@ -338,7 +464,7 @@ export function ProjectWorkspace({
 
           <Button
             onClick={onComplete}
-            className="bg-linear-to-r from-[#f97316] to-[#fb923c] hover:from-[#ea580c] hover:to-[#f97316]"
+            className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
           >
             Back to Home
           </Button>
@@ -347,18 +473,13 @@ export function ProjectWorkspace({
     );
   }
 
-  if (!currentTask) {
+  if (projectLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading project...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-[#7622e5]" />
       </div>
     );
   }
-
-  // Calculate chat width based on open state AND screen size
-  const chatWidth = isChatOpen
-    ? (isLargeScreen ? '35rem' : '20rem')
-    : '0px';
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -371,7 +492,7 @@ export function ProjectWorkspace({
           <div>
             <h1 className="font-semibold">{project.title}</h1>
             <p className="text-sm text-gray-500">
-              Task {currentTaskIndex + 1} of {tasks.length}
+              {hasTasks ? `Task ${currentTaskIndex + 1} of ${tasks.length}` : 'Loading tasks...'}
             </p>
           </div>
         </div>
@@ -400,7 +521,7 @@ export function ProjectWorkspace({
           onCollapse={() => setSidebarCollapsed(true)}
           onExpand={() => setSidebarCollapsed(false)}
         >
-          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-linear-to-b from-white to-gray-50">
+          <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col bg-gradient-to-b from-white to-gray-50">
             <div className="px-3 py-3 flex items-center justify-between border-b border-gray-200 bg-white">
               {!sidebarCollapsed && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tasks</span>}
               <button
@@ -479,12 +600,12 @@ export function ProjectWorkspace({
         <ResizablePanel id="task-details" order={2} defaultSize={isChatOpen ? 25 : 43} minSize={15} maxSize={50}>
           <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{currentTask.title}</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
               <div className="prose max-w-none mb-6">
-                <FormattedDescription text={currentTask.description} />
+                <FormattedDescription text={safeCurrentTask.description} />
               </div>
 
-              {currentTask.hints && currentTask.hints.length > 0 && (
+              {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
                 <div className="mb-6">
                   <button
                     onClick={() => setShowHints(!showHints)}
@@ -501,7 +622,7 @@ export function ProjectWorkspace({
                   {showHints && (
                     <div className="mt-3 rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(to bottom right, #ecfeff, white)', border: '1px solid #cffafe' }}>
                       <div className="space-y-5">
-                        {currentTask.hints.map((hint, idx) => (
+                        {safeCurrentTask.hints.map((hint, idx) => (
                           <div
                             key={idx}
                             className="flex items-start gap-4"
@@ -528,7 +649,7 @@ export function ProjectWorkspace({
 
               <Button
                 onClick={handleCompleteTask}
-                disabled={saving || evaluating}
+                disabled={saving || evaluating || !hasTasks}
                 className="w-full shadow-md hover:shadow-lg transition-shadow"
                 style={{ background: 'linear-gradient(to right, #f59e0b, #f97316)' }}
               >
@@ -537,11 +658,13 @@ export function ProjectWorkspace({
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Evaluating...
                   </>
-                ) : completedTasks.includes(currentTask.id)
+                ) : hasTasks && completedTasks.includes(safeCurrentTask.id)
                   ? "Completed ✓"
-                  : currentTaskIndex < tasks.length - 1
+                  : hasTasks && currentTaskIndex < tasks.length - 1
                     ? "Complete & Continue"
-                    : "Complete Project"}
+                    : hasTasks
+                      ? "Complete Project"
+                      : "Waiting for tasks..."}
               </Button>
             </div>
           </div>
@@ -551,14 +674,23 @@ export function ProjectWorkspace({
 
         {/* Pane 3: IDE */}
         <ResizablePanel id="ide" order={3} defaultSize={isChatOpen ? 40 : 42} minSize={20}>
-          <div className="h-full overflow-hidden flex flex-col bg-gray-900">
-            <div className="flex-1 p-1">
-              <MonacoIDE
-                files={projectFiles}
-                onFilesChange={setProjectFiles}
-                onSave={saveFiles}
-                saving={saving}
-              />
+          <div className="h-full overflow-hidden flex flex-col bg-[#0b1020]">
+            <div className="flex-1 p-3">
+              {filesLoading ? (
+                <div className="h-full flex items-center justify-center text-slate-400">
+                  Loading...
+                </div>
+              ) : (
+                <CodeSandboxIDE
+                  files={projectFiles}
+                  onFilesChange={setProjectFiles}
+                  onSave={saveFiles}
+                  saving={saving}
+                  userId={user.id}
+                  projectId={project.id}
+                  vmType={project?.vm_type}
+                />
+              )}
             </div>
           </div>
         </ResizablePanel>
@@ -570,12 +702,14 @@ export function ProjectWorkspace({
             <ResizablePanel id="chat" order={4} defaultSize={20} minSize={15} maxSize={35}>
               <div className="h-full border-l border-gray-200 bg-white flex flex-col overflow-hidden">
                 <AIChatbot
-                  context={`Working on: ${currentTask.title}`}
+                  context={`Working on: ${safeCurrentTask.title}`}
                   userProgress={completedTasks}
-                  taskId={currentTask.id}
+                  taskId={safeCurrentTask.id}
+                  userId={user.id}
+                  projectId={project.id}
                   userCode={projectFiles.find(f => f.name === 'main.py')?.content || projectFiles[0]?.content || ''}
-                  taskDescription={currentTask.description}
-                  testSpec={currentTask.testSpec}
+                  taskDescription={safeCurrentTask.description}
+                  testSpec={safeCurrentTask.testSpec}
                   onClose={() => setIsChatOpen(false)}
                   visible={true}
                 />

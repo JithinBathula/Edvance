@@ -5,7 +5,9 @@ Handles code submission evaluation for task progression.
 from flask import Blueprint, request, jsonify
 
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress
+from db.supabase_client import get_task_by_id, update_progress, get_project_by_id
+from pathlib import Path
+from services.git_repo import get_repo_path, ensure_repo_initialized, read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
 
@@ -24,6 +26,7 @@ def evaluate_submission():
     user_id = data.get('user_id')
     task_id = data.get('task_id')
     code = data.get('code', '')
+    project_id = data.get('project_id')
 
     adapted_next_task = None  # Will be populated if adaptation succeeds
     
@@ -45,6 +48,18 @@ def evaluate_submission():
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
         
+        # If project_id provided, load code from repo
+        if project_id:
+            project = get_project_by_id(project_id)
+            if project and str(project.get('user_id')) == str(user_id):
+                repo_path_value = project.get('repo_path')
+                repo_path = Path(repo_path_value) if repo_path_value else get_repo_path(user_id, project_id)
+                ensure_repo_initialized(repo_path)
+                files = read_repo_files(repo_path)
+                if files:
+                    main_file = next((f for f in files if f['name'] == 'main.py'), files[0])
+                    code = main_file.get('content', '')
+
         # Evaluate the submission
         result = evaluator.evaluate(
             user_code=code,
@@ -66,7 +81,7 @@ def evaluate_submission():
 
                 # NEW: Trigger adaptive task generation for next task
                 try:
-                    from db.supabase_client import supabase, get_project_by_id
+                    from db.supabase_client import supabase
                     from agents.planning import CurriculumPlanner
 
                     # Get current task to find its milestone and next task

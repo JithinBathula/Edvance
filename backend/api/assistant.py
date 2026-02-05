@@ -5,7 +5,9 @@ Handles chat interactions with the AI coding tutor.
 from flask import Blueprint, request, jsonify
 
 from agents.assistant import AssistantAgent
-from db.supabase_client import get_task_by_id
+from pathlib import Path
+from db.supabase_client import get_task_by_id, get_project_by_id
+from services.git_repo import get_repo_path, ensure_repo_initialized, read_repo_files
 
 assistant_bp = Blueprint('assistant', __name__, url_prefix='/api/assistant')
 
@@ -24,6 +26,7 @@ def chat():
     message = data.get('message', '')
     task_id = data.get('task_id')
     code = data.get('code', '')
+    project_id = data.get('project_id')
     history = data.get('history', [])
     
     if not message:
@@ -33,6 +36,18 @@ def chat():
         }), 400
     
     try:
+        # If project_id provided, load code from repo
+        if project_id:
+            project = get_project_by_id(project_id)
+            if project and data.get('user_id') and str(project.get('user_id')) == str(data.get('user_id')):
+                repo_path_value = project.get('repo_path')
+                repo_path = Path(repo_path_value) if repo_path_value else get_repo_path(data.get('user_id'), project_id)
+                ensure_repo_initialized(repo_path)
+                files = read_repo_files(repo_path)
+                if files:
+                    main_file = next((f for f in files if f['name'] == 'main.py'), files[0])
+                    code = main_file.get('content', '')
+
         # Fetch task context if task_id provided
         task_instructions = ''
         test_specification = {}
