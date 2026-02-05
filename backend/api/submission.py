@@ -81,7 +81,7 @@ def evaluate_submission():
 
                 # NEW: Trigger adaptive task generation for next task
                 try:
-                    from db.supabase_client import supabase, get_project_by_id
+                    from db.supabase_client import supabase
                     from agents.planning import CurriculumPlanner
 
                     # Get current task to find its milestone and next task

@@ -549,29 +549,37 @@ export function CodeSandboxIDE({
 
                 setIsSaving(true);
 
-                // Remember current active file
-                const currentActive = sp.activeFile;
+                try {
+                  // Remember current active file
+                  const currentActive = sp.activeFile;
 
-                const currentFiles = Object.entries(sp.files)
-                  .map(([path, file]: [string, any]) => ({
-                    name: path.replace(/^\//, ''),
-                    content: file.code,
-                    language: detectLanguage(path),
-                  }))
-                  .filter((file) => isAllowedFile(file.name, mode));
+                  const currentFiles = Object.entries(sp.files)
+                    .map(([path, file]: [string, any]) => ({
+                      name: path.replace(/^\//, ''),
+                      content: file.code,
+                      language: detectLanguage(path),
+                    }))
+                    .filter((file) => isAllowedFile(file.name, mode));
 
-                await onSave(currentFiles);
+                  await onSave(currentFiles);
 
-                // Set active file before remount so it opens to same file
-                setActiveFile(currentActive);
-                setLocalFiles(currentFiles);
-                if (mode === 'python') {
-                  await syncFilesToSandboxWith(currentFiles);
+                  // Set active file before remount so it opens to same file
+                  setActiveFile(currentActive);
+                  setLocalFiles(currentFiles);
+                  if (mode === 'python') {
+                    // Don't block on sandbox sync - it may hang if connection is stale
+                    Promise.race([
+                      syncFilesToSandboxWith(currentFiles),
+                      new Promise((_, reject) => setTimeout(() => reject(new Error('Sync timeout')), 3000))
+                    ]).catch(() => {});
+                  }
+                  setEditorKey(k => k + 1);
+                } catch (err) {
+                  console.error('Save error:', err);
+                } finally {
+                  // Small delay to let remount complete
+                  setTimeout(() => setIsSaving(false), 300);
                 }
-                setEditorKey(k => k + 1);
-
-                // Small delay to let remount complete
-                setTimeout(() => setIsSaving(false), 300);
               }}
               disabled={saving || isSaving}
               variant="ghost"
