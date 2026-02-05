@@ -108,7 +108,7 @@ const resolveMode = (files: ProjectFile[], vmType?: string) => {
 const isAllowedFile = (filename: string, mode: 'python' | 'web') => {
   const lower = filename.toLowerCase();
   if (mode === 'python') {
-    return lower.endsWith('.py');
+    return lower.endsWith('.py') || lower.endsWith('.json') || lower.endsWith('.txt');
   }
   return (
     lower.endsWith('.js') ||
@@ -469,7 +469,8 @@ export function CodeSandboxIDE({
     if (!newFileName.trim()) return;
 
     let fileName = newFileName.trim();
-    if (mode === 'python' && !fileName.endsWith('.py')) {
+    // Only add .py if no recognized extension
+    if (mode === 'python' && !fileName.includes('.')) {
       fileName += '.py';
     }
 
@@ -477,9 +478,10 @@ export function CodeSandboxIDE({
       return;
     }
 
+    const defaultContent = fileName.endsWith('.json') ? '{}' : (mode === 'python' ? '# New file\n' : '');
     const newFile: ProjectFile = {
       name: fileName,
-      content: mode === 'python' ? '# New file\n' : '',
+      content: defaultContent,
       language: detectLanguage(fileName),
     };
 
