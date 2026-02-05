@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { MessageCircle, Send, Bot, User, AlertTriangle } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
 import { BACKEND_URL } from '../utils/constants';
 
 type Message = {
@@ -23,6 +23,8 @@ type Props = {
     expected_state?: string;
     verification_code?: string;
   };
+  onClose?: () => void;
+  visible?: boolean;
 };
 
 export function AIChatbot({
@@ -33,7 +35,9 @@ export function AIChatbot({
   projectId,
   userCode,
   taskDescription,
-  testSpec
+  testSpec,
+  onClose,
+  visible = true
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -104,89 +108,104 @@ export function AIChatbot({
     }
   };
 
-  return (
-    <Sheet>
-      <SheetTrigger className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8] inline-flex items-center justify-center text-white transition-colors">
-        <MessageCircle className="w-6 h-6" />
-      </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-[#7622e5]" />
-            AI Coding Assistant
-          </SheetTitle>
-        </SheetHeader>
+  // If not visible, return null (handled by parent usually, but good for safety)
+  if (!visible) return null;
 
-        <ScrollArea className="flex-1 pr-4 -mr-4" ref={scrollRef}>
-          <div className="space-y-4 py-4">
-            {messages.map((message, i) => (
+  return (
+    <div className="h-full flex flex-col bg-white border-l border-gray-200 shadow-xl">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
+            <Sparkles className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 text-sm">AI Tutor</h3>
+            <p className="text-xs text-gray-500">Always here to help</p>
+          </div>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 p-4 bg-gray-50/50">
+        <div ref={scrollRef} className="space-y-4">
+          {messages.map((message, i) => (
+            <div
+              key={i}
+              className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-blue-600" />
+                </div>
+              )}
+              {message.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-purple-600" />
+                </div>
+              )}
+
               <div
-                key={i}
-                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'
+                className={`rounded-2xl px-4 py-3 max-w-[85%] text-sm shadow-sm ${message.role === 'user'
+                    ? 'bg-purple-600 text-white rounded-tr-none'
+                    : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
                   }`}
               >
-                {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-4 h-4 text-white" />
-                  </div>
-                )}
-                <div
-                  className={`rounded-2xl px-4 py-2 max-w-[80%] ${message.role === 'user'
-                      ? 'bg-gradient-to-r from-[#7622e5] to-[#b480f8] text-white'
-                      : 'bg-gray-100 text-gray-900'
-                    }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                </div>
-                {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                )}
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
               </div>
-            ))}
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div className="bg-gray-100 rounded-2xl px-4 py-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-blue-600" />
               </div>
-            )}
-          </div>
-        </ScrollArea>
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                <span className="text-xs text-gray-400">Thinking...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
 
-        {error && (
-          <div className="flex items-center gap-2 text-orange-600 text-sm px-2 py-1">
-            <AlertTriangle className="w-4 h-4" />
-            {error}
-          </div>
-        )}
+      {error && (
+        <div className="flex items-center gap-2 text-orange-600 text-sm px-4 py-2 bg-orange-50 border-t border-orange-100">
+          <AlertTriangle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
 
-        <div className="flex gap-2 pt-4 border-t">
+      {/* Input Area */}
+      <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+        <div className="relative flex items-center gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask me anything..."
             disabled={isLoading}
+            className="pr-10"
           />
           <Button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+            className="absolute right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 }
