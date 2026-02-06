@@ -34,15 +34,25 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   // 1. Initialize Welcome Message
   useEffect(() => {
     if (messages.length === 0) {
+      // Map pythonLevel to friendly display text
+      const levelLabels: Record<string, string> = {
+        'level-1': 'Level 1 (Basics)',
+        'level-2': 'Level 2 (Conditions)',
+        'level-3': 'Level 3 (Loops)',
+        'level-4': 'Level 4 (Functions & Data)',
+        'level-5': 'Level 5 (Advanced)',
+      };
+      const skillLevel = levelLabels[user.onboarding?.pythonLevel || ''] || 'beginner';
+
       setMessages([
         {
           id: 'welcome',
           role: 'assistant',
-          content: `Hi ${user.name}! 👋 I'm here to help you create a custom project. Tell me what you'd like to build, and I'll design a learning path tailored to your skill level (${user.onboarding?.experienceLevel || 'beginner'}).\n\nWhat project idea do you have in mind?`,
+          content: `Hi ${user.name}! 👋 I'm here to help you create a custom project. Tell me what you'd like to build, and I'll design a learning path tailored to your skill level (${skillLevel}).\n\nWhat project idea do you have in mind?`,
         },
       ]);
     }
-  }, [user.name, user.onboarding?.experienceLevel, messages.length]);
+  }, [user.name, user.onboarding?.pythonLevel, messages.length]);
 
   // 2. Auto-scroll
   useEffect(() => {
@@ -73,7 +83,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 session: sessionData,
-                experience_level: user.onboarding?.experienceLevel || 'beginner',
+                experience_level: user.onboarding?.pythonLevel || 'level-1',
               }),
             });
 
@@ -88,7 +98,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
             onProjectCreated({
               session: sessionData,
               outline: outlineJson,
-              experienceLevel: user.onboarding?.experienceLevel || 'beginner',
+              experienceLevel: user.onboarding?.pythonLevel || 'level-1',
             });
 
           } catch (error) {

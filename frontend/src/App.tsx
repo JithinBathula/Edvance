@@ -15,10 +15,11 @@ import { ProfilePage } from "./components/ProfilePage";
 import { BACKEND_URL } from "./utils/constants";
 
 export type OnboardingData = {
-  pythonExperience: string;
-  experienceLevel: string;
-  goal: string;
-  theme: string;
+  educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
+  schoolExperience: string;      // Scratch, CFF, Upper Sec Computing, Self-taught
+  pythonLevel: string;           // Level 1-5 skill assessment
+  biggestChallenges: string[];   // Multiple: syntax, steps, bugs, want more
+  learningMode: string;          // hold-my-hand, roadmap, challenge-me
 };
 
 export type User = {
@@ -171,7 +172,7 @@ export default function App() {
     const requirements = {
       session: data.session || data.session_data,
       outline: data.outline,
-      experienceLevel: data.experienceLevel || user?.onboarding?.experienceLevel || 'beginner',
+      experienceLevel: data.experienceLevel || user?.onboarding?.pythonLevel || 'beginner',
       vmType: data.vm_type || data.vmType || outlineVmType || 'python',
     };
     setProjectRequirements(requirements);
