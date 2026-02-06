@@ -150,7 +150,10 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         content: GUIDING_QUESTIONS[0].text,
       },
     ]);
-  }, [user.name, user.onboarding?.pythonLevel, messages.length]);
+  }
+} 
+,[user.name, user.onboarding?.pythonLevel, messages.length]);
+  
 
   // 2. Auto-scroll
   useEffect(() => {
