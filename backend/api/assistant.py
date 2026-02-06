@@ -5,7 +5,13 @@ Handles chat interactions with the AI coding tutor.
 from flask import Blueprint, request, jsonify
 
 from agents.assistant import AssistantAgent
-from db.supabase_client import get_task_by_id, get_project_by_id
+from db.supabase_client import (
+    get_task_by_id,
+    get_project_by_id,
+    save_chat_message,
+    get_chat_history,
+    clear_chat_history
+)
 from services.git_repo import read_repo_files
 
 assistant_bp = Blueprint('assistant', __name__, url_prefix='/api/assistant')
@@ -18,7 +24,7 @@ def chat():
     """
     Handle a chat message to the AI assistant.
 
-    Request: { message, task_id, code, history[] }
+    Request: { message, task_id, user_id, project_id, code, history[] }
     Response: { success, response }
     """
     data = request.json or {}
@@ -36,10 +42,18 @@ def chat():
         }), 400
 
     try:
+
+        # Save user message to database if user_id and project_id provided
+        if user_id and project_id:
+            try:
+                save_chat_message(user_id, project_id, 'user', message)
+            except Exception as save_err:
+                print(f"Warning: Failed to save user message: {save_err}")
+
         # If project_id provided, load all files from cloud storage
         if project_id:
             project = get_project_by_id(project_id)
-            if project and data.get('user_id') and str(project.get('user_id')) == str(data.get('user_id')):
+            if project and user_id and str(project.get('user_id')) == str(user_id):
                 files = read_repo_files(project_id)
                 if files:
                     # Format all files for context
@@ -67,12 +81,20 @@ def chat():
             chat_history=history
         )
 
+        # Save assistant response to database if user_id and project_id provided
+        if user_id and project_id:
+            try:
+                save_chat_message(user_id, project_id, 'assistant', response)
+            except Exception as save_err:
+                print(f"Warning: Failed to save assistant message: {save_err}")
+
         return jsonify({
             'success': True,
             'response': response
         }), 200
 
     except Exception as e:
+        print(f"Error in assistant chat: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
