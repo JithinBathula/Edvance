@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { MessageCircle, Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
 import { BACKEND_URL } from '../utils/constants';
 
 type Message = {
@@ -136,8 +134,8 @@ export function AIChatbot({
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4 bg-gray-50/50">
-        <div ref={scrollRef} className="space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50/50" ref={scrollRef}>
+        <div className="space-y-4">
           {messages.map((message, i) => (
             <div
               key={i}
@@ -176,7 +174,7 @@ export function AIChatbot({
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {error && (
         <div className="flex items-center gap-2 text-orange-600 text-sm px-4 py-2 bg-orange-50 border-t border-orange-100">
