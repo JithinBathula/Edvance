@@ -1,70 +1,76 @@
 import json
 import os
-from typing import Dict, List, Any, Generator
+from typing import Dict, List, Any, Generator, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 import time
 
 from tools.requirement import RequirementTools
 from prompts import requirements_prompts
+
 load_dotenv()
 
-# Hardcoded intermediate level student profile (Used as default if user data is missing)
 DEFAULT_USER_SKILLS = {
-    "userExperienceLevel": "beginner",
+    "experienceLevel": "beginner",
     "pythonExperience": "Just starting out",
     "theme": "web development",
-    "strengths": ["functions", "data structures", "basic OOP"],
-    "weaknesses": ["async programming", "advanced design patterns"],
-    "completedProjects": []
+    "goal": "Build projects for my portfolio"
+    # TODO: add completed projects in database as well
 }
 
-MAX_ITERATIONS = 5
+MAX_ITERATIONS = 4              
+HISTORY_TAIL = 8                # only include last N chat messages from frontend
+PROMPT_TAIL = 14                # keep system + last N messages during tool loop
+TOOL_OUTPUT_CAP = 2000          # cap tool output injected into prompt
+
+# Requirements limits
+MAX_ITEMS_PER_FIELD = 30
+MAX_TOTAL_ITEMS = 100
+MAX_ITEM_LENGTH = 200
+
+# Prompt display limits (avoid huge system prompt)
+MAX_LIST_DISPLAY = 10           # show only first N items per list in system prompt
+MAX_DECISIONS_DISPLAY = 5       # show only last N decisions
+
 
 class RequirementGatheringAgent:
-    @staticmethod
-    def _has_ready_flag(text: str) -> bool:
-        """Return True if the assistant emitted the ready-to-plan JSON flag. 
-        Used to end the requirements gathering and move on to the planning stage.
-        
-        Input: text: str - accumulated assistant content
-        Output: bool - whether ready_to_plan flag is present"""
-
-        if not text:
-            return False
-        stripped = text.strip()
-        try:
-            parsed = json.loads(stripped)
-            if isinstance(parsed, dict):
-                return bool(parsed.get("ready_to_plan") is True)
-        except Exception:
-            pass
-        lowered = stripped.lower().replace(" ", "")
-        return '"ready_to_plan":true' in lowered or "'ready_to_plan':true" in lowered
-
     def __init__(self):
-        """
-        Initialize the Requirement Gathering Agent with OpenAI client and tools.
-        """
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY")
         )
         self.requirement_tools = RequirementTools()
+        self.sessions: Dict[str, Dict[str, Any]] = {} 
 
-        # Session states in memory dictionary
-        self.sessions = {}
-        
+#----------------
+# SESSION MODEL
+#-----------------
     def get_session_state(self, session_id: str) -> Dict[str, Any]:
         """Get or create session state. Session state tracks the progress of requirement gathering."""
         if session_id not in self.sessions:
             self.sessions[session_id] = {
-                'iteration': 0,
-                'project_idea': None,
-                'tech_analysis': None, 
-                'quality_check': None, 
-                'requirements_finalized': False,
-                'avoid_topics': []
+                "project_idea": None,
+                "ready_to_plan": False,
+                "snapshot": {
+                    "project_title": "",
+                    "project_summary": "",
+                    "constraints": [],
+                    "must_haves": [],                    
+                    "nice_to_haves": [],
+                    "out_of_scope": [],
+                    "assumptions": [],
+                    "acceptance_criteria": [],
+                },
+                "decision_log": [],
+                # append-only tool context (so nothing overwrites)
+                "tool_context": {
+                    "tech_analysis_history": [],
+                    "quality_check_history": [],
+                },
+                
+                # metadata
+                "created_at": time.time(),
+                "last_updated": time.time(),
             }
         return self.sessions[session_id]
     
@@ -73,117 +79,238 @@ class RequirementGatheringAgent:
         if session_id in self.sessions:
             del self.sessions[session_id]
     
-    def _tool_dispatch(self, tool_name: str, tool_args: Dict[str, Any], session: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool and return results. 
+#----------------
+# HELPERS
+#-----------------
+
+    def _format_list(self, items: List[str]) -> str:
+        """Format list for display in system prompt - shows all items."""
+        if not items:
+            return "  (none)"
         
-        Input:
-        - tool_name: str - name of the tool to execute
-        - tool_args: Dict[str, Any] - arguments for the tool
-        - session: Dict[str, Any] - current session state
+        formatted = "\n".join(f"  - {item}" for item in items)
         
-        Ouput:
-        - Dict[str, Any] - tool execution result"""
+        # Add warning for unusually long lists
+        if len(items) > 20:
+            formatted += f"\n  [Note: Large list with {len(items)} items - consider consolidating]"
+        
+        return formatted
+
+    def _build_system_prompt(self, user_profile: Dict[str, Any], session: Dict[str, Any]) -> str:
+        """Construct the system prompt with user profile AND current snapshot."""
+        base_prompt = requirements_prompts.requirements_agent_prompt.format(
+        experienceLevel=user_profile["experienceLevel"],
+        pythonExperience=user_profile["pythonExperience"],
+        theme=user_profile["theme"],
+        goal=user_profile["goal"]
+        )
+        
+        # Add current snapshot context
+        snapshot = session['snapshot']
+        snapshot_summary = f"""
+        
+        CURRENT REQUIREMENTS SNAPSHOT:
+        - Title: {snapshot.get('project_title', 'Not set')}
+        - Summary: {snapshot.get('project_summary', 'Not set')}
+        - Must-haves: {len(snapshot.get('must_haves', []))} items
+        - Nice-to-haves: {len(snapshot.get('nice_to_haves', []))} items
+        - Out of scope: {len(snapshot.get('out_of_scope', []))} items
+
+        Rules:
+            - Use update_snapshot to modify requirements.
+            - If the user changes project direction, call update_snapshot with is_revision=true and fields_to_clear to reset relevant fields
+            - Only call mark_ready_to_plan when requirements are truly finalized
+            - Avoid calling the same tool repeatedly unless user provides new information
+        """
+        return base_prompt + snapshot_summary
+    
+    def _dedupe_extend(self, arr: List[Any], items: Any) -> None:
+        """Extend list without duplicates (supports scalar or list)."""
+        new_items = items if isinstance(items, list) else [items]
+        for it in new_items:
+            if it is None:
+                continue
+            if it not in arr:
+                arr.append(it)
+
+    def _validate_snapshot_shape(self, snapshot: Dict[str, Any]) -> Optional[str]:
+        """Return error string if invalid, else None."""
+        required_keys = [
+            "project_title",
+            "project_summary",
+            "constraints",
+            "must_haves",
+            "nice_to_haves",
+            "out_of_scope",
+            "assumptions",
+            "acceptance_criteria",
+        ]
+        for k in required_keys:
+            if k not in snapshot:
+                return f"Snapshot missing key: {k}"
+        # Type checks
+        for k in ["constraints", "must_haves", "nice_to_haves", "out_of_scope", "assumptions", "acceptance_criteria"]:
+            if not isinstance(snapshot.get(k), list):
+                return f"Snapshot field '{k}' must be a list"
+        for k in ["project_title", "project_summary"]:
+            if not isinstance(snapshot.get(k), str):
+                return f"Snapshot field '{k}' must be a string"
+        return None
+        
+#----------------
+# TOOL DISPATCH
+#-----------------
+    def _tool_dispatch(self, tool_name: str, tool_args: Dict[str, Any], user_profile: Dict[str, Any], session: Dict[str, Any]) -> Dict[str, Any]:
         print(f"Dispatching tool: {tool_name}")
         print(f"Arguments: {json.dumps(tool_args, indent=2)}")
         
         try:
             if tool_name == "web_search":
-                return self.requirement_tools.web_search(
+                result = self.requirement_tools.web_search(
                     project_idea=tool_args.get('project_idea', ''), 
-                    user_skills=DEFAULT_USER_SKILLS
+                    user_skills=user_profile
                 )
+                session["tool_context"]["tech_analysis_history"].append({
+                    "ts": time.time(), "args": tool_args, "result": result}
+                )
+                session["last_updated"] = time.time()
+
+                print(f"Tech analysis history: {result.get('required_technologies',[])}")
+                return result
             
             elif tool_name == "quality_check":
-                return self.requirement_tools.quality_check(
+                result = self.requirement_tools.quality_check(
                     project_idea=tool_args.get('project_idea', ''),
                     libraries=tool_args.get('libraries', ''), 
-                    user_skills=DEFAULT_USER_SKILLS
+                    user_skills=user_profile
                 )
+                session["tool_context"]["quality_check_history"].append(
+                    {"ts": time.time(), "args": tool_args, "result": result}
+                )
+                session["last_updated"] = time.time()
+
+                print(f"Quality check: {result.get('action','unknown')}")
+                return result
+            
+            elif tool_name == "update_snapshot":
+                patch_obj = tool_args.get("patch", {})
+                note = tool_args.get("note", "")
+                snapshot = session["snapshot"]
+
+                for key, value in patch_obj.items():
+                    if key not in snapshot:
+                        continue
+                    
+                    # If it's a list (like must_haves), deduplicate and extend
+                    if isinstance(snapshot[key], list):
+                        self._dedupe_extend(snapshot[key], value)
+                    else:
+                        # If it's a string (like title), only update if the new value isn't empty
+                        if value:
+                            snapshot[key] = str(value)
+
+                session["last_updated"] = time.time()
+                return {"status": "refined", "note": note}
             
             elif tool_name == "mark_ready_to_plan":
-                session['ready_summary'] = tool_args.get('summary')
-                return {
-                    "ready_to_plan": bool(tool_args.get('ready_to_plan')),
-                    "summary": tool_args.get('summary'),
-                    "status": "complete"
-                }
+                ready = tool_args.get('ready_to_plan', False)
+                final_snapshot = tool_args.get("snapshot") or session["snapshot"]
+                
+                err = self._validate_snapshot_shape(final_snapshot)
+                if err:
+                    # Never mark ready if invalid
+                    session["ready_to_plan"] = False
+                    return {"ready_to_plan": False, "error": err}
+
+                if ready:
+                    session["snapshot"] = final_snapshot
+                    session["ready_to_plan"] = True
+                    session["last_updated"] = time.time()
+
+                    print("REQUIREMENTS FINALIZED")
+                    print(f"Final Snapshot:")
+                    print(json.dumps(final_snapshot, indent=2))
+                    return {"ready_to_plan": True, "snapshot": final_snapshot}
+
+                session["ready_to_plan"] = False
+                return {"ready_to_plan": False}
             
             elif tool_name == "suggest_alternative_projects":
-                # Ensure avoid_topics includes current project
-                avoid_list = tool_args.get('avoid_topics', [])
+                # ensure avoid_topics includes current project
+                avoid_list = tool_args.get('avoid_topics', []) or []
                 if session.get('project_idea') and session['project_idea'] not in avoid_list:
                     avoid_list.append(session['project_idea'])
                 
                 result = self.requirement_tools.suggest_alternative_projects(
                     numberOfSuggestions=tool_args.get('numberOfSuggestions', 3),
                     avoid_topics=avoid_list,
-                    userSkills=DEFAULT_USER_SKILLS
+                    userSkills=user_profile
                 )
-                print(f"✅ Suggestions result: {json.dumps(result, indent=2)[:500]}")
+                print(f"Generated suggestions: {json.dumps(result, indent=2)[:500]}")
                 return result
             
             else:
                 return {"error": f"Unknown tool: {tool_name}", "status": "failed"}
         
         except Exception as e:
-            print(f"❌ Tool dispatch error for {tool_name}: {str(e)}")
+            print(f"Tool dispatch error for {tool_name}: {str(e)}")
             import traceback
             traceback.print_exc()
             return {"error": str(e), "status": "failed"}
-    
-    def _build_system_prompt(self) -> str:
-        """Construct the system prompt with user skills embedded."""
-        return requirements_prompts.requirements_agent_prompt.format(
-            experience=DEFAULT_USER_SKILLS["userExperienceLevel"].upper(),
-            python_knowledge=DEFAULT_USER_SKILLS["pythonExperience"],
-            interests=DEFAULT_USER_SKILLS["theme"],
-        )
+
+  #---------------------
+  # MAIN PROCESSING LOOP
+  #---------------------
 
     def process_message(
         self,
         message: str,
         conversation_history: List[Dict[str, str]],
+        user_profile: Dict[str, Any],
         session_id: str = 'default'
     ) -> Generator[Dict[str, Any], None, None]:
+        """Process message and stream responses.
+        
+        Clean flow:
+        1. LLM talks to user
+        2. LLM calls tools to analyze/update requirements
+        3. LLM calls mark_ready_to_plan when done
+        4. Backend yields handoff signal
+        5. Frontend reacts to handoff and moves to planning phase
         """
-        Process user message and stream responses.
-        The LLM will naturally understand user intent and call appropriate tools.
 
-        Input:
-        - message: str - user message
-        - conversation_history: List[Dict[str, str]] - prior messages in the conversation
-        - session_id: str - unique session identifier
-
-        Output:
-        - Generator yielding response chunks as Dict[str, Any] for streaming
-        """
+        active_user_profile = user_profile if user_profile else DEFAULT_USER_SKILLS
         session = self.get_session_state(session_id)
         
         # Track the current project idea if it's new
-        if session['project_idea'] is None and len(conversation_history) < 2:
-            session['project_idea'] = message
-        
+        if session.get("project_idea") is None:
+            session["project_idea"] = message
+
         # Prepare Context
-        system_prompt = self._build_system_prompt()
-        messages = [{"role": "system", "content": system_prompt}]
+        system_prompt = self._build_system_prompt(active_user_profile, session)
+        messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         messages.extend(conversation_history)
         messages.append({"role": "user", "content": message})
         
-        # If this looks like a first project idea, add a hint
-        if session['project_idea'] == message and session['tech_analysis'] is None:
-            messages.append({
-                "role": "system", 
-                "content": "[System Note]: This is a new project idea. Analyze it by calling 'web_search' and 'quality_check' tools."
-            })
+        # Optional hint for first-time idea analysis
+        if session.get("project_idea") == message and not session["tool_context"]["tech_analysis_history"]:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "[System Note]: New project idea. Call 'web_search' and 'quality_check', "
+                        "then refine requirements via 'update_snapshot'."
+                    ),
+                }
+            )
 
         # --- THE STREAMING LOOP ---
         iteration_count = 0
         while iteration_count < MAX_ITERATIONS:
             iteration_count += 1
-            finalize_now = False
+            print(f"Iteration {iteration_count}/{MAX_ITERATIONS}")
             
             try:
-                # API Call
                 response = self.client.chat.completions.create(
                     model="openai/gpt-5.2",
                     messages=messages,
@@ -194,8 +321,7 @@ class RequirementGatheringAgent:
                 )
                 
                 accumulated_content = ""
-                tool_calls = []
-                current_tool_call = None
+                tool_calls_by_index: Dict[int, Dict[str, Any]] = {}
 
                 for chunk in response:
                     if not chunk.choices:
@@ -210,100 +336,67 @@ class RequirementGatheringAgent:
 
                     # 2. Handle tool calls accumulation
                     if delta.tool_calls:
-                        for tool_call_chunk in delta.tool_calls:
-                            if tool_call_chunk.index is not None:
-                                # Save previous tool call if starting a new one
-                                if current_tool_call is not None and current_tool_call['index'] != tool_call_chunk.index:
-                                    tool_calls.append(current_tool_call)
-                                    current_tool_call = None
-                                
-                                # Initialize new tool call
-                                if current_tool_call is None or current_tool_call['index'] != tool_call_chunk.index:
-                                    current_tool_call = {
-                                        'index': tool_call_chunk.index,
-                                        'id': tool_call_chunk.id or f"call_{time.time()}_{tool_call_chunk.index}",
-                                        'type': 'function',
-                                        'function': {
-                                            'name': tool_call_chunk.function.name if tool_call_chunk.function and tool_call_chunk.function.name else '',
-                                            'arguments': ''
-                                        }
-                                    }
-                            
-                            # Append arguments
-                            if tool_call_chunk.function and tool_call_chunk.function.arguments:
-                                if current_tool_call:
-                                    current_tool_call['function']['arguments'] += tool_call_chunk.function.arguments
-                
-                # Save the last tool call
-                if current_tool_call:
-                    tool_calls.append(current_tool_call)
+                        for tc in delta.tool_calls:
+                            if tc.index is None:
+                                continue
+
+                            entry = tool_calls_by_index.get(tc.index)
+                            if entry is None:
+                                entry = {
+                                    "index": tc.index,
+                                    "id": tc.id or f"call_{time.time()}_{tc.index}",
+                                    "type": "function",
+                                    "function": {"name": "", "arguments": ""},
+                                }
+                                tool_calls_by_index[tc.index] = entry
+
+                            if tc.id:
+                                entry["id"] = tc.id
+
+                            if tc.function and tc.function.name:
+                                entry["function"]["name"] = tc.function.name
+
+                            if tc.function and tc.function.arguments:
+                                entry["function"]["arguments"] += tc.function.arguments
+
+                tool_calls = [tool_calls_by_index[i] for i in sorted(tool_calls_by_index.keys())]
+
+                # If no tool calls, this turn is complete
+                if not tool_calls:
+                    print("\nNo tools called - turn complete")
+                    break
+
+                tool_outputs: List[Dict[str, Any]] = []
+                handoff_triggered = False
+
+                for tool_call in tool_calls:
+                    tool_name = tool_call["function"]["name"]
+                    tool_args_str = tool_call["function"]["arguments"] or ""
+
+                    try:
+                        args = json.loads(tool_args_str) if tool_args_str else {}
+                    except json.JSONDecodeError:
+                        args = {}
+                        result = {"error": "Invalid JSON arguments", "status": "failed"}
+                    else:
+                        result = self._tool_dispatch(tool_name, args, active_user_profile, session)
+
+                    if tool_name == "mark_ready_to_plan" and result.get("ready_to_plan") is True:
+                        handoff_triggered = True
+
+                    tool_outputs.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps(result),
+                        }
+                    )
 
             except Exception as e:
-                print(f"Error during AI processing: {str(e)}")
-                yield {"error": str(e), "content": "\n\n**Error:** I encountered a backend error. Please try again."}
+                import traceback
+                traceback.print_exc() # This will print the exact line and file in your console
+                yield {"error": str(e), "content": "\n\n**Internal Error:** Check backend logs for details."}
                 return
-
-            # --- DECISION POINT ---
-            
-            # Case A: No tools called - conversation done
-            if not tool_calls:
-                if self._has_ready_flag(accumulated_content):
-                    if not session['requirements_finalized']:
-                        session['requirements_finalized'] = True
-                        print("REQUIREMENTS", json.dumps(session, indent=2))
-                        final_msg = "\n\nI'll now hand you over to the planning phase."
-                        yield {"content": final_msg}
-                break 
-
-            # Case B: Execute tools
-            print(f"Executing {len(tool_calls)} tool calls")
-            
-            tool_outputs = []
-            
-            for tool_call in tool_calls:
-                tool_name = tool_call['function']['name']
-                tool_args_str = tool_call['function']['arguments']
-                
-                print(f"Tool: {tool_name}, Args: {tool_args_str[:100]}")
-                
-                try:
-                    args = json.loads(tool_args_str) if tool_args_str else {}
-                    result = self._tool_dispatch(tool_name, args, session)
-                    
-                    # Save state
-                    if tool_name == "web_search":
-                        session['tech_analysis'] = result
-                    elif tool_name == "quality_check":
-                        session['quality_check'] = result
-                    elif tool_name == "mark_ready_to_plan":
-                        if result.get("ready_to_plan") is True and not session['requirements_finalized']:
-                            session['requirements_finalized'] = True
-                            print("REQUIREMENTS", json.dumps(session, indent=2))
-                            finalize_now = True
-                        elif session['requirements_finalized']:
-                            print("Session already finalized - forcing handoff anyway")
-                            finalize_now = True
-                    
-                    # Check if tool execution failed
-                    if result.get('status') == 'failed':
-                        print(f"Tool {tool_name} failed: {result.get('error')}")
-                        # Continue anyway - let the LLM handle the failure
-                    
-                except json.JSONDecodeError as e:
-                    print(f"JSON Error for tool {tool_name}: {e}")
-                    print(f"Bad JSON string: {tool_args_str}")
-                    result = {"error": "Invalid arguments", "status": "failed"}
-                except Exception as e:
-                    print(f"Tool execution error: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    result = {"error": f"Tool execution failed: {str(e)}", "status": "failed"}
-
-                tool_outputs.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call['id'],
-                    "content": json.dumps(result)
-                })
 
             # Add assistant message and tool results to context
             messages.append({
@@ -313,16 +406,25 @@ class RequirementGatheringAgent:
             })
             messages.extend(tool_outputs)
             
-            if finalize_now:
-                final_msg = "\n\nI'll now hand you over to the planning phase."
-                yield {"content": final_msg}
-                break
-            
-            # Loop continues - LLM will process tool results
+            # Handle handoff
+            if handoff_triggered:
+                yield {"content": "\n\nI'll now hand you over to the planning phase."}
+                yield {
+                    "handoff": True,
+                    "session_data": {
+                        "snapshot": session["snapshot"],
+                        "tech_analysis_history": session["tool_context"]["tech_analysis_history"],
+                        "quality_check_history": session["tool_context"]["quality_check_history"],
+                    },
+                }
+                return
 
-        # Loop exit
-        if iteration_count >= MAX_ITERATIONS:
-            yield {"content": "\n\n*I've analyzed enough. Let's proceed based on what we have.*"}
-            if not session['requirements_finalized']:
-                session['requirements_finalized'] = True
-                print("REQUIREMENTS", json.dumps(session, indent=2))
+        # Max iterations reached BUT DO NOT auto-handoff
+        if iteration_count >= MAX_ITERATIONS and not session.get("ready_to_plan"):
+            yield {
+                "content": (
+                    "\n\nI can’t hand off to planning yet because requirements weren’t explicitly finalized "
+                    "(mark_ready_to_plan wasn’t called with ready_to_plan=true). "
+                    "Tell me what to finalize or confirm, and I’ll proceed."
+                )
+            }
