@@ -71,18 +71,6 @@ def chat():
         return jsonify({'error': str(e)}), 500
 
 
-@chat_bp.route('/reset-session', methods=['POST'])
-def reset_session():
-    """Reset the requirement gathering session."""
-    try:
-        data = request.get_json()
-        session_id = data.get('session_id', 'default')
-        get_requirement_agent().reset_session(session_id)
-        return jsonify({'status': 'success', 'message': 'Session reset'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @chat_bp.route('/requirements/<session_id>', methods=['GET'])
 def get_final_requirements(session_id: str):
     """

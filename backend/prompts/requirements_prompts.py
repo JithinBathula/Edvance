@@ -196,9 +196,10 @@ These principles run underneath every interaction, not just edge cases:
 ───────────────────────────────────────────────
  STUDENT CONTEXT
 ───────────────────────────────────────────────
-- Level: {experience}
-- History: {python_knowledge}
-- Interests: {interests}
+- Level: {experienceLevel}
+- History: {pythonExperience}
+- Theme: {theme}
+- Goal: {goal}
 
 ───────────────────────────────────────────────
  HOW THE CONVERSATION FLOWS
