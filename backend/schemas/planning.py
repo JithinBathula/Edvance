@@ -4,6 +4,7 @@ OUTLINE_SCHEMA = {
     "properties": {
         "project_title": {"type": "string"},
         "project_brief": {"type": "string"},
+        "vm_type": {"type": "string", "enum": ["python", "javascript"]},
         "milestones": {
             "type": "array",
             "items": {
@@ -17,7 +18,7 @@ OUTLINE_SCHEMA = {
             },
         },
     },
-    "required": ["project_title", "project_brief", "milestones"],
+    "required": ["project_title", "project_brief", "vm_type", "milestones"],
     "additionalProperties": False,
 }
 

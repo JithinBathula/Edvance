@@ -119,19 +119,30 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [guidingAnswers, setGuidingAnswers] = useState<Record<string, string | string[]>>({});
-
+                  
   // 1. Initialization 
   useEffect(() => {
     if (hasInitializedChat.current) return;
     hasInitializedChat.current = true;
 
     console.log("Chat Initialized for user:", user);
+                    
+    if (messages.length === 0) {
+      // Map pythonLevel to friendly display text
+      const levelLabels: Record<string, string> = {
+        'level-1': 'Level 1 (Basics)',
+        'level-2': 'Level 2 (Conditions)',
+        'level-3': 'Level 3 (Loops)',
+        'level-4': 'Level 4 (Functions & Data)',
+        'level-5': 'Level 5 (Advanced)',
+      };
+      const skillLevel = levelLabels[user.onboarding?.pythonLevel || ''] || 'beginner';
     
     setMessages([
       {
         id: 'welcome',
         role: 'assistant',
-        content: `Hi ${user.name}! 👋 I'm here to help you create a custom project tailored to your **${user.onboarding?.experienceLevel || 'intermediate'}** skill level. Let's start with a few questions to scope your project first!`,
+        content: `Hi ${user.name}! 👋 I'm here to help you create a custom project tailored to your **${skillLevel}** skill level. Let's start with a few questions to scope your project first!`,
       },
       {
         id: 'q1',
@@ -139,7 +150,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         content: GUIDING_QUESTIONS[0].text,
       },
     ]);
-  }, [user.name, user.onboarding?.experienceLevel]);
+  }, [user.name, user.onboarding?.pythonLevel, messages.length]);
 
   // 2. Auto-scroll
   useEffect(() => {
@@ -312,7 +323,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               session: sessionData,
-              experience_level: user.onboarding?.experienceLevel || 'beginner',
+              experience_level: user.onboarding?.pythonLevel || 'level-1',
             }),
         });
         
@@ -322,7 +333,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         onProjectCreated({
             session: sessionData,
             outline: outlineJson,
-            experienceLevel: user.onboarding?.experienceLevel
+            experienceLevel: user.onboarding?.pythonLevel || 'level-1',
         });
 
       } catch (e) {

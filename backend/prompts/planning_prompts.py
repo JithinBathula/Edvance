@@ -9,6 +9,7 @@ Core principles:
 - NO generic filler milestones ("Setup", "Testing", "Polishing")
 - Each milestone should add concrete functionality
 - Respect what the user already knows - don't over-explain basics they've mastered
+- Decide the runtime for this project: "python" or "javascript" (default to "python" if unclear)
 
 Return only valid JSON following the schema.
 """
@@ -51,6 +52,7 @@ RESPONSE FORMAT (JSON ONLY):
 {{
   "project_title": "<concise, clear name>",
   "project_brief": "<2-3 sentences: what we're building and why it's useful>",
+  "vm_type": "<python|javascript>",
   "milestones": [
     {{
       "subheading_title": "<specific capability being built>",

@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { User } from "../App";
 import { WebIDE } from "./WebIDE";
 import { AIChatbot } from "./AIChatbot";
+import { LessonSection as LessonSectionComponent } from "./LessonSection";
+import { Sidebar } from "./Sidebar";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { ScrollArea } from "./ui/scroll-area";
+import { MessageCircle, PanelLeft } from "lucide-react";
 import {
   ArrowLeft,
   Check,
@@ -24,6 +26,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BACKEND_URL } from "../utils/constants";
+import { LessonSection, LessonTask, ChatMessage, MessageRole } from "../types/types";
+import { mockLesson, LessonSectionData } from "../data/mockLessonData";
 
 // Icon mapping for database icon names
 const iconMap: Record<string, LucideIcon> = {
@@ -34,12 +38,6 @@ const iconMap: Record<string, LucideIcon> = {
   Lightbulb,
 };
 
-// Types matching database schema
-type LessonTask = {
-  id: string;
-  position: number;
-  task_description: string;
-};
 
 type LessonHighlight = {
   id: string;
@@ -85,19 +83,94 @@ type Props = {
 
 
 export function CoursePage({ user, onBack }: Props) {
+  // --- Data Loading State
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
-  const [userCode, setUserCode] = useState("");
+
+  // --- UI State
+  const [userCode, setUserCode] = useState(mockLesson.starterCode);
+  const [ideOutput, setIdeOutput] = useState<string[]>([]); // Track IDE output for practice validation
+  const [completedSections, setCompletedSections] = useState<string[]>([]); // Track per-section completion
+  const [lastPracticeError, setLastPracticeError] = useState<string | null>(null); // Track failed practice attempts for AI context
   const [showCompletion, setShowCompletion] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Control Left Sidebar
+  const [isChatOpen, setIsChatOpen] = useState(true); // Control Right AI Chat
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: MessageRole.Model,
+      text: "Hi! I'm your AI assistant. I'll watch your progress and help you learn!",
+      timestamp: Date.now()
+    }
+  ]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
+  // XP state
+  const [earnedXP, setEarnedXP] = useState(0);
+  const [showXPPopup, setShowXPPopup] = useState(false);
+  const [xpGained, setXpGained] = useState(0);
+
+  // Confetti function
+  const triggerConfetti = useCallback(() => {
+    import('canvas-confetti').then((confetti) => {
+      // Fire confetti from both sides
+      const count = 200;
+      const defaults = {
+        origin: { y: 0.7 },
+        zIndex: 9999,
+      };
+
+      function fire(particleRatio: number, opts: any) {
+        confetti.default({
+          ...defaults,
+          ...opts,
+          particleCount: Math.floor(count * particleRatio),
+        });
+      }
+
+      fire(0.25, { spread: 26, startVelocity: 55 });
+      fire(0.2, { spread: 60 });
+      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+      fire(0.1, { spread: 120, startVelocity: 45 });
+    });
+  }, []);
+
+  // Handler to mark a section as complete
+  const handleSectionComplete = (sectionId: string) => {
+    console.log('handleSectionComplete called with sectionId:', sectionId);
+    if (!completedSections.includes(sectionId)) {
+      // Add to completed sections
+      setCompletedSections(prev => [...prev, sectionId]);
+
+      // Award XP and show celebration
+      const xpReward = 100;
+      setEarnedXP(prev => prev + xpReward);
+      setXpGained(xpReward);
+      console.log('=== SHOWING XP POPUP ===', xpReward);
+      setShowXPPopup(true);
+
+      // Trigger confetti!
+      triggerConfetti();
+
+      // Hide XP popup after 3 seconds (longer for visibility)
+      setTimeout(() => {
+        console.log('=== HIDING XP POPUP ===');
+        setShowXPPopup(false);
+      }, 3000);
+    }
+  };
 
   const theme = user.onboarding?.theme || "finance";
   const lessons = course?.lessons || [];
   const currentLesson = lessons[currentLessonIndex];
-  const progress = lessons.length > 0 
-    ? (completedLessons.length / lessons.length) * 100 
+
+  const progress = lessons.length > 0
+    ? (completedLessons.length / lessons.length) * 100
     : 0;
 
   // Get tasks from current lesson (from database)
@@ -119,7 +192,7 @@ export function CoursePage({ user, onBack }: Props) {
         setLoading(true);
         const response = await fetch(`${BACKEND_URL}/courses/${theme}`);
         const data = await response.json();
-        
+
         if (data.success && data.course) {
           setCourse(data.course);
         } else {
@@ -141,7 +214,7 @@ export function CoursePage({ user, onBack }: Props) {
       if (!course?.id) return;
       try {
         const response = await fetch(
-          `${BACKEND_URL}/courses/progress/${user.id}/${course.id}`
+          `${BACKEND_URL}/user/${user.id}/course-progress/${course.id}`
         );
         const data = await response.json();
         if (data.success && data.progress?.completed_lessons) {
@@ -154,12 +227,8 @@ export function CoursePage({ user, onBack }: Props) {
     loadProgress();
   }, [user.id, course?.id]);
 
-  // Set starter code when lesson changes
-  useEffect(() => {
-    if (currentLesson?.starter_code) {
-      setUserCode(currentLesson.starter_code);
-    }
-  }, [currentLessonIndex, currentLesson?.starter_code]);
+  // Note: Removed useEffect that was overriding mockLesson.starterCode with currentLesson.starter_code
+  // Now the IDE uses mockLesson.starterCode by default
 
 
   const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>(
@@ -251,14 +320,14 @@ export function CoursePage({ user, onBack }: Props) {
 
   const handleCompleteLesson = async () => {
     if (!currentLesson || !course?.id) return;
-    
+
     const newCompleted = [...completedLessons, currentLesson.id];
     setCompletedLessons(newCompleted);
 
     // Save progress to new API
     try {
       await fetch(
-        `${BACKEND_URL}/courses/progress/${user.id}/${course.id}`,
+        `${BACKEND_URL}/user/${user.id}/course-progress/${course.id}`,
         {
           method: "POST",
           headers: {
@@ -319,9 +388,9 @@ export function CoursePage({ user, onBack }: Props) {
 
   if (showCompletion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full p-12 text-center bg-white">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-linear-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-4xl mb-4">Congratulations! 🎉</h2>
@@ -330,12 +399,12 @@ export function CoursePage({ user, onBack }: Props) {
             built a working{" "}
             {user.onboarding?.theme || "project"}!
           </p>
-          <div className="bg-gradient-to-r from-purple-50 to-orange-50 rounded-xl p-6 mb-8">
+          <div className="bg-linear-to-br from-purple-50 to-orange-50 rounded-xl p-6 mb-8">
             <p className="text-lg mb-2">
               The components you coded have been integrated to
               form:
             </p>
-            <p className="text-2xl bg-gradient-to-r from-[#7622e5] to-[#ffa200] bg-clip-text text-transparent">
+            <p className="text-2xl bg-linear-to-br from-[#7622e5] to-[#ffa200] bg-clip-text text-transparent">
               A Complete{" "}
               {user.onboarding?.theme === "finance"
                 ? "Budget Tracker"
@@ -351,7 +420,7 @@ export function CoursePage({ user, onBack }: Props) {
           </p>
           <Button
             onClick={onBack}
-            className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+            className="bg-linear-to-br from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
           >
             Back to Home
           </Button>
@@ -363,7 +432,7 @@ export function CoursePage({ user, onBack }: Props) {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center bg-white">
           <div className="animate-spin w-12 h-12 border-4 border-[#7622e5] border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-gray-600">Loading course...</p>
@@ -375,7 +444,7 @@ export function CoursePage({ user, onBack }: Props) {
   // Error state
   if (error || !course || !currentLesson) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center bg-white">
           <p className="text-red-500 mb-4">{error || "Failed to load course"}</p>
           <Button onClick={onBack} variant="outline">
@@ -394,185 +463,63 @@ export function CoursePage({ user, onBack }: Props) {
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-lg">Python Fundamentals</h1>
-            <p className="text-sm text-gray-600">
-              Lesson {currentLessonIndex + 1} of{" "}
-              {lessons.length}
-            </p>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded font-medium">Learn</span>
+              <span className="text-gray-400 text-xs">→</span>
+              <span className="text-xs text-gray-500">Project</span>
+            </div>
+            <h1 className="text-base font-semibold text-gray-900">Lesson 5 — {mockLesson.title}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="w-48">
+        <div className="flex items-center gap-3">
+          {/* Progress bar */}
+          <div className="w-32">
             <Progress value={progress} className="h-2" />
           </div>
-          <span className="text-sm text-gray-600">
-            {Math.round(progress)}%
-          </span>
+          {/* XP Badge */}
+          <div className="flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full relative">
+            <span className="text-sm font-semibold text-green-600">{earnedXP}</span>
+            <span className="text-xs text-green-500 font-medium">XP</span>
+
+          </div>
         </div>
       </header>
 
+      {/* Big Centered XP Popup - Black text, shrink and fade */}
+      {showXPPopup && (
+        <div
+          className="fixed inset-0 flex items-center justify-center pointer-events-none"
+          style={{ zIndex: 99999 }}
+        >
+          <div
+            style={{
+              fontSize: '5rem',
+              fontWeight: 900,
+              color: '#1f2937',
+              textShadow: '0 4px 30px rgba(0,0,0,0.15)',
+              animation: 'xpShrinkFade 2.5s ease-out forwards',
+            }}
+          >
+            +{xpGained} XP
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - Lessons List */}
-        <div
-          className="border-r bg-gray-50 flex flex-col relative"
-          style={{ width: `${sidebarWidth}px`, minWidth: '200px', maxWidth: '500px' }}
-        >
-          {/* Resize handle */}
-          <div
-            className="group absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-10"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setIsDraggingSidebar(true);
-            }}
-            onDoubleClick={() => setSidebarWidth(256)}
-          >
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-[3px] rounded bg-gray-300 group-hover:bg-[#7622e5]" />
-          </div>
-          <div className="p-4 border-b bg-white">
-            <h2 className="font-semibold">Course Progress</h2>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="p-2">
-              {lessons.map((lesson, index) => {
-                const isCompleted = completedLessons.includes(
-                  lesson.id,
-                );
-                const isCurrent = index === currentLessonIndex;
-                const isLocked =
-                  index > currentLessonIndex && !isCompleted;
-                const isExpanded = !!expandedLessons[lesson.id];
-                const activeItem =
-                  activeSubsection.lessonId === lesson.id
-                    ? activeSubsection.itemId
-                    : null;
-                const isPracticeActive =
-                  activeItem === "lesson" ||
-                  activeItem === "task-1" ||
-                  activeItem === "task-2" ||
-                  activeItem === "task-3";
-
-                const handleSubsectionSelect = (subId: SubSectionId) => {
-                  if (isLocked) return;
-                  if (currentLessonIndex !== index) {
-                    setCurrentLessonIndex(index);
-                  }
-                  setExpandedLessons((prev) => ({
-                    ...prev,
-                    [lesson.id]: true,
-                  }));
-                  setActiveSubsection({
-                    lessonId: lesson.id,
-                    itemId: subId,
-                  });
-                };
-
-                return (
-                  <div key={lesson.id} className="mb-3 last:mb-0">
-                    <button
-                      onClick={() => {
-                        if (isLocked) return;
-                        setCurrentLessonIndex(index);
-                        setExpandedLessons((prev) => ({
-                          ...prev,
-                          [lesson.id]: !isExpanded,
-                        }));
-                        setActiveSubsection({
-                          lessonId: lesson.id,
-                          itemId: "blog",
-                        });
-                      }}
-                      disabled={isLocked}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${isCurrent
-                          ? "bg-gradient-to-r from-[#7622e5] to-[#b480f8] text-white border-transparent shadow-sm"
-                          : isLocked
-                            ? "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed"
-                            : "bg-white border-gray-200 hover:border-[#7622e5]/40 hover:bg-[#f5f0ff]"
-                        }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <span className="text-xs uppercase tracking-wide block mb-1">
-                            Lesson {index + 1}
-                          </span>
-                          <p
-                            className={`text-sm font-medium ${isCurrent ? "text-white" : "text-gray-900"
-                              }`}
-                          >
-                            {lesson.title}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isCompleted ? (
-                            <Check className="w-4 h-4 text-green-200" />
-                          ) : isLocked ? (
-                            <Lock className="w-4 h-4" />
-                          ) : null}
-                          <ChevronDown
-                            className={`w-4 h-4 transition-transform ${isExpanded && !isLocked ? "rotate-180" : ""
-                              }`}
-                          />
-                        </div>
-                      </div>
-                    </button>
-
-                    {isExpanded && !isLocked && (
-                      <div className="mt-3 ml-2 pl-3 border-l border-gray-200 space-y-1">
-                        <button
-                          onClick={() => handleSubsectionSelect("blog")}
-                          className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${activeItem === "blog"
-                              ? "bg-[#7622e5]/10 text-[#7622e5] font-medium"
-                              : "text-gray-600 hover:bg-gray-100"
-                            }`}
-                        >
-                          Blog Post
-                        </button>
-
-                        <div>
-                          <button
-                            onClick={() =>
-                              handleSubsectionSelect("lesson")
-                            }
-                            className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${isPracticeActive
-                                ? "bg-[#7622e5]/10 text-[#7622e5] font-medium"
-                                : "text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            <span>Lesson</span>
-                            <ChevronRight className="w-3 h-3 opacity-50" />
-                          </button>
-                          <div className="ml-3 mt-1 space-y-1">
-                            {["task-1", "task-2", "task-3"].map(
-                              (taskId, taskIndex) => {
-                                const typedTaskId = taskId as SubSectionId;
-                                const isActive = activeItem === typedTaskId;
-                                return (
-                                  <button
-                                    key={taskId}
-                                    onClick={() =>
-                                      handleSubsectionSelect(typedTaskId)
-                                    }
-                                    className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${isActive
-                                        ? "bg-[#7622e5]/10 text-[#7622e5] font-medium"
-                                        : "text-gray-500 hover:bg-gray-100"
-                                      }`}
-                                  >
-                                    Task {taskIndex + 1}
-                                  </button>
-                                );
-                              },
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </div>
+        {/* Sidebar - Collapsible */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          completedSections={completedSections}
+          onSectionClick={(sectionId) => {
+            const element = document.getElementById(`section-${sectionId}`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }}
+        />
 
         {/* Middle - Unified Lesson Card (Story + Practice) with better padding */}
         <div
@@ -593,454 +540,83 @@ export function CoursePage({ user, onBack }: Props) {
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-[3px] rounded bg-gray-300 group-hover:bg-[#7622e5]" />
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-5xl mx-auto w-full px-8 sm:px-10 lg:px-12 py-10 sm:py-12 space-y-10">
+          <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
+            <div className="max-w-2xl mx-auto">
 
-
-              {/* Middle Panel - Article Content */}
-              <ScrollArea className="flex-1 border-r">
-                <div className="max-w-3xl mx-auto p-8 space-y-8">
-                  {/* Introduction */}
-                  <div className="space-y-4 animate-slide-up">
-                    <Badge id="lesson-section-blog"
-                    variant="outline"
-                    className="border-primary/30 text-primary"
-                  >
-                    Lesson 1
-                  </Badge>
-                  <h2 className="text-3xl sm:text-4xl font-semibold text-gray-900 leading-tight mb-3 py-3">
-                    {currentLesson.title}
-                  </h2>
-                  <p className="text-base sm:text-lg text-gray-700 max-w-2xl leading-[1.75]">
-                    {currentLesson.description}
-                  </p>
-                </div>
-
-                {/* Highlights grid with generous padding */}
-                <div className="px-8 sm:px-12 lg:px-14 py-8 sm:py-10 grid gap-6 sm:gap-7 lg:gap-8 sm:grid-cols-3">
-                  {lessonHighlights.map((highlight) => {
-                    const Icon = highlight.icon;
-                    return (
-                      <div
-                        key={highlight.id}
-                        className="rounded-2xl border border-[#ffa200]/25 bg-white/80 p-6 shadow-sm hover:shadow-md transition-shadow space-y-3"
-                      >
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#ffa200]">
-                          <Icon className="w-4 h-4" />
-                          {highlight.title}
-                        </div>
-                        <p className="text-base font-semibold text-gray-900 leading-snug">
-                          {highlight.heading}
-                        </p>
-                        <p className="text-sm text-gray-600 leading-[1.7]">
-                          {highlight.detail}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-                </div>
-
-
-              {/*What are Variables?*/}
-              <div className="max-w-3xl mx-auto px-8">
-              <h2 
-              id = "lesson"
-              className="text-3xl sm:text-4xl font-semibold text-gray-900 leading-tight mb-3 ">
-                What are Variables?
-              </h2>
-              <p className="text-medium text-gray-600 leading-[1.7] py-8">
-                Variables are like labeled boxes that store
-                information in your program. They allow you to
-                save data and use it later.
-              </p>
-                
-              {/* Visual Metaphor */}
-              <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5 overflow-hidden">
-                <CardContent className="p-8">
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-medium">
-                      Think of Variables as Labeled Boxes
-                    </h3>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <div className="p-6 rounded-xl border-2 border-dashed border-primary/30 bg-background/50 text-center">
-                          <div className="text-sm text-muted-foreground mb-2">
-                            Box Label
-                          </div>
-                          <div className="text-lg font-mono text-primary">
-                            age
-                          </div>
-                          <div className="h-px bg-border my-3" />
-                          <div className="text-2xl">25</div>
-                          <div className="text-xs text-muted-foreground mt-2">
-                            Value Inside
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="p-6 rounded-xl border-2 border-dashed border-purple-500/30 bg-background/50 text-center">
-                          <div className="text-sm text-muted-foreground mb-2">
-                            Box Label
-                          </div>
-                          <div className="text-lg font-mono text-purple-500">
-                            name
-                          </div>
-                          <div className="h-px bg-border my-3" />
-                          <div className="text-2xl">"Maya"</div>
-                          <div className="text-xs text-muted-foreground mt-2">
-                            Value Inside
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Just like you can put different things in
-                      different boxes and label them, you can
-                      store different values in variables with
-                      different names.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Syntax */}
-              <div className="space-y-4 py-8">
-                <h2 className="text-2xl">Basic Syntax</h2>
-                <p className="text-muted-foreground">
-                  In Python, creating a variable is simple. You
-                  just write the variable name, an equals sign,
-                  and the value you want to store:
-                </p>
-
-                <Card className="bg-black/95 text-green-400 overflow-hidden">
-                  <CardContent className="p-6 space-y-3 font-mono">
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-                      <Terminal className="h-4 w-4" />
-                      Python Syntax
-                    </div>
-                    <div>
-                      <span className="text-cyan-400">age</span>{" "}
-                      ={" "}
-                      <span className="text-yellow-400">
-                        25
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-cyan-400">
-                        name
-                      </span>{" "}
-                      ={" "}
-                      <span className="text-green-400">
-                        "Maya"
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-cyan-400">
-                        height
-                      </span>{" "}
-                      ={" "}
-                      <span className="text-yellow-400">
-                        1.75
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-cyan-400">
-                        is_student
-                      </span>{" "}
-                      ={" "}
-                      <span className="text-purple-400">
-                        True
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-primary bg-primary/5">
-                  <CardContent className="p-4">
-                    <div className="flex gap-3">
-                      <Lightbulb className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <div className="font-medium">
-                          Naming Rules
-                        </div>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          <li>
-                            • Variable names can contain
-                            letters, numbers, and underscores
-                          </li>
-                          <li>
-                            • They must start with a letter or
-                            underscore
-                          </li>
-                          <li>
-                            • They are case-sensitive (age and
-                            Age are different)
-                          </li>
-                          <li>
-                            • Use descriptive names (name is
-                            better than n)
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Data Types */}
-              <div className="space-y-4">
-                <h2 className="text-3xl sm:text-4xl font-semibold text-gray-900 leading-tight mb-3 py-8 ">Types of Data</h2>
-                <p className="text-muted-foreground">
-                  Variables can store different types of data:
-                </p>
-
-                <div className="grid gap-4">
-                  {[
-                    {
-                      type: "Integer (int)",
-                      desc: "Whole numbers",
-                      example: "age = 25",
-                      color: "from-blue-500 to-cyan-500",
-                    },
-                    {
-                      type: "String (str)",
-                      desc: "Text in quotes",
-                      example: 'name = "Maya"',
-                      color: "from-green-500 to-emerald-500",
-                    },
-                    {
-                      type: "Float",
-                      desc: "Decimal numbers",
-                      example: "height = 1.75",
-                      color: "from-purple-500 to-pink-500",
-                    },
-                    {
-                      type: "Boolean (bool)",
-                      desc: "True or False",
-                      example: "is_student = True",
-                      color: "from-orange-500 to-red-500",
-                    },
-                  ].map((item, i) => (
-                    <Card
-                      key={i}
-                      className="border-2 hover:border-primary/50 transition-all"
-                    >
-                      <CardContent className="p-4 flex items-start gap-4">
-                        <div
-                          className={`h-12 w-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0 shadow-lg`}
-                        >
-                          <Code2 className="h-6 w-6 text-white" />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="font-medium">
-                            {item.type}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {item.desc}
-                          </div>
-                          <code className="text-sm text-blue-400 px-3 py-1 rounded font-mono inline-block">
-                            {item.example}
-                          </code>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Printing Variables */}
-                  <div className="space-y-4 py-8">
-                  <h2 className="text-3xl sm:text-4xl font-semibold text-gray-900 leading-tight mb-3 py-8">
-                  Printing Variables in Your Code
-                </h2>
-                <p className="text-muted-foreground">
-                  Once you create a variable, you can use it
-                  anywhere in your program:
-                </p>
-
-                <Card className="bg-black/95 text-green-400">
-                  <CardContent className="p-6 space-y-2 font-mono text-sm">
-                    <div>
-                      <span className="text-cyan-400">age</span>{" "}
-                      ={" "}
-                      <span className="text-yellow-400">
-                        25
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-cyan-400">
-                        name
-                      </span>{" "}
-                      ={" "}
-                      <span className="text-green-400">
-                        "Maya"
-                      </span>
-                    </div>
-                    <div className="h-px bg-gray-700 my-3" />
-                    <div>
-                      <span className="text-purple-400">
-                        print
-                      </span>
-                      (<span className="text-green-400">f</span>
-                      <span className="text-green-400">
-                        "{"{"}name{"}"} is {"{"}age{"}"} years
-                        old."
-                      </span>
-                      )
-                    </div>
-                    <div className="text-gray-400 text-xs mt-3">
-                      Output: Maya is 25 years old.
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-cyan-500 bg-cyan-500/5">
-                  <CardContent className="p-4">
-                    <div className="flex gap-3">
-                      <Sparkles className="h-5 w-5 text-cyan-500 flex-shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <div className="font-medium">
-                          F-Strings for Formatting
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          The{" "}
-                          <code className="text-xs bg-black/30 px-1.5 py-0.5 rounded">
-                            f"..."
-                          </code>{" "}
-                          syntax lets you insert variables
-                          directly into strings using{" "}
-                          <code className="text-xs bg-black/30 px-1.5 py-0.5 rounded">
-                            {"{"}variable{"}"}
-                          </code>
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-
-              {/* Practice - Try it youself! */}
-              <div className="space-y-4 py-8">
-              <h2 className="text-3xl sm:text-4xl font-semibold text-gray-900 leading-tight mb-3 py-8"> 
-                Practice - Try it youself!
-              </h2>
-                  <p className="text-muted-foreground">
-                    Tackle each task to unlock the next milestone—and celebrate every run!
-                  </p>
-              <Card className="border-l-4 border-l-cyan-500 bg-cyan-500/5 ">
-                <CardContent className="p-6">
-                  <div className="flex gap-3">
-                    <Lightbulb className="h-5 w-5 text-cyan-500 flex-shrink-0 mt-0.5 text-[#ffa200]" /> 
-                    <div className="space-y-1">
-                      <div className="font-medium text-[#ffa200]">
-                        Hints
-                      </div>
-                <ul className="space-y-3 text-base text-gray-600 leading-[1.7] list-disc pl-6">
-                  {(currentLesson?.hints || []).map((hint: string, i: number) => (
-                    <li key={i}>{hint}</li>
-                  ))}
-                </ul>
-              </div>
-              </div>
-              </CardContent>
-            </Card>
-            </div>
-
-              {/* Tasks */}
-                <div className="grid gap-8 sm:grid-cols-3">
-                  {lessonTasks.map((task, i) => (
-                    <div
-                      key={i}
-                      id={`lesson-task-${i + 1}`}
-                    >
-                      <h4 className="mt-5 text-base font-semibold  text-[#ffa200]">Task {i + 1}</h4>
-                      <p className="mt-3 text-sm text-gray-600 leading-[1.8]">{task}</p>
-                    </div>
-                  ))}
-            </div>
-
-            </div>
-            {/* AI Assistant */}
-            <Card className="mt-8 shadow-xl border border-[#7622e5]/25 bg-gradient-to-br from-purple-50 via-white to-purple-100">
-              <div className="px-8 py-8 sm:px-10 sm:py-10 space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="rounded-xl bg-[#7622e5]/15 p-3 text-[#7622e5]">
-                    <Sparkles className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      AI Assistant: Your Always-On Coach
-                    </h3>
-                    <p className="text-base text-gray-600 leading-[1.7]">
-                    </p>
-                  </div>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-3">
-                  {[
-                    "Clarify lesson concepts in student-friendly language.",
-                    "Get hints that guide—not spoil—the solution.",
-                    "Share your code to receive quick feedback before moving on.",
-                  ].map((item, index) => (
-                    <div
-                      key={index}
-                      className="rounded-xl  bg-white/85 p-5 text-base text-gray-700 shadow-sm leading-[1.7]"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-          </ScrollArea>
-
-          <div className="mt-8 px-8 sm:px-12 lg:px-14 pb-9">
-                <Button
-                  onClick={handleCompleteLesson}
-                  size="lg"
-                  className="px-6 bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
-                >
-                  Complete Lesson & Continue
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+              {/* Section-based Lesson Content using mockLesson */}
+              <div className="space-y-12">
+                {mockLesson.sections.map((section) => (
+                  <LessonSectionComponent
+                    key={section.id}
+                    section={section}
+                    isCompleted={completedSections.includes(section.id)}
+                    userCode={userCode}
+                    output={ideOutput}
+                    onSectionComplete={handleSectionComplete}
+                    onPracticeError={(errorInfo) => {
+                      setLastPracticeError(errorInfo);
+                      // Optional: auto-open chat when practice fails
+                      setIsChatOpen(true);
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
-          
         </div>
 
         {/* Right - IDE */}
         <div
-          className="border-l border-gray-200 bg-gray-50 flex flex-col"
+          className="border-l border-gray-200 bg-white flex flex-col"
           style={{
             width: `${ideWidth}%`,
             minWidth: '300px',
             maxWidth: '60%'
           }}
         >
-          <div className="px-6 py-4 bg-white border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">
-              IDE
-            </h3>
-            <p className="text-sm text-gray-500">
-              Type your solution on the left, run it, and review the output below.
-            </p>
-          </div>
-          <div className="flex-1 p-6">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <WebIDE
               initialCode={userCode}
               onCodeChange={setUserCode}
+              onOutputChange={setIdeOutput}
               readOnly={false}
             />
           </div>
         </div>
+
+        {/* AI Chatbot */}
+        {
+          isChatOpen && (
+            <div className="w-64 border-l border-gray-200 bg-white flex flex-col transition-all duration-300">
+              <AIChatbot
+                context={`Lesson: ${currentLesson?.title || mockLesson.title}. ${lastPracticeError ? `Practice Error: ${lastPracticeError}` : ''} Output: ${ideOutput.join('\n') || 'No output yet'}`}
+                taskId={currentLesson?.id || mockLesson.id}
+                userCode={userCode}
+                userProgress={{
+                  completedSections: completedSections,
+                  output: ideOutput,
+                  sectionCount: mockLesson.sections.length,
+                  lastError: lastPracticeError,
+                }}
+                onClose={() => setIsChatOpen(false)}
+                visible={true}
+              />
+            </div>
+          )
+        }
+        {
+          !isChatOpen && (
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
+              style={{ backgroundColor: '#4285f4' }}
+              title="Open AI Chat"
+            >
+              <MessageCircle className="w-6 h-6 text-white" />
+            </button>
+          )
+        }
       </div>
-
-      <AIChatbot context={currentLesson.title} />
-      
     </div>
-
   );
 }

@@ -1,0 +1,9 @@
+{
+  "name": "edvance-sandbox-service",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@codesandbox/sdk": "^2.4.2",
+    "dotenv": "^16.4.5"
+  }
+}

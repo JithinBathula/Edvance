@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS projects (
     requirements JSONB DEFAULT '[]'::jsonb,
     tech_stack JSONB DEFAULT '[]'::jsonb,
     experience_level TEXT,
+    vm_type TEXT NOT NULL DEFAULT 'python' CHECK (vm_type IN ('python', 'javascript')),
+    repo_path TEXT,
+    repo_default_branch TEXT DEFAULT 'main',
+    codesandbox_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -259,4 +263,3 @@ CREATE TRIGGER update_user_course_progress_updated_at
     BEFORE UPDATE ON user_course_progress
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-

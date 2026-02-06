@@ -12,6 +12,7 @@ type Props = {
         session: any;
         outline?: Outline | null;
         experienceLevel: string;
+        vmType?: string;
     };
     onProjectReady: (project: any) => void;
     onBack: () => void;
@@ -20,6 +21,7 @@ type Props = {
 type Outline = {
     project_title: string;
     project_brief: string;
+    vm_type?: string;
     milestones: { subheading_title: string; description: string }[];
 };
 
@@ -42,6 +44,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
 
     const experienceLevel =
         requirements.experienceLevel || user.onboarding?.experienceLevel || 'beginner';
+    const vmType = requirements.vmType || 'python';
     const serializedSession = JSON.stringify(requirements.session ?? {}, null, 2);
 
     const generateOutline = async () => {
@@ -88,6 +91,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                     requirements: serializedSession,
                     experience_level: experienceLevel,
                     outline: outline,
+                    vm_type: vmType,
                 }),
             });
 
@@ -100,6 +104,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                 id: curriculum.project_id,
                 title: curriculum.project_title,
                 brief: curriculum.project_brief,
+                vm_type: curriculum.vm_type || vmType,
                 tasks: curriculum.milestones.flatMap((milestone: any, mIdx: number) =>
                     milestone.tasks.map((task: any, tIdx: number) => ({
                         id: task.id || `${mIdx}-${tIdx}`,
