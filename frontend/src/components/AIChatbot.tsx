@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { MessageCircle, Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
 import { BACKEND_URL } from '../utils/constants';
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -27,6 +26,11 @@ type Props = {
   visible?: boolean;
 };
 
+const DEFAULT_WELCOME_MESSAGE: Message = {
+  role: 'assistant',
+  content: "Hi! I'm your coding assistant. I can help you understand concepts, debug code, or provide hints. What would you like to know?",
+};
+
 export function AIChatbot({
   context,
   userProgress,
@@ -39,16 +43,47 @@ export function AIChatbot({
   onClose,
   visible = true
 }: Props) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your coding assistant. I can help you understand concepts, debug code, or provide hints. What would you like to know?",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([DEFAULT_WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history when component mounts or userId/projectId changes
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!userId || !projectId) return;
+
+      setIsLoadingHistory(true);
+      try {
+        const response = await fetch(`${BACKEND_URL}/assistant/history/${userId}/${projectId}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.success && data.messages && data.messages.length > 0) {
+          // Map the messages from the database format to our Message type
+          const historyMessages: Message[] = data.messages.map((m: any) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+          setMessages(historyMessages);
+        } else {
+          // No history, use default welcome message
+          setMessages([DEFAULT_WELCOME_MESSAGE]);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+        // Keep default message on error
+        setMessages([DEFAULT_WELCOME_MESSAGE]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
+  }, [userId, projectId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -136,47 +171,73 @@ export function AIChatbot({
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4 bg-gray-50/50">
-        <div ref={scrollRef} className="space-y-4">
-          {messages.map((message, i) => (
-            <div
-              key={i}
-              className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-            >
-              {message.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50/50" ref={scrollRef}>
+        <div className="space-y-4">
+          {isLoadingHistory ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+            </div>
+          ) : messages.map((message, i) => (
+            <div key={i} className="flex gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border bg-white border-gray-200">
+                {message.role === 'assistant' ? (
                   <Bot className="w-4 h-4 text-blue-600" />
-                </div>
-              )}
-              {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center shrink-0">
+                ) : (
                   <User className="w-4 h-4 text-purple-600" />
-                </div>
-              )}
-
+                )}
+              </div>
               <div
-                className={`rounded-2xl px-4 py-3 max-w-[85%] text-sm shadow-sm ${message.role === 'user'
-                    ? 'bg-purple-600 text-white rounded-tr-none'
-                    : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
+                className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user'
+                    ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                    : 'bg-white text-gray-700 border border-gray-100'
                   }`}
               >
-                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                {message.role === 'user' ? (
+                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-3 space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-3 space-y-1">{children}</ol>,
+                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        code: ({ inline, children }: any) =>
+                          inline ? (
+                            <code className="bg-gray-100 text-pink-600 px-1 py-0.5 rounded text-xs font-mono">
+                              {children}
+                            </code>
+                          ) : (
+                            <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap mb-3">
+                              <code>{children}</code>
+                            </pre>
+                          ),
+                        h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
           {isLoading && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
                 <Bot className="w-4 h-4 text-blue-600" />
               </div>
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
                 <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
                 <span className="text-xs text-gray-400">Thinking...</span>
               </div>
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {error && (
         <div className="flex items-center gap-2 text-orange-600 text-sm px-4 py-2 bg-orange-50 border-t border-orange-100">

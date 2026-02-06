@@ -24,8 +24,9 @@ def chat():
     data = request.json or {}
     message = data.get('message', '')
     task_id = data.get('task_id')
-    code = data.get('code', '')
+    user_id = data.get('user_id')
     project_id = data.get('project_id')
+    code = data.get('code', '')
     history = data.get('history', [])
 
     if not message:
@@ -72,6 +73,47 @@ def chat():
         }), 200
 
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@assistant_bp.route('/history/<user_id>/<project_id>', methods=['GET'])
+def get_history(user_id: str, project_id: str):
+    """
+    Get chat history for a user-project pair.
+
+    Response: { success, messages: [{ role, content, created_at }] }
+    """
+    try:
+        messages = get_chat_history(user_id, project_id)
+        return jsonify({
+            'success': True,
+            'messages': messages
+        }), 200
+    except Exception as e:
+        print(f"Error fetching chat history: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@assistant_bp.route('/history/<user_id>/<project_id>', methods=['DELETE'])
+def delete_history(user_id: str, project_id: str):
+    """
+    Clear chat history for a user-project pair.
+
+    Response: { success }
+    """
+    try:
+        clear_chat_history(user_id, project_id)
+        return jsonify({
+            'success': True
+        }), 200
+    except Exception as e:
+        print(f"Error clearing chat history: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
