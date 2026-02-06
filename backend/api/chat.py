@@ -29,15 +29,20 @@ def chat():
         message = data.get('message')
         conversation_history = data.get('history', [])
         session_id = data.get('session_id', 'default')
-        
+        # Fetch from frontend
+        user_profile = data.get('user_profile', {})
+
         if not message:
             return jsonify({'error': 'Message is required'}), 400
         
         def generate():
             try:
+                # TODO: ensure chat does not run the llm directly
+
                 for chunk in get_requirement_agent().process_message(
                     message=message,
                     conversation_history=conversation_history,
+                    user_profile=user_profile,
                     session_id=session_id
                 ):
                     yield f"data: {json.dumps(chunk)}\n\n"
@@ -86,7 +91,7 @@ def get_final_requirements(session_id: str):
     try:
         session_state = get_requirement_agent().get_session_state(session_id)
         
-        if not session_state.get('requirements_finalized'):
+        if not session_state.get('ready_to_plan'):
             return jsonify({
                 'status': 'error',
                 'message': 'Requirements not yet finalized in this session'

@@ -299,7 +299,7 @@ Focus on:
 Output valid JSON matching the schema exactly.
 """
 
-web_search_entry_stage_user_prompt = """
+web_search_user_prompt = """
 Analyze this project: "{projectIdea}"
 
 User Skills (context only):
@@ -349,13 +349,13 @@ Return JSON using the exact schema:
     If PROCEED or CHOOSE_OPTION: specific, actionable adjustments as before.
 """
 
-quality_check_entry_stage_user_prompt = """
+quality_check_user_prompt = """
 Evaluate Match:
 Project: "{projectIdea}"
 Tech Stack: {libraries}
 
 Student Profile:
-- Level: {userExperienceLevel}
+- Level: {experienceLevel}
 - Python Experience: {pythonExperience}
 
 STEP 1 — ETHICAL REVIEW (do this first):
@@ -381,7 +381,7 @@ Keep it concise (2-3 sentences total).
 
 suggest_alternative_projects_system_prompt = """
 You are a Creative Project Designer.
-Generate 3 new Python project ideas tailored to the student's level and interests.
+Generate 3 new Python project ideas tailored to the student's level and theme.
 
 Each project should be:
 - Appropriate for the student's current skill level
@@ -396,8 +396,8 @@ suggest_alternative_projects_user_prompt = """
 Generate {numberOfSuggestions} new project ideas.
 
 Context:
-- Level: {userExperienceLevel}
-- Interest Theme: {theme}
+- Level: {experienceLevel}
+- Theme: {theme}
 - Avoid Topics: {avoidTopics}
 - Completed Projects: {completedProjects}
 
