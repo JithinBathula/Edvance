@@ -12,7 +12,7 @@ AI-powered educational technology platform for project-based programming learnin
 
 **Backend** (`/backend`)
 - Flask 3.0 + Python
-- OpenAI API (gpt-4-turbo-preview)
+- OpenRouter API (Claude Opus 4.5, Claude Sonnet 4, GPT 5.2)
 - Supabase (PostgreSQL) for database
 - PyJWT for authentication
 
@@ -26,10 +26,12 @@ frontend/src/
 └── styles/         # CSS and Tailwind
 
 backend/
-├── api/            # Flask API endpoints
-├── agents/         # AI agents (planning, assistant, submission)
-├── services/       # Business logic
-├── schemas/        # Request/response schemas
+├── api/            # Flask API endpoints (11 blueprints)
+├── agents/         # AI agents (requirements, planning, submission, assistant)
+├── tools/          # Agent tool functions (requirement gathering)
+├── services/       # Business logic (cloud file storage)
+├── db/             # Supabase client + schema
+├── schemas/        # JSON schemas for LLM structured output
 ├── prompts/        # LLM system prompts
 └── pydantic_classes/  # Data validation models
 ```
@@ -60,5 +62,6 @@ cd backend && pip install -r requirements.txt && python app.py  # Port 8000
 
 ## Environment Variables
 
-- `OPENAI_API_KEY` - Required for AI features
-- `SUPABASE_URL`, `SUPABASE_KEY` - Database connection
+- `OPENROUTER_API_KEY` - Required for AI features (LLM access via OpenRouter)
+- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` - Database connection
+- `JWT_SECRET` - JWT signing secret for authentication
