@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
 import { BACKEND_URL } from '../utils/constants';
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -153,12 +154,41 @@ export function AIChatbot({
               )}
 
               <div
-                className={`rounded-2xl px-4 py-3 max-w-[85%] text-sm shadow-sm ${message.role === 'user'
+                className={`rounded-2xl px-4 py-3 max-w-[85%] min-w-0 text-sm shadow-sm overflow-hidden ${message.role === 'user'
                     ? 'bg-purple-600 text-white rounded-tr-none'
                     : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
                   }`}
               >
-                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                {message.role === 'user' ? (
+                  <p className="whitespace-pre-wrap leading-relaxed break-words">{message.content}</p>
+                ) : (
+                  <div className="prose prose-sm max-w-none overflow-hidden">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed break-words">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-3 space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-3 space-y-1">{children}</ol>,
+                        li: ({ children }) => <li className="leading-relaxed break-words">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        code: ({ inline, children }: any) =>
+                          inline ? (
+                            <code className="bg-gray-100 text-pink-600 px-1 py-0.5 rounded text-xs font-mono break-all">
+                              {children}
+                            </code>
+                          ) : (
+                            <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap break-all mb-3 overflow-hidden">
+                              <code>{children}</code>
+                            </pre>
+                          ),
+                        h1: ({ children }) => <h1 className="text-lg font-bold mb-2 break-words">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-base font-bold mb-2 break-words">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 break-words">{children}</h3>,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
