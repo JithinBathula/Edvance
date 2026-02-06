@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import ValidationError
 
-# --- ASSUMED IMPORTS ---
 from prompts import requirements_prompts as prompt_bank 
 from pydantic_classes.chat import WebSearchResult, QualityCheckResult, SuggestionResult
 # -----------------------
@@ -16,14 +15,12 @@ load_dotenv()
 
 
 class RequirementTools:
-    """Collection of tools for the planning stage, enforcing Pydantic output schemas."""
-
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY")
     )
     
-    # --- UTILITY FUNCTION FOR KEY CONVERSION ---
+    # utility functions for key conversion
     @staticmethod
     def _to_snake_case(name):
         """Converts PascalCase or camelCase string to snake_case."""
@@ -42,7 +39,7 @@ class RequirementTools:
             return [RequirementTools._convert_keys_to_snake_case(item) for item in data]
         else:
             return data
-    # --- END UTILITY FUNCTION ---
+  
 
     @staticmethod
     def get_tool_definitions() -> List[Dict[str, Any]]:
@@ -80,17 +77,66 @@ class RequirementTools:
         {
             "type": "function",
             "function": {
+                "name": "update_snapshot",
+                "description": "Refine or add details to the current project requirements based on user feedback.",
+                "strict": True,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "patch": {
+                            "type": "object",
+                            "properties": {
+                                "project_title": {"type": "string"},
+                                "project_summary": {"type": "string"},
+                                "constraints": {"type": "array", "items": {"type": "string"}},
+                                "must_haves": {"type": "array", "items": {"type": "string"}},
+                                "nice_to_haves": {"type": "array", "items": {"type": "string"}},
+                                "out_of_scope": {"type": "array", "items": {"type": "string"}},
+                                "assumptions": {"type": "array", "items": {"type": "string"}},
+                                "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
+                            },
+                            "required": [
+                                "project_title", "project_summary", "constraints", 
+                                "must_haves", "nice_to_haves", "out_of_scope", 
+                                "assumptions", "acceptance_criteria"
+                            ],
+                            "additionalProperties": False,
+                        },
+                        "note": {"type": "string", "description": "Brief explanation of what was refined."},
+                    },
+                    "required": ["patch", "note"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "mark_ready_to_plan",
-                "description": "Signal that requirements gathering is complete and provide a one-sentence summary.",
+                "description": "Finalize requirements gathering and return the updated requirement snapshot for handoff.",
                 "strict": True,
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "ready_to_plan": {"type": "boolean"},
-                        "summary": {"type": "string"}
+                        "snapshot": {
+                            "type": "object",
+                            "properties": {
+                                "project_title": {"type": "string"},
+                                "project_summary": {"type": "string"},
+                                "constraints": {"type": "array", "items": {"type": "string"}},
+                                "must_haves": {"type": "array", "items": {"type": "string"}},
+                                "nice_to_haves": {"type": "array", "items": {"type": "string"}},
+                                "out_of_scope": {"type": "array", "items": {"type": "string"}},
+                                "assumptions": {"type": "array", "items": {"type": "string"}},
+                                "acceptance_criteria": {"type": "array", "items": {"type": "string"}}
+                            },
+                            "required": ["project_title", "project_summary", "constraints", "must_haves", "nice_to_haves", "out_of_scope", "assumptions", "acceptance_criteria"],
+                            "additionalProperties": False
+                        },
                     },
-                    "required": ["ready_to_plan", "summary"],
-                    "additionalProperties": False
+            "required": ["ready_to_plan", "snapshot"],
+            "additionalProperties": False
                 }
             }
         },
@@ -117,16 +163,16 @@ class RequirementTools:
     @staticmethod
     def web_search(project_idea: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
         user_skills = user_skills or {}
-        system_prompt = prompt_bank.web_search_entry_stage_system_prompt
+        system_prompt = prompt_bank.web_search_system_prompt
         
-        user_prompt = prompt_bank.web_search_entry_stage_user_prompt.format(
+        user_prompt = prompt_bank.web_search_user_prompt.format(
             projectIdea=project_idea,
             userSkills=json.dumps(user_skills, indent=2)
         )
 
         try:
             response = RequirementTools.client.chat.completions.create(
-                model="gpt-5.2", 
+                model="openai/gpt-5.2", 
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -136,10 +182,8 @@ class RequirementTools:
             )
 
             raw_json = json.loads(response.choices[0].message.content)
-            
-            # CRITICAL FIX 1: Convert ALL keys to snake_case before Pydantic validation
+            # FIX: Convert ALL keys to snake_case before Pydantic validation
             standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
-
             validated_output = WebSearchResult(**standardized_json) 
             
             return validated_output.model_dump()
@@ -157,23 +201,23 @@ class RequirementTools:
     @staticmethod
     def quality_check(project_idea: str, libraries: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
         user_skills = user_skills or {}
-        system_prompt = prompt_bank.quality_check_entry_stage_system_prompt
+        system_prompt = prompt_bank.quality_check_system_prompt
         
-        theme = user_skills.get("theme", "general programming")
+        theme = user_skills.get("theme")
         completed_projects_str = ", ".join(user_skills.get("completedProjects", []) or []) or "None listed"
 
-        full_prompt = prompt_bank.quality_check_entry_stage_user_prompt.format(
+        full_prompt = prompt_bank.quality_check_user_prompt.format(
             projectIdea=project_idea,
             libraries=str(libraries),
-            userExperienceLevel=user_skills.get("userExperienceLevel", "beginner"),
-            pythonExperience=user_skills.get("pythonExperience", "None/Just starting"),
+            experienceLevel=user_skills.get("experienceLevel"),
+            pythonExperience=user_skills.get("pythonExperience"),
             theme=theme,
             completedProjects=completed_projects_str
         )
 
         try:
             response = RequirementTools.client.chat.completions.create(
-                model="gpt-5.2",
+                model="openai/gpt-5.2",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": full_prompt}
@@ -183,24 +227,18 @@ class RequirementTools:
             )
             
             raw_json = json.loads(response.choices[0].message.content)
-            
-            # CRITICAL FIX 2: Convert ALL keys to snake_case before Pydantic validation
             standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
 
-            # --- ERROR TOLERANCE FOR QUALITY CHECK ---
-            # Handle LLM returning 'match' (old key) instead of 'action' (new key)
+            # error tolerance for common LLM mistakes
             if 'match' in standardized_json and 'action' not in standardized_json:
                 standardized_json['action'] = standardized_json.pop('match')
             
-            # Ensure 'suggested_modifications' is present if LLM omits it
+            # ensure 'suggested_modifications' is present if LLM omits it
             if 'suggested_modifications' not in standardized_json:
                 standardized_json['suggested_modifications'] = []
-            # --- END ERROR TOLERANCE ---
-
 
             validated_output = QualityCheckResult(**standardized_json)
-            
-            final_action = validated_output.action.lower()
+            final_action = (validated_output.action or "").lower()
 
             return {
                 **validated_output.model_dump(),
@@ -232,7 +270,7 @@ class RequirementTools:
 
         full_prompt = prompt_bank.suggest_alternative_projects_user_prompt.format(
             numberOfSuggestions=numberOfSuggestions,
-            userExperienceLevel=userSkills.get("userExperienceLevel", "beginner"),
+            experienceLevel=userSkills.get("experienceLevel", "beginner"),
             theme=userSkills.get("theme", "general programming"),
             avoidTopics=avoid_topics_str,
             completedProjects=completed_projects_str
@@ -240,7 +278,7 @@ class RequirementTools:
 
         try:
             response = RequirementTools.client.chat.completions.create(
-                model="gpt-5.2",
+                model="openai/gpt-5.2",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": full_prompt}
@@ -250,10 +288,7 @@ class RequirementTools:
             )
 
             raw_json = json.loads(response.choices[0].message.content)
-            
-            # CRITICAL FIX 3: Convert ALL keys to snake_case before Pydantic validation
             standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
-
             validated_output = SuggestionResult(**standardized_json)
             
             return {
@@ -267,3 +302,4 @@ class RequirementTools:
                 "suggestions": [],
                 "status": "failed"
             }
+
