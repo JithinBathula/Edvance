@@ -26,6 +26,11 @@ type Props = {
   visible?: boolean;
 };
 
+const DEFAULT_WELCOME_MESSAGE: Message = {
+  role: 'assistant',
+  content: "Hi! I'm your coding assistant. I can help you understand concepts, debug code, or provide hints. What would you like to know?",
+};
+
 export function AIChatbot({
   context,
   userProgress,
@@ -38,16 +43,47 @@ export function AIChatbot({
   onClose,
   visible = true
 }: Props) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your coding assistant. I can help you understand concepts, debug code, or provide hints. What would you like to know?",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([DEFAULT_WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history when component mounts or userId/projectId changes
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!userId || !projectId) return;
+
+      setIsLoadingHistory(true);
+      try {
+        const response = await fetch(`${BACKEND_URL}/assistant/history/${userId}/${projectId}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.success && data.messages && data.messages.length > 0) {
+          // Map the messages from the database format to our Message type
+          const historyMessages: Message[] = data.messages.map((m: any) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+          setMessages(historyMessages);
+        } else {
+          // No history, use default welcome message
+          setMessages([DEFAULT_WELCOME_MESSAGE]);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+        // Keep default message on error
+        setMessages([DEFAULT_WELCOME_MESSAGE]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
+  }, [userId, projectId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -137,7 +173,11 @@ export function AIChatbot({
       {/* Messages Area */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50/50" ref={scrollRef}>
         <div className="space-y-4">
-          {messages.map((message, i) => (
+          {isLoadingHistory ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+            </div>
+          ) : messages.map((message, i) => (
             <div key={i} className="flex gap-3">
               <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border bg-white border-gray-200">
                 {message.role === 'assistant' ? (

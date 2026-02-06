@@ -548,7 +548,7 @@ def update_user_course_progress(
     """
     # Check if progress exists
     existing = get_user_course_progress(user_id, course_id)
-    
+
     if existing:
         # Update existing
         update_data = {
@@ -556,7 +556,7 @@ def update_user_course_progress(
         }
         if current_lesson_id:
             update_data["current_lesson_id"] = current_lesson_id
-            
+
         result = supabase.table("user_course_progress").update(update_data).eq("user_id", user_id).eq("course_id", course_id).execute()
     else:
         # Create new
@@ -567,7 +567,53 @@ def update_user_course_progress(
             "current_lesson_id": current_lesson_id
         }
         result = supabase.table("user_course_progress").insert(progress_data).execute()
-    
+
     if result.data:
         return result.data[0]
     raise Exception("Failed to update course progress")
+
+
+# =============================================================================
+# CHAT MESSAGE OPERATIONS
+# =============================================================================
+
+def save_chat_message(
+    user_id: str,
+    project_id: str,
+    role: str,
+    content: str
+) -> Dict[str, Any]:
+    """
+    Save a chat message for a user-project pair.
+    """
+    if role not in ("user", "assistant"):
+        raise ValueError(f"Invalid role: {role}")
+
+    message_data = {
+        "user_id": user_id,
+        "project_id": project_id,
+        "role": role,
+        "content": content
+    }
+
+    result = supabase.table("chat_messages").insert(message_data).execute()
+
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to save chat message")
+
+
+def get_chat_history(user_id: str, project_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Get chat history for a user-project pair, ordered by creation time.
+    """
+    result = supabase.table("chat_messages").select("*").eq("user_id", user_id).eq("project_id", project_id).order("created_at", desc=False).limit(limit).execute()
+    return result.data or []
+
+
+def clear_chat_history(user_id: str, project_id: str) -> bool:
+    """
+    Clear all chat messages for a user-project pair.
+    """
+    result = supabase.table("chat_messages").delete().eq("user_id", user_id).eq("project_id", project_id).execute()
+    return True
