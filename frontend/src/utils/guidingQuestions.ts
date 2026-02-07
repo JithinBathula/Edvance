@@ -30,35 +30,22 @@ export const GUIDING_QUESTIONS = [  {
     ]
   },
   {
-    key: 'coreFunction',
-    text: "What is the main functionality of this project? (Select all that apply)",
-    multiSelect: true, 
-    options: [
-      { 
-        id: 'show', 
-        label: 'Show Information', 
-        value: 'display',
-        desc: 'Display information like news, weather, profiles, or a portfolio.' 
-      },
-      { 
-        id: 'track', 
-        label: 'Save & Track', 
-        value: 'crud',
-        desc: 'Store data like a to-do list, diary, or inventory.' 
-      },
-      { 
-        id: 'solve', 
-        label: 'Solve & Calculate', 
-        value: 'compute',
-        desc: 'Taking an input and computing an answer (like a Converter).' 
-      },
-      { 
-        id: 'interact', 
-        label: 'Interact', 
-        value: 'interactive',
-        desc: 'Respond to user actions or chat-style interaction.' 
-      }
-    ]
+    key: 'projectIdea',
+    text: "What is the project idea you have in mind?",
+    inputType: 'text',
+    placeholder: "Describe your project idea e.g., Finance tracker, Tic tac toe game..."
+  },
+  {
+    key: 'mainFeatures',
+    text: "What are the must-have features for your project?",
+    inputType: 'text',
+    placeholder: "e.g., Authentication, Chatbot, Dashboard..."
+  },
+  {
+    key: 'objective',
+    text: "What do you want to achieve with this project?",
+    inputType: 'text',
+    placeholder: "What problem or opportunity are you addressing?"
   },
   {
   key: 'timeline',
@@ -89,23 +76,5 @@ export const GUIDING_QUESTIONS = [  {
       desc: 'Solid build: a few features, nicer UI, and basic testing/debugging.'
     }
   ]
-},
-  {
-    key: 'mainFeatures',
-    text: "What are the must-have features for your project?",
-    inputType: 'text',
-    placeholder: "e.g., Authentication, Chatbot, Dashboard..."
-  },
-  {
-    key: 'objective',
-    text: "What do you want to achieve with this project?",
-    inputType: 'text',
-    placeholder: "What problem or opportunity are you addressing?"
-  },
-  {
-    key: 'interest',
-    text: "Finally, pick a fun theme! What is a hobby or topic you would love to integrate with this project?",
-    inputType: 'text',
-    placeholder: "e.g., Anime, Soccer, K-Pop, Gardening, Space..."
-  }
+}
 ];

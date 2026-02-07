@@ -209,10 +209,9 @@ class RequirementTools:
         full_prompt = prompt_bank.quality_check_user_prompt.format(
             projectIdea=project_idea,
             libraries=str(libraries),
-            experienceLevel=user_skills.get("experienceLevel"),
-            pythonExperience=user_skills.get("pythonExperience"),
-            theme=theme,
-            completedProjects=completed_projects_str
+            educationLevel=user_skills.get("educationLevel"),
+            schoolExperience=user_skills.get("schoolExperience"),
+            pythonLevel=user_skills.get("pythonLevel"),
         )
 
         try:
@@ -270,8 +269,9 @@ class RequirementTools:
 
         full_prompt = prompt_bank.suggest_alternative_projects_user_prompt.format(
             numberOfSuggestions=numberOfSuggestions,
-            experienceLevel=userSkills.get("experienceLevel", "beginner"),
-            theme=userSkills.get("theme", "general programming"),
+            schoolExperience=userSkills.get("schoolExperience", "beginner"),
+            pythonLevel=userSkills.get("pythonLevel", "level-1"),
+            biggestChallenges=userSkills.get("biggestChallenges", "none"),
             avoidTopics=avoid_topics_str,
             completedProjects=completed_projects_str
         )

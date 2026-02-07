@@ -5,16 +5,19 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import time
 
+from requests import session
+
 from tools.requirement import RequirementTools
 from prompts import requirements_prompts
 
 load_dotenv()
 
 DEFAULT_USER_SKILLS = {
-    "experienceLevel": "beginner",
-    "pythonExperience": "Just starting out",
-    "theme": "web development",
-    "goal": "Build projects for my portfolio"
+    "educationLevel": "primary",
+    "schoolExperience": "beginner",
+    "pythonLevel": "level-1",
+    "biggestChallenges": "planning",
+    "learningMode": "guided"
     # TODO: add completed projects in database as well
 }
 
@@ -99,10 +102,11 @@ class RequirementGatheringAgent:
     def _build_system_prompt(self, user_profile: Dict[str, Any], session: Dict[str, Any]) -> str:
         """Construct the system prompt with user profile AND current snapshot."""
         base_prompt = requirements_prompts.requirements_agent_prompt.format(
-        experienceLevel=user_profile["experienceLevel"],
-        pythonExperience=user_profile["pythonExperience"],
-        theme=user_profile["theme"],
-        goal=user_profile["goal"]
+        educationLevel=user_profile["educationLevel"],
+        schoolExperience=user_profile["schoolExperience"],
+        pythonLevel=user_profile["pythonLevel"],
+        biggestChallenges=user_profile["biggestChallenges"],
+        learningMode=user_profile["learningMode"]
         )
         
         # Add current snapshot context
@@ -112,13 +116,15 @@ class RequirementGatheringAgent:
         CURRENT REQUIREMENTS SNAPSHOT:
         - Title: {snapshot.get('project_title', 'Not set')}
         - Summary: {snapshot.get('project_summary', 'Not set')}
-        - Must-haves: {len(snapshot.get('must_haves', []))} items
-        - Nice-to-haves: {len(snapshot.get('nice_to_haves', []))} items
-        - Out of scope: {len(snapshot.get('out_of_scope', []))} items
+        - Constraints: {snapshot.get('constraints', [])} items
+        - Must-haves: {snapshot.get('must_haves', [])} items
+        - Nice-to-haves: {snapshot.get('nice_to_haves', [])} items
+        - Out of scope: {snapshot.get('out_of_scope', [])} items
+        - Assumptions: {snapshot.get('assumptions', [])} items
+        - Acceptance Criteria: {snapshot.get('acceptance_criteria', [])} items
 
         Rules:
             - Use update_snapshot to modify requirements.
-            - If the user changes project direction, call update_snapshot with is_revision=true and fields_to_clear to reset relevant fields
             - Only call mark_ready_to_plan when requirements are truly finalized
             - Avoid calling the same tool repeatedly unless user provides new information
         """
@@ -304,12 +310,14 @@ class RequirementGatheringAgent:
                 }
             )
 
+        session['turn_count'] = session.get('turn_count', 0) + 1
+        current_turn = session['turn_count']
+
         # --- THE STREAMING LOOP ---
         iteration_count = 0
         while iteration_count < MAX_ITERATIONS:
             iteration_count += 1
-            print(f"Iteration {iteration_count}/{MAX_ITERATIONS}")
-            
+            print(f"Turn {current_turn} | Iteration {iteration_count}/{MAX_ITERATIONS}")            
             try:
                 response = self.client.chat.completions.create(
                     model="openai/gpt-5.2",
@@ -394,7 +402,7 @@ class RequirementGatheringAgent:
 
             except Exception as e:
                 import traceback
-                traceback.print_exc() # This will print the exact line and file in your console
+                traceback.print_exc()
                 yield {"error": str(e), "content": "\n\n**Internal Error:** Check backend logs for details."}
                 return
 
@@ -417,14 +425,35 @@ class RequirementGatheringAgent:
                         "quality_check_history": session["tool_context"]["quality_check_history"],
                     },
                 }
+                print("\n" + "!"*30 + " HANDOFF DATA CHECK " + "!"*30)
+    
+                # 1. Print the full tech analysis history values
+                tech_hist = session.get("tool_context", {}).get("tech_analysis_history", [])
+                print(f"TECH ANALYSIS VALUES ({len(tech_hist)} items):")
+                for item in tech_hist:
+                    print(f"  - {item}")
+
+                # 2. Print the full quality check history values
+                qual_hist = session.get("tool_context", {}).get("quality_check_history", [])
+                print(f"QUALITY CHECK VALUES ({len(qual_hist)} items):")
+                for item in qual_hist:
+                    print(f"  - {item}")
+
+                print("-" * 20)
+                print("MESSAGES HISTORY:")
+                for i, msg in enumerate(messages):
+                    role = msg.get("role")
+                    # Truncate content for readability in logs if it's too long
+                    content = (msg.get("content")[:100] + "...") if msg.get("content") and len(msg.get("content")) > 100 else msg.get("content")
+                    print(f"  [{i}] {role.upper()}: {content}")
+
                 return
 
         # Max iterations reached BUT DO NOT auto-handoff
         if iteration_count >= MAX_ITERATIONS and not session.get("ready_to_plan"):
             yield {
                 "content": (
-                    "\n\nI can’t hand off to planning yet because requirements weren’t explicitly finalized "
-                    "(mark_ready_to_plan wasn’t called with ready_to_plan=true). "
+                    "\n\nI can’t hand off to planning yet because requirements weren’t explicitly finalized."
                     "Tell me what to finalize or confirm, and I’ll proceed."
                 )
             }

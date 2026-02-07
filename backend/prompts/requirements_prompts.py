@@ -196,9 +196,11 @@ These principles run underneath every interaction, not just edge cases:
 ───────────────────────────────────────────────
  STUDENT CONTEXT
 ───────────────────────────────────────────────
-- Level: {experience}
-- History: {python_knowledge}
-- Interests: {interests}
+- Education Level: {educationLevel}
+- Python Level: {pythonLevel}
+- School Experience: {schoolExperience}
+- Learning Mode: {learningMode}
+- Biggest Challenges: {biggestChallenges}
 
 ───────────────────────────────────────────────
  HOW THE CONVERSATION FLOWS
@@ -286,7 +288,7 @@ ENDING (MANDATORY FORMAT):
 # TOOL 1: WEB SEARCH  (tech-stack analysis — backend, not user-facing)
 # ==============================================================================
 
-web_search_entry_stage_system_prompt = """
+web_search_system_prompt = """
 You are a Python Software Architect.
 Produce a concise but technically thorough JSON analysis of the project.
 
@@ -317,7 +319,7 @@ Your JSON MUST contain exactly:
 # TOOL 2: QUALITY CHECK  (skill-matching — backend, not user-facing)
 # ==============================================================================
 
-quality_check_entry_stage_system_prompt = """
+quality_check_system_prompt = """
 You are a Python Educator.
 
 Assess whether the project matches the student's abilities AND whether it is
@@ -355,8 +357,9 @@ Project: "{projectIdea}"
 Tech Stack: {libraries}
 
 Student Profile:
-- Level: {experienceLevel}
-- Python Experience: {pythonExperience}
+- Education Level: {educationLevel}
+- Python Level: {pythonLevel}
+- School Experience: {schoolExperience}
 
 STEP 1 — ETHICAL REVIEW (do this first):
   Think about what this project would actually DO once built and used by
@@ -381,7 +384,7 @@ Keep it concise (2-3 sentences total).
 
 suggest_alternative_projects_system_prompt = """
 You are a Creative Project Designer.
-Generate 3 new Python project ideas tailored to the student's level and theme.
+Generate 3 new Python project ideas tailored to the student's level.
 
 Each project should be:
 - Appropriate for the student's current skill level
@@ -396,8 +399,9 @@ suggest_alternative_projects_user_prompt = """
 Generate {numberOfSuggestions} new project ideas.
 
 Context:
-- Level: {experienceLevel}
-- Theme: {theme}
+- Python Level: {pythonLevel}
+- School Experience: {schoolExperience}
+- Biggest Challenges: {biggestChallenges}
 - Avoid Topics: {avoidTopics}
 - Completed Projects: {completedProjects}
 

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
+import { cn } from './ui/utils';
 
 interface ChatMessage {
   id: string;
@@ -24,7 +25,7 @@ type Props = {
 // Helper function to generate technical prompt
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
   console.log("[System] Generating prompt to pass to LLM from user answers:", answers);
-  const { projectType, coreFunction, timeline, mainFeatures, objective, interest } = answers;
+  const { projectType, projectIdea, timeline, mainFeatures, objective } = answers;
 
   const formatAnswer = (answer: string | string[]) => {
     return Array.isArray(answer) ? answer.join(', ') : answer;
@@ -35,11 +36,10 @@ const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
     
     **User Choices:**
     - **Type:** ${formatAnswer(projectType).toUpperCase()}
-    - **Goal:** ${formatAnswer(coreFunction)}
-    - **Timeline:** ${timeline}
+    - **Idea:** ${projectIdea}
     - **Main Features:** ${mainFeatures}
     - **Objective:** ${objective}
-    - **Interest:** ${interest}
+    - **Timeline:** ${timeline}
     `;
 
     console.log("[System] Generated system prompt:", prompt);
@@ -84,9 +84,7 @@ async function streamChatResponse(
             const dataString = line.substring(6);
             const data = JSON.parse(dataString);
 
-            if (data.content) {
-              onChunk(data.content);
-            }
+            onChunk(data);
 
             if (data.done) {
               streamFinished = true;
@@ -195,23 +193,30 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         history: history,
         session_id: getSessionId(user),
         user_profile: {
-          experienceLevel: user.onboarding?.experienceLevel || 'intermediate',
-          pythonExperience: user.onboarding?.pythonExperience || 'Just starting out',
-          theme: user.onboarding?.theme || 'finance',
-          goal: user.onboarding?.goal || 'Build projects for my portfolio',
+          educationLevel: user.onboarding?.educationLevel || 'primary',
+          schoolExperience: user.onboarding?.schoolExperience || 'beginner',
+          pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+          biggestChallenges: user.onboarding?.biggestChallenges || 'planning',
+          learningMode: user.onboarding?.learningMode || 'guided',
         },
         guiding_complete: !!options.skipUserBubble,      
       },
-      (chunk)=> {
-        fullResponse += chunk;
+      (data: any) => { // 'data' is now the full JSON object from backend
+      
+      // 1. Handle Text Content
+      if (data.content) {
         setMessages(prev => prev.map(msg => 
-          msg.id === assistantId ? { ...msg, content: (msg.content || '') + chunk } : msg
+          msg.id === assistantId ? { ...msg, content: (msg.content || '') + data.content } : msg
         ));
+      }
 
-        if (fullResponse.toLowerCase().includes('hand you over to the planning')) {
-          triggerHandoff();
-        }
-      }, 
+      // 2. Handle Backend-Driven Handoff Trigger
+      if (data.handoff && data.session_data) {
+        console.log("[Handoff] Backend signaled ready. Data received:", data.session_data);
+        // Pass the session data directly to your handoff function
+        triggerHandoff(data.session_data);
+      }
+    },
       () => {
         console.log("[Chat] Stream Finished");
         setIsLoading(false);
@@ -309,23 +314,18 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   };
 
   // 7. Handoff to Planning Phase
-  const triggerHandoff = async () => {
+  const triggerHandoff = async (backendSessionData: any) => {
     console.log("[Handoff] Triggering project planning handoff...");
     if (isProcessingHandoff) return;
     setIsProcessingHandoff(true);
 
     setTimeout(async () => {
       try {
-        const reqRes = await fetch(`${BACKEND_URL}/chat/requirements/${user.id || 'default'}`);
-        const reqJson = await reqRes.json();
-        if (reqJson.status !== 'success') throw new Error("Failed to get requirements");
-
-        const sessionData = reqJson.requirements.session_data;
         const outlineRes = await fetch(`${BACKEND_URL}/planning/outline`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              session: sessionData,
+              session: backendSessionData,
               experience_level: user.onboarding?.pythonLevel || 'level-1',
             }),
         });
@@ -334,7 +334,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         
         toast.success("Plan Created!");
         onProjectCreated({
-            session: sessionData,
+            session: backendSessionData,
             outline: outlineJson,
             experienceLevel: user.onboarding?.pythonLevel || 'level-1',
         });
@@ -463,38 +463,49 @@ useEffect(() => {
                         Array.isArray(guidingAnswers[currentQuestion.key]) &&
                         (guidingAnswers[currentQuestion.key] as string[]).includes(opt.value);
                         
-                      return (
-                        <Button 
-                          key={opt.id} 
-                          variant="outline" 
-                          className={`h-auto py-4 flex flex-col gap-2 whitespace-normal text-center transition-all ${
-                            isSelected 
-                              ? 'border-orange-500 border-2 bg-orange-100 hover:bg-orange-200 text-orange-900 shadow-sm' 
-                              : 'hover:border-orange-600 hover:focus-visible:border-ring hover:bg-orange-60 hover:backdrop-blur-sm'
-                          }`}
-                          onClick={() => handleGuidingStep(opt.value, opt.label)}
-                        >
-                          <div className="flex items-center gap-2 justify-center w-full">
-                             {isSelected && <Check className="w-3 h-3 text-orange-600" />}
-                             <span className="font-semibold">{opt.label}</span>
-                          </div>
-                          <span className="text-xs text-gray-500 font-normal">{opt.desc}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Confirm Button for Multi Select - Fixed Visibility */}
-                  {currentQuestion.multiSelect && (
-                    <div className="flex justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
-                      <Button 
-                        onClick={handleMultiSelectContinue}
+                  return (
+                    <Button 
+                      key={opt.id}  
+                      variant="user_multi_option"
+                      className={cn(
+                        "group h-auto py-6 flex flex-col gap-2 transition-all duration-200 resize-none pointer-events-auto cursor-pointer",
+                        isSelected 
+                          ? "bg-amber-400 shadow-md" 
+                          : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-gray-500 hover:bg-gray-200"
+                      )}
+                      onClick={() => handleGuidingStep(opt.value, opt.label)}
+                    >
+                      <div className="flex items-center gap-2 justify-center w-full">
+                        {isSelected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                        <span className={cn(
+                          "font-semibold", 
+                          isSelected ? "text-white" : "text-gray-800"
+                        )}>
+                          {opt.label}
+                        </span>
+                      </div>
+                      
+                      <span className={cn(
+                        "text-xs font-normal px-4", 
+                        isSelected ? "text-white" : "text-gray-500"
+                      )}>
+                        {opt.desc}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              {currentQuestion.multiSelect && (
+                <div className="flex justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
+                  <Button 
+                    onClick={handleMultiSelectContinue}
                         disabled={
                           !(guidingAnswers[currentQuestion.key] && 
                             Array.isArray(guidingAnswers[currentQuestion.key]) && 
                             (guidingAnswers[currentQuestion.key] as string[]).length > 0)
                         }
-                        className="whitespace-normal bg-white hover:bg-orange-500 text-xs text-gray-500 font-normal border border-orange-800 px-8 py-2 shadow-md z-10"
+                        className="whitespace-normal bg-white hover:border-gray-500 hover:bg-gray-200 text-xs text-gray-500 font-normal border px-8 py-2 shadow-md z-10 pointer-events-auto cursor-pointer"
                       >
                         Confirm Selection 
                       </Button>
