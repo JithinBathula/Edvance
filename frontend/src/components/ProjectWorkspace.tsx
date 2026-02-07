@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { User } from "../App";
 import { BACKEND_URL } from "../utils/constants";
-import { CodeSandboxIDE } from "./CodeSandboxIDE";
+import { EditorIDE } from "./EditorIDE";
 import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
@@ -838,7 +838,7 @@ export function ProjectWorkspace({
                   Loading...
                 </div>
               ) : (
-                <CodeSandboxIDE
+                <EditorIDE
                   files={projectFiles}
                   onFilesChange={setProjectFiles}
                   onSave={saveFiles}
