@@ -145,9 +145,8 @@ function parseTextToNodes(
   const nodes: React.ReactNode[] = [];
   let keyCounter = 0;
 
-  // Split on: backtick code, JSX self-closing tags, JSX opening tags
-  // Captures: `code`, <Component />, <Component>
-  const codeRegex = /(`[^`]+`)|(<[A-Z][a-zA-Z0-9]*\s*\/>)|(<[A-Z][a-zA-Z0-9]*>)|('([^'\s]+)')/g;
+  // Split on: backtick code, JSX tags, single-quoted code, function calls like method()
+  const codeRegex = /(`[^`]+`)|(<[A-Z][a-zA-Z0-9]*\s*\/>)|(<[A-Z][a-zA-Z0-9]*>)|('([^'\s]+)')|(\b[a-z_][a-z0-9_]*\(\))/gi;
   let lastIndex = 0;
   let m: RegExpExecArray | null;
 
@@ -181,6 +180,13 @@ function parseTextToNodes(
       nodes.push(
         <code key={`code-${keyCounter++}`} className="inline-code">
           {code}
+        </code>
+      );
+    } else if (matched.match(/^[a-z_]/i) && matched.endsWith("()")) {
+      // Function call like method(), split(), etc.
+      nodes.push(
+        <code key={`code-${keyCounter++}`} className="inline-code">
+          {matched}
         </code>
       );
     }
@@ -776,25 +782,22 @@ export function ProjectWorkspace({
                   {showHints && (
                     <div className="mt-3 rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(to bottom right, #ecfeff, white)', border: '1px solid #cffafe' }}>
                       <div className="space-y-5">
-                        {safeCurrentTask.hints.map((hint, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-start gap-4"
-                          >
-                            <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5" style={{ backgroundColor: '#cffafe', color: '#0891b2' }}>
-                              {idx + 1}
-                            </span>
-                            <p
-                              className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5"
-                              dangerouslySetInnerHTML={{
-                                __html: hint
-                                  .replace(/'([^']+)'/g, '<code class="inline-code">$1</code>')
-                                  .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-                                  .replace(/\b([a-z_][a-z0-9_]*\(\))/gi, '<code class="inline-code">$1</code>')
-                              }}
-                            />
-                          </div>
-                        ))}
+                        {(() => {
+                          const hintMatchedTerms = new Set<string>();
+                          return safeCurrentTask.hints.map((hint, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-start gap-4"
+                            >
+                              <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5" style={{ backgroundColor: '#cffafe', color: '#0891b2' }}>
+                                {idx + 1}
+                              </span>
+                              <p className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
+                                {parseTextToNodes(hint, hintMatchedTerms, handleAskTutor)}
+                              </p>
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </div>
                   )}
