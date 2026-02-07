@@ -132,6 +132,7 @@ export function EditorIDE({
   const [outputOpen, setOutputOpen] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [webConsole, setWebConsole] = useState<OutputLine[]>([]);
+  const [webPanel, setWebPanel] = useState<'preview' | 'console'>('preview');
   const inputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -590,7 +591,7 @@ export function EditorIDE({
             </div>
 
             {/* Monaco Editor */}
-            <div style={{ flex: mode === 'web' ? '1 1 50%' : '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: '1 1 0', minHeight: 0, overflow: 'hidden' }}>
               <Editor
                 height="100%"
                 theme="edvance-dark"
@@ -619,20 +620,68 @@ export function EditorIDE({
               />
             </div>
 
-            {/* Web Preview (web mode) */}
+            {/* Web Preview + Console (web mode) */}
             {mode === 'web' && (
               <div className="ide-preview">
                 <div className="ide-preview-header">
-                  <Globe2 className="w-3.5 h-3.5" />
-                  Preview
+                  <button
+                    onClick={() => setWebPanel('preview')}
+                    className={`ide-preview-tab ${webPanel === 'preview' ? 'active' : ''}`}
+                  >
+                    <Globe2 className="w-3.5 h-3.5" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => setWebPanel('console')}
+                    className={`ide-preview-tab ${webPanel === 'console' ? 'active' : ''}`}
+                  >
+                    <TerminalSquare className="w-3.5 h-3.5" />
+                    Console
+                    {webConsole.length > 0 && (
+                      <span className="ide-preview-badge">{webConsole.length}</span>
+                    )}
+                  </button>
+                  {webPanel === 'console' && webConsole.length > 0 && (
+                    <button
+                      onClick={() => setWebConsole([])}
+                      className="ml-auto p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200"
+                      title="Clear console"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
                 <iframe
                   ref={iframeRef}
                   sandbox="allow-scripts allow-same-origin"
                   srcDoc={debouncedSrcdoc}
-                  style={{ flex: 1, width: '100%', border: 'none', background: '#fff' }}
+                  style={{
+                    flex: 1,
+                    width: '100%',
+                    border: 'none',
+                    background: '#fff',
+                    display: webPanel === 'preview' ? 'block' : 'none',
+                  }}
                   title="Web Preview"
                 />
+                {webPanel === 'console' && (
+                  <pre className="ide-output-content" style={{ flex: 1, minHeight: 0 }}>
+                    {webConsole.length === 0 ? (
+                      <span className="ide-output-placeholder">
+                        Console output will appear here...
+                      </span>
+                    ) : (
+                      webConsole.map((line, i) => (
+                        <span
+                          key={i}
+                          className={line.type === 'stderr' ? 'ide-output-error' : ''}
+                        >
+                          {line.text}{'\n'}
+                        </span>
+                      ))
+                    )}
+                  </pre>
+                )}
               </div>
             )}
           </div>
@@ -693,53 +742,6 @@ export function EditorIDE({
         </div>
       )}
 
-      {/* Console Panel (Web mode) */}
-      {mode === 'web' && (
-        <div className={`ide-output ${outputOpen ? 'open' : ''}`}>
-          <div className="ide-output-header" onClick={() => setOutputOpen(!outputOpen)}>
-            <div className="ide-output-title">
-              <TerminalSquare className="w-4 h-4" />
-              <span>Console</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {outputOpen && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setWebConsole([]);
-                  }}
-                  className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200"
-                  title="Clear console"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {outputOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </div>
-          </div>
-          {outputOpen && (
-            <div className="ide-output-body">
-              <pre className="ide-output-content">
-                {webConsole.length === 0 ? (
-                  <span className="ide-output-placeholder">
-                    Console output will appear here...
-                  </span>
-                ) : (
-                  webConsole.map((line, i) => (
-                    <span
-                      key={i}
-                      className={line.type === 'stderr' ? 'ide-output-error' : ''}
-                    >
-                      {line.text}
-                    </span>
-                  ))
-                )}
-                <span ref={outputEndRef} />
-              </pre>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

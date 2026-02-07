@@ -67,11 +67,11 @@ async function loadPyodideRuntime(): Promise<any> {
       indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.7/full/',
     });
 
-    // Install pyodide-http for requests/urllib support
+    // Install requests + pyodide-http for HTTP support
     await pyodide.loadPackage('micropip');
     await pyodide.runPythonAsync(`
 import micropip
-await micropip.install('pyodide-http')
+await micropip.install(['pyodide-http', 'requests'])
 import pyodide_http
 pyodide_http.patch_all()
 `);
@@ -264,6 +264,11 @@ if '' not in sys.path:
     postResult(true);
   } catch (err: any) {
     const message = err?.message || String(err);
+    // SystemExit is normal (sys.exit()) — not an error
+    if (message.includes('SystemExit')) {
+      postResult(true);
+      return;
+    }
     // Filter out Pyodide internals from the traceback
     const cleaned = message
       .split('\n')
