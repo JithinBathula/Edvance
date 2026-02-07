@@ -2,8 +2,9 @@
 Workspace API routes.
 Manages project files via cloud storage.
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
+from api.middleware import require_auth
 from db.supabase_client import get_project_by_id
 from services.git_repo import read_repo_files, write_repo_files
 
@@ -20,14 +21,13 @@ def _get_project(project_id: str, user_id: str | None = None):
 
 
 @workspace_bp.route("/<project_id>", methods=["GET"])
+@require_auth
 def load_workspace(project_id: str):
     """
     Load latest files for a project.
-    Query: user_id
+    User ID from auth token.
     """
-    user_id = request.args.get("user_id")
-    if not user_id:
-        return jsonify({"success": False, "error": "user_id required"}), 400
+    user_id = g.user_id
 
     project = _get_project(project_id, user_id)
     if not project:
@@ -67,18 +67,19 @@ def load_workspace(project_id: str):
 
 
 @workspace_bp.route("/save", methods=["POST"])
+@require_auth
 def save_workspace():
     """
     Save files to project cloud storage.
-    Request: { user_id, project_id, files, message?, task_id? }
+    Request: { project_id, files, message?, task_id? }
     """
     data = request.json or {}
-    user_id = data.get("user_id")
+    user_id = g.user_id
     project_id = data.get("project_id")
     files = data.get("files") or []
 
-    if not user_id or not project_id:
-        return jsonify({"success": False, "error": "user_id and project_id required"}), 400
+    if not project_id:
+        return jsonify({"success": False, "error": "project_id required"}), 400
 
     project = _get_project(project_id, user_id)
     if not project:

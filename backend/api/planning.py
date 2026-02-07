@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from pydantic import ValidationError
 
+from api.middleware import require_auth
 from agents.planning import CurriculumPlanner
 from pydantic_classes.planning import CurriculumGenerationError, OutlineProject
 from db.supabase_client import (
@@ -42,6 +43,7 @@ def generate_outline():
 
 
 @planning_bp.route("/curriculum", methods=["POST"])
+@require_auth
 def generate_curriculum():
     """
     Generate curriculum and save to database.
@@ -52,7 +54,7 @@ def generate_curriculum():
     """
     payload = request.get_json(silent=True) or {}
 
-    user_id = payload.get("user_id")
+    user_id = g.user_id
     requirements = payload.get("requirements")
     experience_level = payload.get("experience_level")
     outline_payload = payload.get("outline")

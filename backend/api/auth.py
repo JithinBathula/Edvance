@@ -1,31 +1,17 @@
 """
 Authentication routes for Edvance backend.
-Handles signup, login, logout, and session verification.
+Uses Supabase Auth — signup/login are handled by the frontend via the Supabase client.
+This module provides /me (profile fetch) and /logout endpoints.
 """
-from flask import Blueprint, request, jsonify, make_response
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
-import jwt
-import os
+from flask import Blueprint, jsonify, g
 
-from db.supabase_client import (
-    get_user_by_email,
-    get_user_by_id,
-    create_user_with_password
-)
+from api.middleware import require_auth
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
-# JWT secret - REQUIRED in environment variables
-JWT_SECRET = os.getenv('JWT_SECRET')
-if not JWT_SECRET:
-    raise RuntimeError("JWT_SECRET environment variable is required")
-JWT_EXPIRY_DAYS = 7
-IS_PRODUCTION = os.getenv('FLASK_ENV', 'development') == 'production'
-
 
 def format_user_response(user: dict) -> dict:
-    """Format user data for frontend response (exclude password_hash)."""
+    """Format user data for frontend response."""
     return {
         'id': user['id'],
         'name': user['name'],
@@ -37,159 +23,23 @@ def format_user_response(user: dict) -> dict:
     }
 
 
-def create_token(user_id: str) -> str:
-    """Create a JWT token for the user."""
-    payload = {
-        'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(days=JWT_EXPIRY_DAYS),
-        'iat': datetime.utcnow()
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
-
-
-def verify_token(token: str) -> str | None:
-    """Verify JWT token and return user_id if valid."""
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-        return payload.get('user_id')
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
-
-
-@auth_bp.route('/signup', methods=['POST'])
-def signup():
+@auth_bp.route('/me', methods=['GET'])
+@require_auth
+def get_current_user():
     """
-    Create a new user account.
-    Request: { name, email, password }
-    Response: { success, user } + sets auth_token cookie
+    Get current authenticated user profile.
+    Token is verified by @require_auth; user is available via g.user.
     """
-    data = request.json or {}
-    name = data.get('name', '').strip()
-    email = data.get('email', '').lower().strip()
-    password = data.get('password', '')
-
-    # Validation
-    if not name or len(name) < 2:
-        return jsonify({'success': False, 'error': 'Name must be at least 2 characters'}), 400
-    if not email or '@' not in email:
-        return jsonify({'success': False, 'error': 'Valid email is required'}), 400
-    if not password or len(password) < 6:
-        return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
-
-    # Check if email already exists
-    existing_user = get_user_by_email(email)
-    if existing_user:
-        return jsonify({'success': False, 'error': 'Email already registered'}), 409
-
-    try:
-        # Hash password and create user
-        password_hash = generate_password_hash(password)
-        new_user = create_user_with_password(name, email, password_hash)
-
-        # Create token and set cookie
-        token = create_token(new_user['id'])
-        
-        response = make_response(jsonify({
-            'success': True,
-            'user': format_user_response(new_user)
-        }))
-        
-        response.set_cookie(
-            'auth_token',
-            token,
-            httponly=True,
-            secure=IS_PRODUCTION,
-            samesite='Lax' if not IS_PRODUCTION else 'None',
-            max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60
-        )
-        
-        return response, 201
-
-    except Exception as e:
-        print(f"Signup error: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@auth_bp.route('/login', methods=['POST'])
-def login():
-    """
-    Login with email and password.
-    Request: { email, password }
-    Response: { success, user } + sets auth_token cookie
-    """
-    data = request.json or {}
-    email = data.get('email', '').lower().strip()
-    password = data.get('password', '')
-
-    if not email or not password:
-        return jsonify({'success': False, 'error': 'Email and password are required'}), 400
-
-    # Find user by email
-    user = get_user_by_email(email)
-    if not user:
-        return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
-
-    # Check password
-    if not user.get('password_hash') or not check_password_hash(user['password_hash'], password):
-        return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
-
-    try:
-        # Create token and set cookie
-        token = create_token(user['id'])
-        
-        response = make_response(jsonify({
-            'success': True,
-            'user': format_user_response(user)
-        }))
-        
-        response.set_cookie(
-            'auth_token',
-            token,
-            httponly=True,
-            secure=IS_PRODUCTION,
-            samesite='Lax' if not IS_PRODUCTION else 'None',
-            max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60
-        )
-        
-        return response, 200
-
-    except Exception as e:
-        print(f"Login error: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    return jsonify({
+        'success': True,
+        'user': format_user_response(g.user)
+    }), 200
 
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     """
-    Logout and clear session cookie.
+    Logout endpoint. Actual signout happens on the frontend via Supabase client.
+    This endpoint exists for completeness and returns success.
     """
-    response = make_response(jsonify({'success': True}))
-    response.delete_cookie('auth_token')
-    return response, 200
-
-
-@auth_bp.route('/me', methods=['GET'])
-def get_current_user():
-    """
-    Get current authenticated user from session cookie.
-    Response: { success, user } or { success: false, error }
-    """
-    token = request.cookies.get('auth_token')
-    
-    if not token:
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({'success': False, 'error': 'Session expired'}), 401
-
-    user = get_user_by_id(user_id)
-    if not user:
-        return jsonify({'success': False, 'error': 'User not found'}), 401
-
-    return jsonify({
-        'success': True,
-        'user': format_user_response(user)
-    }), 200
+    return jsonify({'success': True}), 200

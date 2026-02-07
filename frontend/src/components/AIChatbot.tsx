@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
-import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
 import ReactMarkdown from 'react-markdown';
 
 type Message = {
@@ -61,9 +61,7 @@ export function AIChatbot({
 
       setIsLoadingHistory(true);
       try {
-        const response = await fetch(`${BACKEND_URL}/assistant/history/${userId}/${projectId}`, {
-          credentials: 'include',
-        });
+        const response = await authFetch(`/assistant/history/${projectId}`);
         const data = await response.json();
 
         if (data.success && data.messages && data.messages.length > 0) {
@@ -105,14 +103,11 @@ export function AIChatbot({
 
     try {
       // Call the backend assistant API
-      const response = await fetch(`${BACKEND_URL}/assistant/chat`, {
+      const response = await authFetch('/assistant/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           message: userMessage,
           task_id: taskId,
-          user_id: userId,
           project_id: projectId,
           code: userCode || '',
           history: messages.slice(-10).map(m => ({

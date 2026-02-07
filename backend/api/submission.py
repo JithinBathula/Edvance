@@ -2,10 +2,11 @@
 Submission Evaluation API routes.
 Handles code submission evaluation for task progression.
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
+from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress, get_project_by_id
+from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase
 from services.git_repo import read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
@@ -14,25 +15,26 @@ evaluator = SubmissionEvaluator()
 
 
 @submission_bp.route('/evaluate', methods=['POST'])
+@require_auth
 def evaluate_submission():
     """
     Evaluate a code submission for a task.
 
-    Request: { user_id, task_id, code }
+    Request: { task_id, code, project_id }
     Response: { success, is_correct, feedback, next_task (if adapted) }
     """
     data = request.json or {}
-    user_id = data.get('user_id')
+    user_id = g.user_id
     task_id = data.get('task_id')
     code = data.get('code', '')
     project_id = data.get('project_id')
 
     adapted_next_task = None
 
-    if not user_id or not task_id:
+    if not task_id:
         return jsonify({
             'success': False,
-            'error': 'user_id and task_id are required'
+            'error': 'task_id is required'
         }), 400
 
     try:
@@ -42,6 +44,35 @@ def evaluate_submission():
                 'success': False,
                 'error': 'Task not found'
             }), 404
+
+        milestone_query = supabase.table("milestones").select("project_id").eq(
+            "id", task.get("milestone_id")
+        ).limit(1).execute()
+        if not milestone_query.data:
+            return jsonify({
+                'success': False,
+                'error': 'Task not found'
+            }), 404
+
+        task_project_id = milestone_query.data[0]["project_id"]
+        task_project = get_project_by_id(task_project_id)
+        if not task_project:
+            return jsonify({
+                'success': False,
+                'error': 'Project not found'
+            }), 404
+        if str(task_project.get('user_id')) != str(user_id):
+            return jsonify({
+                'success': False,
+                'error': 'Forbidden'
+            }), 403
+
+        if project_id and str(project_id) != str(task_project_id):
+            return jsonify({
+                'success': False,
+                'error': 'project_id does not match task ownership'
+            }), 400
+        project_id = task_project_id
 
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
@@ -75,7 +106,6 @@ def evaluate_submission():
 
                 # Adaptive task generation for next task
                 try:
-                    from db.supabase_client import supabase
                     from agents.planning import CurriculumPlanner
 
                     current_task = supabase.table("tasks").select("*").eq("id", task_id).execute()
@@ -90,7 +120,7 @@ def evaluate_submission():
                     if not milestone.data:
                         raise Exception("Milestone not found")
 
-                    project_id = milestone.data[0]["project_id"]
+                    adaptive_project_id = milestone.data[0]["project_id"]
                     current_milestone_position = milestone.data[0]["position"]
 
                     next_task_query = supabase.table("tasks").select("*").eq(
@@ -99,7 +129,7 @@ def evaluate_submission():
 
                     if not next_task_query.data:
                         next_milestone_query = supabase.table("milestones").select("*").eq(
-                            "project_id", project_id
+                            "project_id", adaptive_project_id
                         ).eq("position", current_milestone_position + 1).execute()
 
                         if next_milestone_query.data:
@@ -111,7 +141,7 @@ def evaluate_submission():
                     if next_task_query.data:
                         next_task_data = next_task_query.data[0]
 
-                        project = get_project_by_id(project_id)
+                        project = get_project_by_id(adaptive_project_id)
                         if project:
                             project_context = {
                                 "project_title": project.get("title"),

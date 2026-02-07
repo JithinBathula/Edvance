@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '../App';
 import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Progress } from './ui/progress';
@@ -83,11 +84,9 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
         setError(null);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/planning/curriculum`, {
+            const response = await authFetch('/planning/curriculum', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: user.id,
                     requirements: serializedSession,
                     experience_level: experienceLevel,
                     outline: outline,

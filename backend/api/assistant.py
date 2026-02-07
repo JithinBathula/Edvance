@@ -2,8 +2,9 @@
 AI Assistant API routes.
 Handles chat interactions with the AI coding tutor.
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
+from api.middleware import require_auth
 from agents.assistant import AssistantAgent
 from db.supabase_client import (
     get_task_by_id,
@@ -20,17 +21,18 @@ assistant = AssistantAgent()
 
 
 @assistant_bp.route('/chat', methods=['POST'])
+@require_auth
 def chat():
     """
     Handle a chat message to the AI assistant.
 
-    Request: { message, task_id, user_id, project_id, code, history[] }
+    Request: { message, task_id, project_id, code, history[] }
     Response: { success, response }
     """
     data = request.json or {}
     message = data.get('message', '')
     task_id = data.get('task_id')
-    user_id = data.get('user_id')
+    user_id = g.user_id
     project_id = data.get('project_id')
     code = data.get('code', '')
     history = data.get('history', [])
@@ -43,8 +45,8 @@ def chat():
 
     try:
 
-        # Save user message to database if user_id and project_id provided
-        if user_id and project_id:
+        # Save user message to database
+        if project_id:
             try:
                 save_chat_message(user_id, project_id, 'user', message)
             except Exception as save_err:
@@ -53,7 +55,7 @@ def chat():
         # If project_id provided, load all files from cloud storage
         if project_id:
             project = get_project_by_id(project_id)
-            if project and user_id and str(project.get('user_id')) == str(user_id):
+            if project and str(project.get('user_id')) == str(user_id):
                 files = read_repo_files(project_id)
                 if files:
                     # Format all files for context
@@ -81,8 +83,8 @@ def chat():
             chat_history=history
         )
 
-        # Save assistant response to database if user_id and project_id provided
-        if user_id and project_id:
+        # Save assistant response to database
+        if project_id:
             try:
                 save_chat_message(user_id, project_id, 'assistant', response)
             except Exception as save_err:
@@ -101,15 +103,16 @@ def chat():
         }), 500
 
 
-@assistant_bp.route('/history/<user_id>/<project_id>', methods=['GET'])
-def get_history(user_id: str, project_id: str):
+@assistant_bp.route('/history/<project_id>', methods=['GET'])
+@require_auth
+def get_history(project_id: str):
     """
-    Get chat history for a user-project pair.
+    Get chat history for the authenticated user and a project.
 
     Response: { success, messages: [{ role, content, created_at }] }
     """
     try:
-        messages = get_chat_history(user_id, project_id)
+        messages = get_chat_history(g.user_id, project_id)
         return jsonify({
             'success': True,
             'messages': messages
@@ -122,15 +125,16 @@ def get_history(user_id: str, project_id: str):
         }), 500
 
 
-@assistant_bp.route('/history/<user_id>/<project_id>', methods=['DELETE'])
-def delete_history(user_id: str, project_id: str):
+@assistant_bp.route('/history/<project_id>', methods=['DELETE'])
+@require_auth
+def delete_history(project_id: str):
     """
-    Clear chat history for a user-project pair.
+    Clear chat history for the authenticated user and a project.
 
     Response: { success }
     """
     try:
-        clear_chat_history(user_id, project_id)
+        clear_chat_history(g.user_id, project_id)
         return jsonify({
             'success': True
         }), 200

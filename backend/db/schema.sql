@@ -8,12 +8,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================================================
 -- USERS TABLE
+-- After Supabase Auth migration: users.id = auth.users.id (same UUID).
+-- password_hash removed (Supabase Auth handles passwords).
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     email TEXT UNIQUE,
-    password_hash TEXT,
     onboarding JSONB DEFAULT NULL,
     xp INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -22,6 +23,29 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Index for email lookups
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- =============================================================================
+-- AUTO-CREATE PROFILE ON SUPABASE AUTH SIGNUP
+-- Run this in the Supabase SQL Editor (requires access to auth.users)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.users (id, name, email, xp, onboarding)
+    VALUES (
+        NEW.id,  -- same UUID as auth.users.id
+        COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', 'User'),
+        NEW.email,
+        0,
+        NULL
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =============================================================================
 -- PROJECTS TABLE

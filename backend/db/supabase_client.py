@@ -36,34 +36,19 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def create_user_with_password(name: str, email: str, password_hash: str) -> Dict[str, Any]:
-    """
-    Create a new user with password hash for authentication.
-    """
-    user_data = {
-        "name": name.strip(),
-        "email": email.lower().strip(),
-        "password_hash": password_hash,
-        "xp": 0,
-        "onboarding": None
-    }
-    
-    result = supabase.table("users").insert(user_data).execute()
-    
-    if result.data:
-        return result.data[0]
-    raise Exception("Failed to create user")
-
-
 def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
     """
     Fetch a user by their ID.
     """
     result = supabase.table("users").select("*").eq("id", user_id).execute()
-    
+
     if result.data:
         return result.data[0]
     return None
+
+
+# Alias: users.id = auth.users.id after Supabase Auth migration
+get_user_by_auth_id = get_user_by_id
 
 
 def update_user_onboarding(user_id: str, onboarding_data: Dict[str, Any]) -> Dict[str, Any]:

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { User } from "../App";
-import { BACKEND_URL } from "../utils/constants";
+import { authFetch } from "../utils/authFetch";
 import { EditorIDE } from "./EditorIDE";
 import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
@@ -386,9 +386,7 @@ export function ProjectWorkspace({
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/progress/projects/${initialProject.id}/full`, {
-          credentials: 'include',
-        });
+        const response = await authFetch(`/progress/projects/${initialProject.id}/full`);
         const data = await response.json();
         if (data.success && data.project) {
           setProject(data.project);
@@ -416,9 +414,7 @@ export function ProjectWorkspace({
 
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/progress/projects/${initialProject.id}/full`, {
-          credentials: 'include',
-        });
+        const response = await authFetch(`/progress/projects/${initialProject.id}/full`);
         const data = await response.json();
 
         if (data.success && data.project) {
@@ -461,10 +457,7 @@ export function ProjectWorkspace({
   const loadSavedFiles = async () => {
     setFilesLoading(true);
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/workspace/${project.id}?user_id=${user.id}`,
-        { credentials: 'include' }
-      );
+      const response = await authFetch(`/workspace/${project.id}`);
       const data = await response.json();
 
       if (data.success && Array.isArray(data.files) && data.files.length > 0) {
@@ -486,12 +479,9 @@ export function ProjectWorkspace({
   const saveFiles = async (files: ProjectFile[]) => {
     setSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/workspace/save`, {
+      const response = await authFetch('/workspace/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
-          user_id: user.id,
           project_id: project.id,
           files: files,
         }),
@@ -518,12 +508,9 @@ export function ProjectWorkspace({
     setEvaluationFeedback(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/submission/evaluate`, {
+      const response = await authFetch('/submission/evaluate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
-          user_id: user.id,
           task_id: safeCurrentTask.id,
           code: code,
           project_id: project.id,
