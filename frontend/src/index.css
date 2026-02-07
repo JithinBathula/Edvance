@@ -244,9 +244,27 @@
     display: list-item;
   }
 
-  ol, ul, menu {
+  /* ol, ul, menu {
     list-style: none;
-  }
+  } */
+
+  /* Keep your existing reset */
+ol, ul, menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Add this to force bullets/numbers inside the chat bubbles */
+.prose ul {
+  list-style-type: disc !important;
+  margin-left: 1.5rem !important;
+}
+
+.prose ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5rem !important;
+}
 
   img, svg, video, canvas, audio, iframe, embed, object {
     vertical-align: middle;

@@ -6,6 +6,7 @@ import { Textarea } from './ui/textarea';
 import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
@@ -201,11 +202,32 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       },
       (data: any) => { // 'data' is now the full JSON object from backend
       
-      // 1. Handle Text Content
+      // 1. Handle Text Content - cleaning data from streaming
       if (data.content) {
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantId ? { ...msg, content: (msg.content || '') + data.content } : msg
-        ));
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === assistantId) {
+            let updatedContent = (msg.content || '') + data.content;
+
+            // 1. Convert literal escaped strings to real characters
+            let clean = updatedContent
+              .replace(/\\n/g, '\n') 
+              .replace(/\\"/g, '"')
+              .replace(/\\t/g, '  ');
+
+            // 2. Markdown List 
+            // Ensure there is a newline before any bullet point or numbered list 
+            // if it follows text, otherwise it won't trigger the list parser.
+            clean = clean.replace(/([^\n])\n(\s*[\*\-\d+\.])/g, '$1\n\n$2');
+
+            // 3. Strip wrapping quotes if the whole message is wrapped
+            if (clean.startsWith('"') && clean.endsWith('"')) {
+              clean = clean.slice(1, -1);
+            }
+
+            return { ...msg, content: clean };
+          }
+          return msg;
+        }));
       }
 
       // 2. Handle Backend-Driven Handoff Trigger
@@ -401,8 +423,100 @@ useEffect(() => {
                 )}
                 
                 <Card className={`p-4 max-w-[85%] ${msg.role === 'user' ? 'bg-[#ffa200] text-white border-0' : 'bg-white'}`}>
-                  <div className={`prose-sm ${msg.role === 'user' ? 'text-white' : 'text-gray-800'}`}>
-                     <ReactMarkdown>{msg.content}</ReactMarkdown>
+  
+                  <div className={cn(
+                    "prose prose-sm max-w-none break-words",
+                    msg.role === 'user' 
+                      ? "prose-invert" 
+                      : "prose-gray"
+                  )}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Paragraphs with spacing
+                        p: ({ children }) => (
+                          <p className="mb-4 last:mb-0 leading-relaxed whitespace-pre-wrap">
+                            {children}
+                          </p>
+                        ),
+
+                        // Unordered lists 
+                        ul: ({ children }) => (
+                          <ul className="list-disc list-outside ml-6 mb-4 space-y-1.5">
+                            {children}
+                          </ul>
+                        ),
+
+                        // Ordered lists 
+                        ol: ({ children }) => (
+                          <ol className="list-decimal list-outside ml-6 mb-4 space-y-1.5">
+                            {children}
+                          </ol>
+                        ),
+
+                        // List items
+                        li: ({ children }) => (
+                          <li className="leading-relaxed">{children}</li>
+                        ),
+
+                        // Bold text
+                        strong: ({ children }) => (
+                          <strong className="font-semibold">{children}</strong>
+                        ),
+
+                        // Italic text
+                        em: ({ children }) => (
+                          <em className="italic">{children}</em>
+                        ),
+
+                        // Inline code
+                        code: ({ inline, children, ...props }: any) =>
+                          inline ? (
+                            <code 
+                              className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono"
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          ) : (
+                            <code 
+                              className="block bg-gray-900 text-gray-100 p-3 rounded text-sm font-mono overflow-x-auto mb-4"
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          ),
+
+                        // Headings
+                        h1: ({ children }) => (
+                          <h1 className="text-2xl font-bold mb-3 mt-6 first:mt-0">
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-xl font-bold mb-3 mt-5 first:mt-0">
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0">
+                            {children}
+                          </h3>
+                        ),
+
+                        // Blockquotes
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-purple-500 pl-4 italic my-4">
+                            {children}
+                          </blockquote>
+                        ),
+
+                        // Line breaks
+                        br: () => <br className="my-2" />,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   </div>
                 </Card>
 
