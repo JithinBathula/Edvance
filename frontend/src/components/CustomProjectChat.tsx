@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
+import { authFetch } from '../utils/authFetch';
 import { cn } from './ui/utils';
 
 interface ChatMessage {
@@ -54,7 +55,7 @@ async function streamChatResponse(
   onError: (err: string) => void
 ) {
   try {
-    const response = await fetch(`${BACKEND_URL}/chat/`, {
+    const response = await authFetch('/chat/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -102,8 +103,6 @@ async function streamChatResponse(
     onError("Connection failed. Please ensure the backend is running.");
   }
 }
-
-const getSessionId = (user: User) => user.id || 'default';
 
 export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   const [input, setInput] = useState('');
@@ -191,7 +190,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       {
         message: textToBackend,
         history: history,
-        session_id: getSessionId(user),
         user_profile: {
           educationLevel: user.onboarding?.educationLevel || 'primary',
           schoolExperience: user.onboarding?.schoolExperience || 'beginner',
@@ -321,6 +319,11 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
     setTimeout(async () => {
       try {
+        const reqRes = await authFetch('/chat/requirements');
+        const reqJson = await reqRes.json();
+        if (!reqRes.ok || reqJson.status !== 'success') throw new Error("Failed to get requirements");
+
+        const sessionData = reqJson.requirements.session_data;
         const outlineRes = await fetch(`${BACKEND_URL}/planning/outline`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

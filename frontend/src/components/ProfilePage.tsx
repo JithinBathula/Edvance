@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { User, OnboardingData } from '../App';
-import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -37,11 +37,9 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/users/onboarding`, {
+      const response = await authFetch('/users/onboarding', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
           onboardingData: answers,
         }),
       });

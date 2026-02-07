@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { User } from '../App';
-import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { ArrowLeft, Plus, FolderOpen, Clock, Loader2 } from 'lucide-react';
@@ -32,9 +32,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
 
     const fetchProjects = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/progress/projects/user/${user.id}`, {
-                credentials: 'include',
-            });
+            const response = await authFetch('/progress/projects');
             const data = await response.json();
             if (data.success) {
                 setProjects(data.projects);
@@ -49,9 +47,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
     const handleSelectProject = async (projectId: string) => {
         setLoadingProject(projectId);
         try {
-            const response = await fetch(`${BACKEND_URL}/progress/projects/${projectId}/full`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`/progress/projects/${projectId}/full`);
             const data = await response.json();
             if (data.success) {
                 onSelectProject(data.project);
