@@ -21,8 +21,18 @@ import {
   File,
   Trash2,
   Square,
+  MoreVertical,
+  Pencil,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { ProjectFile } from '../types/workspace';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { usePyodide, type OutputLine } from '../hooks/usePyodide';
 
 // --- Utility functions (from CodeSandboxIDE, zero external deps) ---
@@ -130,6 +140,9 @@ export function EditorIDE({
   const [showNewFile, setShowNewFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [outputOpen, setOutputOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [webConsole, setWebConsole] = useState<OutputLine[]>([]);
   const [webPanel, setWebPanel] = useState<'preview' | 'console'>('preview');
@@ -454,6 +467,39 @@ export function EditorIDE({
     if (inputRef.current) inputRef.current.value = '';
   };
 
+  const deleteFile = async (name: string) => {
+    if (filteredFiles.length <= 1) return; // Don't delete the last file
+    const updated = localFiles.filter((f) => f.name !== name);
+    setLocalFiles(updated);
+    onFilesChange(updated);
+    setOpenFiles((prev) => prev.filter((f) => f !== name));
+    if (activeFile === name) {
+      const remaining = updated.filter((f) => isAllowedFile(f.name, mode));
+      setActiveFile(remaining[0]?.name || '');
+    }
+    if (onSave) await onSave(updated);
+  };
+
+  const renameFile = async (oldName: string, newName: string) => {
+    if (!newName.trim() || newName === oldName) {
+      setRenamingFile(null);
+      return;
+    }
+    if (localFiles.some((f) => f.name === newName)) {
+      setRenamingFile(null);
+      return;
+    }
+    const updated = localFiles.map((f) =>
+      f.name === oldName ? { ...f, name: newName, language: detectLanguage(newName) } : f
+    );
+    setLocalFiles(updated);
+    onFilesChange(updated);
+    setOpenFiles((prev) => prev.map((f) => (f === oldName ? newName : f)));
+    if (activeFile === oldName) setActiveFile(newName);
+    setRenamingFile(null);
+    if (onSave) await onSave(updated);
+  };
+
   // Determine what to show in the output/console area
   const outputLines = mode === 'python' ? output : webConsole;
 
@@ -519,52 +565,128 @@ export function EditorIDE({
 
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* File Explorer Sidebar */}
-          <div className="ide-sidebar">
-            <div className="ide-sidebar-header">
-              <Code2 className="w-3.5 h-3.5" />
-              Files
-              <button
-                onClick={() => setShowNewFile(true)}
-                className="ml-auto p-1 hover:bg-slate-700 rounded"
-                title="New File"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {showNewFile && (
-              <div className="ide-new-file">
-                <input
-                  type="text"
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') createNewFile();
-                    if (e.key === 'Escape') setShowNewFile(false);
-                  }}
-                  placeholder={mode === 'python' ? 'filename.py' : 'filename'}
-                  autoFocus
-                />
-                <button onClick={createNewFile} className="ide-new-file-btn">
-                  <Plus className="w-3 h-3" />
-                </button>
-                <button onClick={() => setShowNewFile(false)} className="ide-new-file-btn">
-                  <X className="w-3 h-3" />
+          {sidebarOpen && (
+            <div className="ide-sidebar">
+              <div className="ide-sidebar-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <Code2 className="w-3.5 h-3.5" />
+                  Files
+                  <button
+                    onClick={() => setShowNewFile(true)}
+                    className="p-1 hover:bg-slate-700 rounded"
+                    title="New File"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1 hover:bg-slate-700 rounded"
+                  title="Hide Files"
+                >
+                  <PanelLeftClose className="w-3.5 h-3.5" />
                 </button>
               </div>
-            )}
-            <div className="ide-file-list">
-              {filteredFiles.map((file) => (
-                <button
-                  key={file.name}
-                  onClick={() => openFileInEditor(file.name)}
-                  className={`ide-file-item ${activeFile === file.name ? 'active' : ''}`}
-                >
-                  <FileIcon filename={file.name} />
-                  <span>{file.name}</span>
-                </button>
-              ))}
+              {showNewFile && (
+                <div className="ide-new-file">
+                  <input
+                    type="text"
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') createNewFile();
+                      if (e.key === 'Escape') setShowNewFile(false);
+                    }}
+                    placeholder={mode === 'python' ? 'filename.py' : 'filename'}
+                    autoFocus
+                  />
+                  <button onClick={createNewFile} className="ide-new-file-btn">
+                    <Plus className="w-3 h-3" />
+                  </button>
+                  <button onClick={() => setShowNewFile(false)} className="ide-new-file-btn">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              <div className="ide-file-list">
+                {filteredFiles.map((file) => (
+                  <div
+                    key={file.name}
+                    className={`ide-file-item ${activeFile === file.name ? 'active' : ''}`}
+                    onClick={() => openFileInEditor(file.name)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <FileIcon filename={file.name} />
+                    {renamingFile === file.name ? (
+                      <input
+                        className="flex-1 bg-slate-700 text-slate-200 text-xs px-1 py-0.5 rounded outline-none"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') renameFile(file.name, renameValue);
+                          if (e.key === 'Escape') setRenamingFile(null);
+                        }}
+                        onBlur={() => renameFile(file.name, renameValue)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="flex-1 truncate">{file.name}</span>
+                    )}
+                    {renamingFile !== file.name && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="ide-file-menu p-0.5 rounded hover:bg-slate-600 shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-3.5 h-3.5 text-slate-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[120px]" style={{ background: "#1e293b", borderColor: "#334155", padding: "4px" }}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRenamingFile(file.name);
+                              setRenameValue(file.name);
+                            }}
+                            style={{ color: "#e2e8f0", padding: "6px 8px" }}
+                            className="focus:bg-slate-600 focus:text-white"
+                          >
+                            <Pencil className="w-3.5 h-3.5 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteFile(file.name);
+                            }}
+                            disabled={filteredFiles.length <= 1}
+                            style={{ color: "#f87171", padding: "6px 8px" }}
+                            className="focus:bg-slate-600 focus:text-red-400"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+          {!sidebarOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(148,163,184,0.1)' }}>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 hover:bg-slate-700/50 text-white hover:text-white"
+                title="Show Files"
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Main Editor + Preview/Output */}
           <div className="ide-main">

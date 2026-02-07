@@ -2752,6 +2752,18 @@ html {
   color: #6ee7b7;
 }
 
+.ide-file-item .ide-file-menu {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ide-file-item:hover .ide-file-menu,
+.ide-file-item.active .ide-file-menu {
+  opacity: 0.7;
+}
+.ide-file-item .ide-file-menu:hover {
+  opacity: 1;
+}
+
 /* Main editor area */
 .ide-main {
   flex: 1;
