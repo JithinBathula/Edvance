@@ -1,8 +1,9 @@
 """
 Courses API routes - Course content and progress
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
+from api.middleware import require_auth
 from db.supabase_client import (
     get_course_by_theme as db_get_course_by_theme,
     get_user_course_progress as db_get_course_progress,
@@ -25,11 +26,12 @@ def get_course_by_theme(theme: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@courses_bp.route('/progress/<user_id>/<course_id>', methods=['GET'])
-def get_course_progress(user_id: str, course_id: str):
-    """Get user's progress in a course."""
+@courses_bp.route('/progress/<course_id>', methods=['GET'])
+@require_auth
+def get_course_progress(course_id: str):
+    """Get authenticated user's progress in a course."""
     try:
-        progress = db_get_course_progress(user_id, course_id)
+        progress = db_get_course_progress(g.user_id, course_id)
         return jsonify({
             'success': True,
             'progress': progress or {'completedLessons': [], 'currentLessonId': None}
@@ -39,16 +41,17 @@ def get_course_progress(user_id: str, course_id: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@courses_bp.route('/progress/<user_id>/<course_id>', methods=['POST'])
-def update_course_progress(user_id: str, course_id: str):
-    """Update user's progress in a course."""
+@courses_bp.route('/progress/<course_id>', methods=['POST'])
+@require_auth
+def update_course_progress(course_id: str):
+    """Update authenticated user's progress in a course."""
     try:
         data = request.get_json()
         completed_lessons = data.get('completedLessons', [])
         current_lesson_id = data.get('currentLessonId')
-        
+
         progress = db_update_course_progress(
-            user_id=user_id,
+            user_id=g.user_id,
             course_id=course_id,
             completed_lessons=completed_lessons,
             current_lesson_id=current_lesson_id

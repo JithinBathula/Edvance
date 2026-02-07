@@ -8,12 +8,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================================================
 -- USERS TABLE
+-- After Supabase Auth migration: users.id = auth.users.id (same UUID).
+-- password_hash removed (Supabase Auth handles passwords).
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     email TEXT UNIQUE,
-    password_hash TEXT,
     onboarding JSONB DEFAULT NULL,
     xp INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -22,6 +23,29 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Index for email lookups
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- =============================================================================
+-- AUTO-CREATE PROFILE ON SUPABASE AUTH SIGNUP
+-- Run this in the Supabase SQL Editor (requires access to auth.users)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.users (id, name, email, xp, onboarding)
+    VALUES (
+        NEW.id,  -- same UUID as auth.users.id
+        COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', 'User'),
+        NEW.email,
+        0,
+        NULL
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =============================================================================
 -- PROJECTS TABLE
@@ -261,5 +285,32 @@ CREATE INDEX IF NOT EXISTS idx_user_course_progress_user_id ON user_course_progr
 -- Trigger for user_course_progress updated_at
 CREATE TRIGGER update_user_course_progress_updated_at
     BEFORE UPDATE ON user_course_progress
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- REPO_FILES TABLE
+-- File metadata for cloud storage (actual files stored in Supabase Storage)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS repo_files (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    file_path TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    language TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(project_id, file_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_repo_files_project ON repo_files(project_id);
+
+-- Add storage_type column to projects table for migration tracking
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS storage_type TEXT DEFAULT 'local';
+
+-- Trigger for repo_files updated_at
+CREATE TRIGGER update_repo_files_updated_at
+    BEFORE UPDATE ON repo_files
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();

@@ -7,7 +7,7 @@ import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
-import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
 
 type Props = {
   user: User;
@@ -46,15 +46,11 @@ export function OnboardingScreen({ user, onComplete }: Props) {
     }
 
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/users/onboarding`,
+      const response = await authFetch(
+        '/users/onboarding',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
-            userId: user.id,
             onboardingData: answers,
           }),
         }
