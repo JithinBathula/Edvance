@@ -425,7 +425,7 @@ class RequirementGatheringAgent:
                         "quality_check_history": session["tool_context"]["quality_check_history"],
                     },
                 }
-                print("\n" + "!"*30 + " HANDOFF DATA CHECK " + "!"*30)
+                print("\n" + "-"*30 + " HANDOFF DATA CHECK " + "-"*30)
     
                 # 1. Print the full tech analysis history values
                 tech_hist = session.get("tool_context", {}).get("tech_analysis_history", [])

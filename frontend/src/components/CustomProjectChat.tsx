@@ -447,7 +447,7 @@ useEffect(() => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t bg-white/95 backdrop-blur-sm p-4 flex-shrink-0 transition-all duration-300 ease-in-out">
+      <div className="border-t bg-white/95 backdrop-blur-sm p-4 shrink-0 transition-all duration-300 ease-in-out">
         <div className="max-w-4xl mx-auto">
           {isGuidingPhase && (
             <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
@@ -471,10 +471,10 @@ useEffect(() => {
                       key={opt.id}  
                       variant="user_multi_option"
                       className={cn(
-                        "group h-auto py-6 flex flex-col gap-2 transition-all duration-200 resize-none pointer-events-auto cursor-pointer",
+                        "group h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 hover:resize-none pointer-events-auto cursor-pointer",
                         isSelected 
                           ? "bg-amber-400 shadow-md" 
-                          : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-gray-500 hover:bg-gray-200"
+                          : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-blue-50 hover:border-4 hover:bg-gray-50"
                       )}
                       onClick={() => handleGuidingStep(opt.value, opt.label)}
                     >
@@ -508,7 +508,7 @@ useEffect(() => {
                             Array.isArray(guidingAnswers[currentQuestion.key]) && 
                             (guidingAnswers[currentQuestion.key] as string[]).length > 0)
                         }
-                        className="whitespace-normal bg-white hover:border-gray-500 hover:bg-gray-200 text-xs text-gray-500 font-normal border px-8 py-2 shadow-md z-10 pointer-events-auto cursor-pointer"
+                        className="whitespace-normal bg-white hover:border-blue-50 hover:border-4 hover:bg-gray-50 text-xs text-gray-500 font-normal border px-8 py-2 shadow-md z-10 pointer-events-auto cursor-pointer"
                       >
                         Confirm Selection 
                       </Button>
@@ -540,7 +540,7 @@ useEffect(() => {
                     size="icon"
                     onClick={() => input.trim() && handleGuidingStep(input.trim())}
                     disabled={isInputDisabled || !input.trim()}
-                    className="absolute right-4 top-4 h-[42px] w-[42px] hover:backdrop-blur-sm disabled:opacity-50 transition-all"
+                    className="absolute right-4 top-4 h-[42px] w-[42px] hover:backdrop-blur-sm hover:bg-gray-700 disabled:opacity-50 transition-all duration-200 pointer-events-auto cursor-pointer"
                   > 
                     <Send className="w-4 h-4" />
                   </Button>
@@ -567,7 +567,7 @@ useEffect(() => {
                 size= "icon"
                  onClick={() => handleSendMessage(input)} 
                  disabled={isInputDisabled || !input.trim()}
-                className="absolute right-4 top-4 hover:backdrop-blur-sm disabled:opacity-50 h-[60px] w-[60px] transition-all"
+                className="absolute right-4 top-4 hover:backdrop-blur-sm hover:bg-gray-700 h-[60px] w-[60px] transition-all duration-200 pointer-events-auto cursor-pointer"
                >
                  <Send className="w-4 h-4" />
                </Button>

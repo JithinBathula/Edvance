@@ -85,6 +85,7 @@
     --color-cyan-500: oklch(.715 .143 215.221);
     --color-cyan-600: oklch(.609 .126 221.723);
     --color-cyan-700: oklch(.52 .105 223.128);
+    --color-blue-50: #8aaDF3;
     --color-gray-50: oklch(.985 .002 247.839);
     --color-gray-100: oklch(.967 .003 264.542);
     --color-gray-200: oklch(.928 .006 264.531);
@@ -1225,14 +1226,41 @@
     background-color: var(--color-amber-100);
   }
 
-  .hover\:border-gray-500:hover {
-    border-color: var(--color-gray-500);
+  .hover\:border-blue-50:hover {
+    border-color: var(--color-blue-50);
   }
 
-  .hover\:bg-gray-200:hover {
-    background-color: var(--color-gray-200);
+  .hover\:resize-none:hover {
+    resize: none;
   }
 
+  .hover\:border-4:hover {
+    border-width: 4px;
+  }
+
+  .hover\:bg-blur-sm:hover {
+    backdrop-filter: blur(var(--blur-sm));
+  }
+
+  .hover\:bg-gray-50:hover {
+    background-color: var(--color-gray-50);
+  }
+
+    .hover\:bg-gray-700:hover {
+    background-color: var(--color-gray-700);
+  }
+
+  @media (hover: hover) {
+    .hover\:bg-primary\/90:hover {
+      background-color: var(--primary);
+    }
+
+    @supports (color: color-mix(in lab, rgb(246, 246, 246), red)) {
+      .hover\:bg-primary\/90:hover {
+        background-color: color-mix(in oklab, var(--primary) 90%, transparent);
+      }
+    }
+  }
   .bg-primary {
     background-color: var(--primary);
   }
