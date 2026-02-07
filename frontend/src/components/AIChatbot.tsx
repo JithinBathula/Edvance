@@ -24,6 +24,8 @@ type Props = {
   };
   onClose?: () => void;
   visible?: boolean;
+  prefillMessage?: string | null;
+  onPrefillConsumed?: () => void;
 };
 
 const DEFAULT_WELCOME_MESSAGE: Message = {
@@ -41,7 +43,9 @@ export function AIChatbot({
   taskDescription,
   testSpec,
   onClose,
-  visible = true
+  visible = true,
+  prefillMessage,
+  onPrefillConsumed,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([DEFAULT_WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
@@ -91,11 +95,10 @@ export function AIChatbot({
     }
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (message: string) => {
+    if (!message.trim() || isLoading) return;
 
-    const userMessage = input.trim();
-    setInput('');
+    const userMessage = message.trim();
     setError(null);
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
@@ -142,6 +145,19 @@ export function AIChatbot({
       setIsLoading(false);
     }
   };
+
+  const handleSend = () => {
+    sendMessage(input);
+    setInput('');
+  };
+
+  // Handle prefilled messages from "Ask AI Tutor" button
+  useEffect(() => {
+    if (prefillMessage && !isLoading) {
+      sendMessage(prefillMessage);
+      onPrefillConsumed?.();
+    }
+  }, [prefillMessage]);
 
   // If not visible, return null (handled by parent usually, but good for safety)
   if (!visible) return null;

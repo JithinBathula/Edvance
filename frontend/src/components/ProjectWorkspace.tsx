@@ -24,64 +24,218 @@ import {
   AlertCircle,
   MessageCircle,
 } from "lucide-react";
+import { GLOSSARY } from "../utils/glossary";
+import { TechnicalTermHover } from "./TechnicalTermHover";
 
-// Component to format task description with code highlighting and structure
-function FormattedDescription({ text }: { text: string }) {
-  // Split into sentences but keep them as logical blocks
-  const paragraphs = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+// Sorted glossary terms by length descending for longest-match-first
+const SORTED_GLOSSARY_TERMS = Object.keys(GLOSSARY).sort(
+  (a, b) => b.length - a.length
+);
 
-  // Helper to format inline code and keywords
-  const formatText = (sentence: string) => {
-    // First, escape any raw < > that could break HTML (except our own tags)
-    let result = sentence
-      // Convert React/JSX component tags like <Rect>, <Line>, <Circle> to styled code
-      .replace(/<([A-Z][a-zA-Z0-9]*)>/g, '<code class="inline-code">&lt;$1&gt;</code>')
-      .replace(/<([A-Z][a-zA-Z0-9]*)\s*\/>/g, '<code class="inline-code">&lt;$1 /&gt;</code>')
-      // Backtick code - this is the main one for code in descriptions
-      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+// Build a combined regex from glossary terms using lookahead/lookbehind
+// so terms adjacent to punctuation (commas, periods) still match.
+const GLOSSARY_REGEX = new RegExp(
+  `(?<![a-zA-Z0-9])(${SORTED_GLOSSARY_TERMS.map((t) =>
+    t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  ).join("|")})(?![a-zA-Z0-9])`,
+  "gi"
+);
 
-    // Now apply other formatting (these shouldn't conflict with the code blocks)
-    result = result
-      // Only match single-quoted text without spaces (code doesn't have spaces)
-      .replace(/'([^'\s]+)'/g, '<code class="inline-code">$1</code>')
-      // Highlight common programming keywords
-      .replace(/\b(API|JSON|ISO 8601|HTTP|GET|POST|PUT|DELETE)\b/gi, '<span class="keyword">$1</span>');
+// Keywords that get green styling (not in glossary but still highlighted)
+const KEYWORD_REGEX = /(?<![a-zA-Z0-9])(GET|POST|PUT|DELETE)(?![a-zA-Z0-9])/g;
 
-    return result;
-  };
+/**
+ * Parse a text segment (non-code) into React nodes with glossary hover terms
+ * and keyword highlighting. Only highlights the first occurrence of each term.
+ */
+function parseSegmentWithTerms(
+  text: string,
+  matchedTerms: Set<string>,
+  onAskTutor?: (term: string) => void
+): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let keyCounter = 0;
 
-  // Group sentences into logical sections if there are multiple
-  const renderContent = () => {
-    if (paragraphs.length <= 2) {
-      // Short description - render as flowing text
-      return (
-        <p
-          className="text-gray-600 text-base leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: formatText(text) }}
-        />
+  // Collect all matches (glossary + keywords) with their positions
+  type Match = { index: number; length: number; text: string; type: "glossary" | "keyword" };
+  const matches: Match[] = [];
+
+  // Reset regex state
+  GLOSSARY_REGEX.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = GLOSSARY_REGEX.exec(text)) !== null) {
+    matches.push({ index: m.index, length: m[0].length, text: m[0], type: "glossary" });
+  }
+
+  KEYWORD_REGEX.lastIndex = 0;
+  while ((m = KEYWORD_REGEX.exec(text)) !== null) {
+    // Only add keyword matches that don't overlap with a glossary match
+    const overlaps = matches.some(
+      (existing) =>
+        m!.index >= existing.index && m!.index < existing.index + existing.length
+    );
+    if (!overlaps) {
+      matches.push({ index: m.index, length: m[0].length, text: m[0], type: "keyword" });
+    }
+  }
+
+  // Sort matches by position
+  matches.sort((a, b) => a.index - b.index);
+
+  for (const match of matches) {
+    // Add plain text before this match
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match.type === "glossary") {
+      // Find the glossary key (case-insensitive lookup)
+      const glossaryKey = SORTED_GLOSSARY_TERMS.find(
+        (t) => t.toLowerCase() === match.text.toLowerCase()
+      );
+      const termLower = match.text.toLowerCase();
+
+      if (glossaryKey && !matchedTerms.has(termLower)) {
+        // First occurrence — render as hoverable term
+        matchedTerms.add(termLower);
+        nodes.push(
+          <TechnicalTermHover
+            key={`term-${keyCounter++}`}
+            term={glossaryKey}
+            definition={GLOSSARY[glossaryKey]}
+            onAskTutor={onAskTutor}
+          >
+            {match.text}
+          </TechnicalTermHover>
+        );
+      } else {
+        // Already highlighted or no definition — render as plain text
+        nodes.push(match.text);
+      }
+    } else {
+      // Keyword match (GET, POST, etc.)
+      nodes.push(
+        <span key={`kw-${keyCounter++}`} className="keyword">
+          {match.text}
+        </span>
       );
     }
 
-    // Longer description - render with visual structure
+    lastIndex = match.index + match.length;
+  }
+
+  // Remaining text after last match
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes.length > 0 ? nodes : [text];
+}
+
+/**
+ * Parse a sentence into React nodes, splitting on code regions first,
+ * then applying glossary/keyword matching on non-code text.
+ */
+function parseTextToNodes(
+  text: string,
+  matchedTerms: Set<string>,
+  onAskTutor?: (term: string) => void
+): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  let keyCounter = 0;
+
+  // Split on: backtick code, JSX self-closing tags, JSX opening tags
+  // Captures: `code`, <Component />, <Component>
+  const codeRegex = /(`[^`]+`)|(<[A-Z][a-zA-Z0-9]*\s*\/>)|(<[A-Z][a-zA-Z0-9]*>)|('([^'\s]+)')/g;
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = codeRegex.exec(text)) !== null) {
+    // Non-code text before this match
+    if (m.index > lastIndex) {
+      const segment = text.slice(lastIndex, m.index);
+      nodes.push(...parseSegmentWithTerms(segment, matchedTerms, onAskTutor));
+    }
+
+    // Render the code region
+    const matched = m[0];
+    if (matched.startsWith("`")) {
+      // Backtick code
+      const code = matched.slice(1, -1);
+      nodes.push(
+        <code key={`code-${keyCounter++}`} className="inline-code">
+          {code}
+        </code>
+      );
+    } else if (matched.startsWith("<")) {
+      // JSX tag
+      nodes.push(
+        <code key={`code-${keyCounter++}`} className="inline-code">
+          {matched.replace(/</g, "<").replace(/>/g, ">")}
+        </code>
+      );
+    } else if (matched.startsWith("'")) {
+      // Single-quoted code (no spaces)
+      const code = m[5] || matched.slice(1, -1);
+      nodes.push(
+        <code key={`code-${keyCounter++}`} className="inline-code">
+          {code}
+        </code>
+      );
+    }
+
+    lastIndex = m.index + matched.length;
+  }
+
+  // Remaining non-code text
+  if (lastIndex < text.length) {
+    nodes.push(
+      ...parseSegmentWithTerms(text.slice(lastIndex), matchedTerms, onAskTutor)
+    );
+  }
+
+  return nodes;
+}
+
+// Component to format task description with code highlighting, glossary terms, and structure
+function FormattedDescription({
+  text,
+  onAskTutor,
+}: {
+  text: string;
+  onAskTutor?: (term: string) => void;
+}) {
+  // Split into sentences but keep them as logical blocks
+  const paragraphs = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+
+  // Track which terms have been highlighted (first occurrence only, across entire description)
+  const matchedTerms = new Set<string>();
+
+  const renderContent = () => {
+    if (paragraphs.length <= 2) {
+      return (
+        <p className="text-gray-600 text-base leading-relaxed">
+          {parseTextToNodes(text, matchedTerms, onAskTutor)}
+        </p>
+      );
+    }
+
     return (
       <div className="space-y-4">
-        {/* First paragraph as intro */}
-        <p
-          className="text-gray-700 text-base leading-relaxed font-medium"
-          dangerouslySetInnerHTML={{ __html: formatText(paragraphs[0]) }}
-        />
+        <p className="text-gray-700 text-base leading-relaxed font-medium">
+          {parseTextToNodes(paragraphs[0], matchedTerms, onAskTutor)}
+        </p>
 
-        {/* Remaining as numbered points */}
         <div className="space-y-3">
           {paragraphs.slice(1).map((sentence, i) => (
             <div key={i} className="flex items-start gap-3 pl-1">
               <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                 {i + 1}
               </span>
-              <p
-                className="text-gray-600 text-base leading-relaxed flex-1"
-                dangerouslySetInnerHTML={{ __html: formatText(sentence) }}
-              />
+              <p className="text-gray-600 text-base leading-relaxed flex-1">
+                {parseTextToNodes(sentence, matchedTerms, onAskTutor)}
+              </p>
             </div>
           ))}
         </div>
@@ -166,6 +320,12 @@ export function ProjectWorkspace({
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [chatPrefill, setChatPrefill] = useState<string | null>(null);
+
+  const handleAskTutor = (term: string) => {
+    setChatPrefill(`Can you explain what "${term}" means in the context of this task?`);
+    if (!isChatOpen) setIsChatOpen(true);
+  };
 
   // Screen Size State (Default to true/large)
   const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth > 1200);
@@ -596,7 +756,7 @@ export function ProjectWorkspace({
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
               <div className="prose max-w-none mb-6">
-                <FormattedDescription text={safeCurrentTask.description} />
+                <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} onAskTutor={handleAskTutor} />
               </div>
 
               {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
@@ -706,6 +866,8 @@ export function ProjectWorkspace({
                   testSpec={safeCurrentTask.testSpec}
                   onClose={() => setIsChatOpen(false)}
                   visible={true}
+                  prefillMessage={chatPrefill}
+                  onPrefillConsumed={() => setChatPrefill(null)}
                 />
               </div>
             </ResizablePanel>
