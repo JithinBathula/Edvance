@@ -508,6 +508,9 @@ export function ProjectWorkspace({
     setEvaluationFeedback(null);
 
     try {
+      // Save files BEFORE submitting so storage is always up-to-date
+      await saveFiles(projectFiles);
+
       const response = await authFetch('/submission/evaluate', {
         method: 'POST',
         body: JSON.stringify({
@@ -525,8 +528,6 @@ export function ProjectWorkspace({
       }
 
       if (data.is_correct) {
-        await saveFiles(projectFiles);
-
         const newCompleted = [...completedTasks, safeCurrentTask.id];
         setCompletedTasks(newCompleted);
 

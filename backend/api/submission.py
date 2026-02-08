@@ -77,7 +77,7 @@ def evaluate_submission():
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
 
-        if project_id:
+        if not code and project_id:
             project = get_project_by_id(project_id)
             if project and str(project.get('user_id')) == str(user_id):
                 files = read_repo_files(project_id)
