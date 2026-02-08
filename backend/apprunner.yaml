@@ -1,0 +1,18 @@
+version: 1.0
+runtime: python311
+
+build:
+  commands:
+    build:
+      - pip3 install -r requirements.txt
+
+run:
+  runtime-version: 3.11
+  pre-run:
+    - pip3 install -r requirements.txt
+  command: gunicorn app:app --bind 0.0.0.0:8000 --timeout 120 --workers 2 --threads 4 --worker-class gthread
+  network:
+    port: 8000
+  env:
+    - name: FLASK_DEBUG
+      value: "0"
