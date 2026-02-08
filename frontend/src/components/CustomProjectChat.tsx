@@ -6,9 +6,11 @@ import { Textarea } from './ui/textarea';
 import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
+import { cn } from './ui/utils';
 
 interface ChatMessage {
   id: string;
@@ -25,7 +27,7 @@ type Props = {
 // Helper function to generate technical prompt
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
   console.log("[System] Generating prompt to pass to LLM from user answers:", answers);
-  const { projectType, coreFunction, timeline, mainFeatures, objective, interest } = answers;
+  const { projectType, projectIdea, timeline, mainFeatures, objective } = answers;
 
   const formatAnswer = (answer: string | string[]) => {
     return Array.isArray(answer) ? answer.join(', ') : answer;
@@ -36,11 +38,10 @@ const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
     
     **User Choices:**
     - **Type:** ${formatAnswer(projectType).toUpperCase()}
-    - **Goal:** ${formatAnswer(coreFunction)}
-    - **Timeline:** ${timeline}
+    - **Idea:** ${projectIdea}
     - **Main Features:** ${mainFeatures}
     - **Objective:** ${objective}
-    - **Interest:** ${interest}
+    - **Timeline:** ${timeline}
     `;
 
     console.log("[System] Generated system prompt:", prompt);
@@ -85,9 +86,7 @@ async function streamChatResponse(
             const dataString = line.substring(6);
             const data = JSON.parse(dataString);
 
-            if (data.content) {
-              onChunk(data.content);
-            }
+            onChunk(data);
 
             if (data.done) {
               streamFinished = true;
@@ -193,23 +192,51 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         message: textToBackend,
         history: history,
         user_profile: {
-          experienceLevel: user.onboarding?.experienceLevel || 'intermediate',
-          pythonExperience: user.onboarding?.pythonExperience || 'Just starting out',
-          theme: user.onboarding?.theme || 'finance',
-          goal: user.onboarding?.goal || 'Build projects for my portfolio',
+          educationLevel: user.onboarding?.educationLevel || 'primary',
+          schoolExperience: user.onboarding?.schoolExperience || 'beginner',
+          pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+          biggestChallenges: user.onboarding?.biggestChallenges || 'planning',
+          learningMode: user.onboarding?.learningMode || 'guided',
         },
         guiding_complete: !!options.skipUserBubble,      
       },
-      (chunk)=> {
-        fullResponse += chunk;
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantId ? { ...msg, content: (msg.content || '') + chunk } : msg
-        ));
+      (data: any) => { // 'data' is now the full JSON object from backend
+      
+      // 1. Handle Text Content - cleaning data from streaming
+      if (data.content) {
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === assistantId) {
+            let updatedContent = (msg.content || '') + data.content;
 
-        if (fullResponse.toLowerCase().includes('hand you over to the planning')) {
-          triggerHandoff();
-        }
-      }, 
+            // 1. Convert literal escaped strings to real characters
+            let clean = updatedContent
+              .replace(/\\n/g, '\n') 
+              .replace(/\\"/g, '"')
+              .replace(/\\t/g, '  ');
+
+            // 2. Markdown List 
+            // Ensure there is a newline before any bullet point or numbered list 
+            // if it follows text, otherwise it won't trigger the list parser.
+            clean = clean.replace(/([^\n])\n(\s*[\*\-\d+\.])/g, '$1\n\n$2');
+
+            // 3. Strip wrapping quotes if the whole message is wrapped
+            if (clean.startsWith('"') && clean.endsWith('"')) {
+              clean = clean.slice(1, -1);
+            }
+
+            return { ...msg, content: clean };
+          }
+          return msg;
+        }));
+      }
+
+      // 2. Handle Backend-Driven Handoff Trigger
+      if (data.handoff && data.session_data) {
+        console.log("[Handoff] Backend signaled ready. Data received:", data.session_data);
+        // Pass the session data directly to your handoff function
+        triggerHandoff(data.session_data);
+      }
+    },
       () => {
         console.log("[Chat] Stream Finished");
         setIsLoading(false);
@@ -307,7 +334,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   };
 
   // 7. Handoff to Planning Phase
-  const triggerHandoff = async () => {
+  const triggerHandoff = async (backendSessionData: any) => {
     console.log("[Handoff] Triggering project planning handoff...");
     if (isProcessingHandoff) return;
     setIsProcessingHandoff(true);
@@ -323,7 +350,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              session: sessionData,
+              session: backendSessionData,
               experience_level: user.onboarding?.pythonLevel || 'level-1',
             }),
         });
@@ -332,7 +359,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         
         toast.success("Plan Created!");
         onProjectCreated({
-            session: sessionData,
+            session: backendSessionData,
             outline: outlineJson,
             experienceLevel: user.onboarding?.pythonLevel || 'level-1',
         });
@@ -396,8 +423,100 @@ useEffect(() => {
                 )}
                 
                 <Card className={`p-4 max-w-[85%] ${msg.role === 'user' ? 'bg-[#ffa200] text-white border-0' : 'bg-white'}`}>
-                  <div className={`prose-sm ${msg.role === 'user' ? 'text-white' : 'text-gray-800'}`}>
-                     <ReactMarkdown>{msg.content}</ReactMarkdown>
+  
+                  <div className={cn(
+                    "prose prose-sm max-w-none break-words",
+                    msg.role === 'user' 
+                      ? "prose-invert" 
+                      : "prose-gray"
+                  )}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Paragraphs with spacing
+                        p: ({ children }) => (
+                          <p className="mb-4 last:mb-0 leading-relaxed whitespace-pre-wrap">
+                            {children}
+                          </p>
+                        ),
+
+                        // Unordered lists 
+                        ul: ({ children }) => (
+                          <ul className="list-disc list-outside ml-6 mb-4 space-y-1.5">
+                            {children}
+                          </ul>
+                        ),
+
+                        // Ordered lists 
+                        ol: ({ children }) => (
+                          <ol className="list-decimal list-outside ml-6 mb-4 space-y-1.5">
+                            {children}
+                          </ol>
+                        ),
+
+                        // List items
+                        li: ({ children }) => (
+                          <li className="leading-relaxed">{children}</li>
+                        ),
+
+                        // Bold text
+                        strong: ({ children }) => (
+                          <strong className="font-semibold">{children}</strong>
+                        ),
+
+                        // Italic text
+                        em: ({ children }) => (
+                          <em className="italic">{children}</em>
+                        ),
+
+                        // Inline code
+                        code: ({ inline, children, ...props }: any) =>
+                          inline ? (
+                            <code 
+                              className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono"
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          ) : (
+                            <code 
+                              className="block bg-gray-900 text-gray-100 p-3 rounded text-sm font-mono overflow-x-auto mb-4"
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          ),
+
+                        // Headings
+                        h1: ({ children }) => (
+                          <h1 className="text-2xl font-bold mb-3 mt-6 first:mt-0">
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-xl font-bold mb-3 mt-5 first:mt-0">
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0">
+                            {children}
+                          </h3>
+                        ),
+
+                        // Blockquotes
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-purple-500 pl-4 italic my-4">
+                            {children}
+                          </blockquote>
+                        ),
+
+                        // Line breaks
+                        br: () => <br className="my-2" />,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   </div>
                 </Card>
 
@@ -442,7 +561,7 @@ useEffect(() => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t bg-white/95 backdrop-blur-sm p-4 flex-shrink-0 transition-all duration-300 ease-in-out">
+      <div className="border-t bg-white/95 backdrop-blur-sm p-4 shrink-0 transition-all duration-300 ease-in-out">
         <div className="max-w-4xl mx-auto">
           {isGuidingPhase && (
             <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
@@ -461,38 +580,49 @@ useEffect(() => {
                         Array.isArray(guidingAnswers[currentQuestion.key]) &&
                         (guidingAnswers[currentQuestion.key] as string[]).includes(opt.value);
                         
-                      return (
-                        <Button 
-                          key={opt.id} 
-                          variant="outline" 
-                          className={`h-auto py-4 flex flex-col gap-2 whitespace-normal text-center transition-all ${
-                            isSelected 
-                              ? 'border-orange-500 border-2 bg-orange-100 hover:bg-orange-200 text-orange-900 shadow-sm' 
-                              : 'hover:border-orange-600 hover:focus-visible:border-ring hover:bg-orange-60 hover:backdrop-blur-sm'
-                          }`}
-                          onClick={() => handleGuidingStep(opt.value, opt.label)}
-                        >
-                          <div className="flex items-center gap-2 justify-center w-full">
-                             {isSelected && <Check className="w-3 h-3 text-orange-600" />}
-                             <span className="font-semibold">{opt.label}</span>
-                          </div>
-                          <span className="text-xs text-gray-500 font-normal">{opt.desc}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Confirm Button for Multi Select - Fixed Visibility */}
-                  {currentQuestion.multiSelect && (
-                    <div className="flex justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
-                      <Button 
-                        onClick={handleMultiSelectContinue}
+                  return (
+                    <Button 
+                      key={opt.id}  
+                      variant="user_multi_option"
+                      className={cn(
+                        "group h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 hover:resize-none pointer-events-auto cursor-pointer",
+                        isSelected 
+                          ? "bg-amber-400 shadow-md" 
+                          : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-blue-50 hover:border-4 hover:bg-gray-50"
+                      )}
+                      onClick={() => handleGuidingStep(opt.value, opt.label)}
+                    >
+                      <div className="flex items-center gap-2 justify-center w-full">
+                        {isSelected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                        <span className={cn(
+                          "font-semibold", 
+                          isSelected ? "text-white" : "text-gray-800"
+                        )}>
+                          {opt.label}
+                        </span>
+                      </div>
+                      
+                      <span className={cn(
+                        "text-xs font-normal px-4", 
+                        isSelected ? "text-white" : "text-gray-500"
+                      )}>
+                        {opt.desc}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              {currentQuestion.multiSelect && (
+                <div className="flex justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
+                  <Button 
+                    onClick={handleMultiSelectContinue}
                         disabled={
                           !(guidingAnswers[currentQuestion.key] && 
                             Array.isArray(guidingAnswers[currentQuestion.key]) && 
                             (guidingAnswers[currentQuestion.key] as string[]).length > 0)
                         }
-                        className="whitespace-normal bg-white hover:bg-orange-500 text-xs text-gray-500 font-normal border border-orange-800 px-8 py-2 shadow-md z-10"
+                        className="whitespace-normal bg-white hover:border-blue-50 hover:border-4 hover:bg-gray-50 text-xs text-gray-500 font-normal border px-8 py-2 shadow-md z-10 pointer-events-auto cursor-pointer"
                       >
                         Confirm Selection 
                       </Button>
@@ -524,7 +654,7 @@ useEffect(() => {
                     size="icon"
                     onClick={() => input.trim() && handleGuidingStep(input.trim())}
                     disabled={isInputDisabled || !input.trim()}
-                    className="absolute right-4 top-4 h-[42px] w-[42px] hover:backdrop-blur-sm disabled:opacity-50 transition-all"
+                    className="absolute right-4 top-4 h-[42px] w-[42px] hover:backdrop-blur-sm hover:bg-gray-700 disabled:opacity-50 transition-all duration-200 pointer-events-auto cursor-pointer"
                   > 
                     <Send className="w-4 h-4" />
                   </Button>
@@ -551,7 +681,7 @@ useEffect(() => {
                 size= "icon"
                  onClick={() => handleSendMessage(input)} 
                  disabled={isInputDisabled || !input.trim()}
-                className="absolute right-4 top-4 hover:backdrop-blur-sm disabled:opacity-50 h-[60px] w-[60px] transition-all"
+                className="absolute right-4 top-4 hover:backdrop-blur-sm hover:bg-gray-700 h-[60px] w-[60px] transition-all duration-200 pointer-events-auto cursor-pointer"
                >
                  <Send className="w-4 h-4" />
                </Button>
