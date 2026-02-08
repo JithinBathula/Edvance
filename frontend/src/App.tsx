@@ -15,11 +15,8 @@ import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { ProfilePage } from "./components/ProfilePage";
-<<<<<<< HEAD
 import { StudentDashboard } from "./components/StudentDashboard";
 import { BACKEND_URL } from "./utils/constants";
-=======
->>>>>>> main
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
