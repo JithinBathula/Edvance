@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../App';
 import { BACKEND_URL } from '../utils/constants';
@@ -125,7 +126,7 @@ const listItem = {
     hidden: { opacity: 0, x: -12 },
     visible: (i: number) => ({
         opacity: 1, x: 0,
-        transition: { delay: 0.2 + i * 0.06, duration: 0.35, ease: 'easeOut' },
+        transition: { delay: 0.2 + i * 0.06, duration: 0.35, ease: 'easeOut' as const },
     }),
 };
 
@@ -178,6 +179,7 @@ function ProgressRing({ percent, size = 110, stroke = 10 }: { percent: number; s
 /* ───────────── Main Component ───────────── */
 
 export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
+    const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -235,10 +237,10 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
     /* ── Loading ── */
     if (loading) {
         return (
-            <div className="h-screen flex items-center justify-center bg-slate-800">
+            <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-teal-300 mx-auto mb-4" />
-                    <p className="text-slate-400 text-base">Loading your dashboard...</p>
+                    <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+                    <p className="text-slate-600 text-base">Loading your dashboard...</p>
                 </motion.div>
             </div>
         );
@@ -247,9 +249,9 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
     /* ── Error ── */
     if (error || !data) {
         return (
-            <div className="h-screen flex items-center justify-center bg-slate-800">
+            <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                    <p className="text-red-400 mb-4 text-base">{error || 'Something went wrong'}</p>
+                    <p className="text-red-600 mb-4 text-base">{error || 'Something went wrong'}</p>
                     <Button onClick={() => fetchDashboard()}>Try Again</Button>
                 </motion.div>
             </div>
@@ -285,7 +287,7 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
     const navItems = [
         { icon: Home, label: 'Home', action: onBack },
         { icon: LayoutDashboard, label: 'Dashboard' },
-        { icon: BookOpen, label: 'Projects' },
+        { icon: BookOpen, label: 'Projects', action: () => navigate('/projects') },
         { icon: Calendar, label: 'Schedule' },
         { icon: Award, label: 'Achievements' },
     ];
@@ -297,7 +299,7 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
     ];
 
     return (
-        <div className="flex h-screen overflow-hidden bg-slate-800">
+        <div className="flex h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <style>{`
                 .gradient-text {
                     background: linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b);
@@ -385,7 +387,7 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
             </motion.nav>
 
             {/* ═══════════ MAIN 3-COLUMN CONTENT ═══════════ */}
-            <main className="flex-1 bg-gray-50/95 rounded-2xl m-2.5 ml-0 overflow-hidden flex flex-col">
+            <main className="flex-1 bg-transparent rounded-2xl m-2.5 ml-0 overflow-hidden flex flex-col">
 
                 {/* ── Header Bar ── */}
                 <motion.div
@@ -413,10 +415,20 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
                         </div>
                         <motion.div
                             whileHover={{ scale: 1.1 }}
-                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-base bg-gradient-to-br from-teal-500 to-teal-600 cursor-pointer"
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate('/profile')}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-base bg-gradient-to-br from-teal-500 to-teal-600 cursor-pointer overflow-hidden"
                             style={{ boxShadow: '0 0 12px rgba(13, 148, 136, 0.3)' }}
                         >
-                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                            {user.profilePictureUrl ? (
+                                <img
+                                    src={user.profilePictureUrl}
+                                    alt={user.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                user.name?.charAt(0)?.toUpperCase() || 'U'
+                            )}
                         </motion.div>
                     </div>
                 </motion.div>
@@ -651,11 +663,22 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => navigate('/profile')}
                                         transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
-                                        className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-2xl font-bold text-white mx-auto mb-3"
+                                        className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-2xl font-bold text-white mx-auto mb-3 cursor-pointer overflow-hidden"
                                         style={{ boxShadow: '0 0 20px rgba(13, 148, 136, 0.25)' }}
                                     >
-                                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                        {user.profilePictureUrl ? (
+                                            <img
+                                                src={user.profilePictureUrl}
+                                                alt={user.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            user.name?.charAt(0)?.toUpperCase() || 'U'
+                                        )}
                                     </motion.div>
                                     <h3 className="font-bold text-lg text-slate-800">{user.name || 'Student'}</h3>
                                     <p className="text-sm text-slate-400 mt-0.5">Level {levelInfo.level} • {levelInfo.title}</p>

@@ -24,6 +24,10 @@ def require_auth(f):
     """
     @functools.wraps(f)
     def decorated(*args, **kwargs):
+        # Skip auth for OPTIONS requests (CORS preflight)
+        if request.method == 'OPTIONS':
+            return '', 200
+
         auth_header = request.headers.get('Authorization', '')
 
         if not auth_header.startswith('Bearer '):

@@ -315,10 +315,12 @@ body {
   opacity: 0;
   transition: opacity 0.15s;
 }
+
 .ide-file-item:hover .ide-file-menu,
 .ide-file-item.active .ide-file-menu {
   opacity: 0.7;
 }
+
 .ide-file-item .ide-file-menu:hover {
   opacity: 1;
 }
@@ -519,8 +521,15 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .ide-output-body {
@@ -592,7 +601,6 @@ body {
   outline: none;
   border-color: #34d399;
 }
-<<<<<<< HEAD
 
 /* ============================================
    Sandpack Overrides - CRITICAL FOR BACKGROUND
@@ -686,5 +694,3 @@ body {
 .sp-preview-container {
   background: #ffffff;
 }
-=======
->>>>>>> main

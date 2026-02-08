@@ -24,6 +24,7 @@ export type OnboardingData = {
   pythonLevel: string;           // Level 1-5 skill assessment
   biggestChallenges: string[];   // Multiple: syntax, steps, bugs, want more
   learningMode: string;          // hold-my-hand, roadmap, challenge-me
+  theme?: string;                // Project theme: finance, gaming, etc.
 };
 
 export type User = {
@@ -35,6 +36,7 @@ export type User = {
   xp: number;
   completedProjects: string[];
   projects?: string[];
+  profilePictureUrl?: string;
 };
 
 export default function App() {
@@ -273,6 +275,14 @@ export default function App() {
     navigate("/dashboard");
   };
 
+  const handleProfilePictureUpdate = (profilePictureUrl: string) => {
+    if (user) {
+      const updatedUser = { ...user, profilePictureUrl };
+      setUser(updatedUser);
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+    }
+  };
+
   const RequireUser = ({ children }: { children: React.ReactNode }) => {
     if (loading) {
       return (
@@ -434,7 +444,12 @@ export default function App() {
             path="/profile"
             element={
               <RequireUser>
-                <ProfilePage user={user!} onUpdate={handleProfileUpdate} onBack={handleBackToLanding} />
+                <ProfilePage
+                  user={user!}
+                  onUpdate={handleProfileUpdate}
+                  onProfilePictureUpdate={handleProfilePictureUpdate}
+                  onBack={handleBackToLanding}
+                />
               </RequireUser>
             }
           />
