@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ export type User = {
 
 export default function App() {
   const navigate = useNavigate();
+  const lastProfileFetchTokenRef = useRef<string | null>(null);
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('edvance_user');
     if (!savedUser) return null;
@@ -93,6 +94,12 @@ export default function App() {
     return null;
   };
 
+  const fetchProfileOncePerToken = async (token: string | undefined) => {
+    if (!token || lastProfileFetchTokenRef.current === token) return;
+    lastProfileFetchTokenRef.current = token;
+    await fetchAndSetProfile();
+  };
+
   // Initialize Supabase auth session on mount
   useEffect(() => {
     let isMounted = true;
@@ -124,13 +131,15 @@ export default function App() {
 
         if (session) {
           // Sync profile in background. Do not block app bootstrap on API latency.
-          void fetchAndSetProfile();
+          void fetchProfileOncePerToken(session.access_token);
         } else {
+          lastProfileFetchTokenRef.current = null;
           clearUserState();
         }
       } catch (err) {
         console.error('Session bootstrap error:', err);
         setAccessToken(null);
+        lastProfileFetchTokenRef.current = null;
         clearUserState();
       } finally {
         if (isMounted) {
@@ -146,8 +155,9 @@ export default function App() {
         setAccessToken(session?.access_token ?? null);
 
         if (event === 'SIGNED_IN' && session) {
-          await fetchAndSetProfile();
+          await fetchProfileOncePerToken(session.access_token);
         } else if (event === 'SIGNED_OUT') {
+          lastProfileFetchTokenRef.current = null;
           clearUserState();
         } else if (event === 'TOKEN_REFRESHED' && session) {
           setAccessToken(session.access_token);
