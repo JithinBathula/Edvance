@@ -12,6 +12,7 @@ import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { ProfilePage } from "./components/ProfilePage";
+import { StudentDashboard } from "./components/StudentDashboard";
 import { BACKEND_URL } from "./utils/constants";
 
 export type OnboardingData = {
@@ -273,6 +274,7 @@ export default function App() {
                   onStartCourse={() => navigate("/course")}
                   onStartCustomProject={() => navigate("/projects")}
                   onOpenProfile={() => navigate("/profile")}
+                  onOpenDashboard={() => navigate("/student-dashboard")}
                   onLogout={handleLogout}
                 />
               </RequireUser>
@@ -342,6 +344,18 @@ export default function App() {
                 ) : (
                   <Navigate to="/dashboard" replace />
                 )}
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/student-dashboard"
+            element={
+              <RequireUser>
+                <StudentDashboard
+                  user={user!}
+                  onBack={handleBackToLanding}
+                  onSelectProject={handleProjectReady}
+                />
               </RequireUser>
             }
           />

@@ -674,7 +674,7 @@ export function ProjectWorkspace({
 
         {/* Pane 3: IDE */}
         <ResizablePanel id="ide" order={3} defaultSize={isChatOpen ? 40 : 42} minSize={20}>
-          <div className="h-full overflow-hidden flex flex-col bg-[#0b1020]">
+          <div className="h-full overflow-hidden flex flex-col bg-white">
             <div className="flex-1 p-3">
               {filesLoading ? (
                 <div className="h-full flex items-center justify-center text-slate-400">

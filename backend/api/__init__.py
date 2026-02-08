@@ -13,6 +13,7 @@ from .assistant import assistant_bp
 from .health import health_bp
 from .workspace import workspace_bp
 from .sandbox import sandbox_bp
+from .dashboard import dashboard_bp
 
 
 def register_blueprints(app):
@@ -28,6 +29,7 @@ def register_blueprints(app):
     app.register_blueprint(health_bp)
     app.register_blueprint(workspace_bp)
     app.register_blueprint(sandbox_bp)
+    app.register_blueprint(dashboard_bp)
 
 
 __all__ = [
