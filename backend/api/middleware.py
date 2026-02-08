@@ -41,7 +41,8 @@ def require_auth(f):
                 token,
                 signing_key.key,
                 algorithms=['ES256'],
-                audience='authenticated'
+                audience='authenticated',
+                leeway=30  # Allow 30 seconds of clock drift
             )
         except jwt.ExpiredSignatureError:
             return jsonify({'success': False, 'error': 'Token expired'}), 401
