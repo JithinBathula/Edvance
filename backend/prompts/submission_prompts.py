@@ -28,9 +28,9 @@ submission_user_prompt = """Evaluate this Python code submission:
 ## Expected State / Test Specification
 {test_specification}
 
-## Student's Submitted Code
+## Student's Submitted Code (All Files)
 ```python
 {user_code}
 ```
 
-Assess whether this code correctly implements the task requirements based on the test specification. Return your evaluation as a JSON object."""
+Assess whether this code correctly implements the task requirements based on the test specification. Consider all files in the project. Return your evaluation as a JSON object."""

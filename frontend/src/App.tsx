@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
+import { supabase } from "./utils/supabase/client";
+import { authFetch, setAccessToken } from "./utils/authFetch";
 import { LoginScreen } from "./components/LoginScreen";
 import { SignupScreen } from "./components/SignupScreen";
+import { AuthCallback } from "./components/AuthCallback";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { LandingPage } from "./components/LandingPage";
 import { CoursePage } from "./components/CoursePage";
@@ -12,14 +15,18 @@ import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { ProfilePage } from "./components/ProfilePage";
+<<<<<<< HEAD
 import { StudentDashboard } from "./components/StudentDashboard";
 import { BACKEND_URL } from "./utils/constants";
+=======
+>>>>>>> main
 
 export type OnboardingData = {
-  pythonExperience: string;
-  experienceLevel: string;
-  goal: string;
-  theme: string;
+  educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
+  schoolExperience: string;      // Scratch, CFF, Upper Sec Computing, Self-taught
+  pythonLevel: string;           // Level 1-5 skill assessment
+  biggestChallenges: string[];   // Multiple: syntax, steps, bugs, want more
+  learningMode: string;          // hold-my-hand, roadmap, challenge-me
 };
 
 export type User = {
@@ -35,8 +42,31 @@ export type User = {
 
 export default function App() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const lastProfileFetchTokenRef = useRef<string | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('edvance_user');
+    if (!savedUser) return null;
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      localStorage.removeItem('edvance_user');
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
+
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
 
   // Restore project state from localStorage on mount
   const [projectRequirements, setProjectRequirements] = useState<any>(() => {
@@ -49,71 +79,124 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Check for existing session on app load
-  useEffect(() => {
-    const checkSession = async () => {
-      // First, try to restore from localStorage
-      const savedUser = localStorage.getItem('edvance_user');
-      const sessionExpiry = localStorage.getItem('edvance_session_expiry');
-
-      // Check if localStorage session is still valid (within 1 hour)
-      if (savedUser && sessionExpiry) {
-        const expiryTime = parseInt(sessionExpiry, 10);
-        const now = Date.now();
-
-        if (now < expiryTime) {
-          // Session still valid, restore user immediately
-          try {
-            const userData = JSON.parse(savedUser);
-            setUser(userData);
-            console.log('✅ Session restored from localStorage');
-            setLoading(false);
-            return; // Skip backend check if localStorage is valid
-          } catch (e) {
-            console.error('Failed to parse saved user data');
-          }
-        } else {
-          // Session expired, clear localStorage
-          console.log('⏰ Session expired (1 hour), clearing localStorage');
-          localStorage.removeItem('edvance_user');
-          localStorage.removeItem('edvance_session_expiry');
-        }
+  // Fetch profile from backend and set user state
+  const fetchAndSetProfile = async ({ timeoutMs = 8000 }: { timeoutMs?: number } = {}): Promise<User | null> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await authFetch('/auth/me', { signal: controller.signal });
+      const data = await response.json();
+      if (data.success && data.user) {
+        setUser(data.user);
+        localStorage.setItem('edvance_user', JSON.stringify(data.user));
+        return data.user;
       }
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    return null;
+  };
 
-      // If no valid localStorage session, check backend
+  const fetchProfileOncePerToken = async (token: string | undefined) => {
+    if (!token || lastProfileFetchTokenRef.current === token) return;
+    lastProfileFetchTokenRef.current = token;
+    await fetchAndSetProfile();
+  };
+
+  // Initialize Supabase auth session on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const clearUserState = () => {
+      if (isMounted) {
+        setUser(null);
+      }
+      localStorage.removeItem('edvance_user');
+    };
+
+    const initializeSession = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/auth/me`, {
-          credentials: 'include',
-        });
-        const data = await response.json();
+        const { data, error } = await withTimeout(
+          supabase.auth.getSession(),
+          4000,
+          'Supabase session restore'
+        );
 
-        if (data.success && data.user) {
-          setUser(data.user);
+        if (error) {
+          console.error('Failed to restore session:', error);
+          setAccessToken(null);
+          clearUserState();
+          return;
+        }
 
-          // Save to localStorage with 1 hour expiry
-          const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour from now
-          localStorage.setItem('edvance_user', JSON.stringify(data.user));
-          localStorage.setItem('edvance_session_expiry', expiryTime.toString());
+        const session = data.session;
+        setAccessToken(session?.access_token ?? null);
 
-          console.log('✅ Session verified with backend and saved to localStorage');
+        if (session) {
+          // Sync profile in background. Do not block app bootstrap on API latency.
+          void fetchProfileOncePerToken(session.access_token);
+        } else {
+          lastProfileFetchTokenRef.current = null;
+          clearUserState();
         }
       } catch (err) {
-        console.log("No existing backend session");
+        console.error('Session bootstrap error:', err);
+        setAccessToken(null);
+        lastProfileFetchTokenRef.current = null;
+        clearUserState();
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    checkSession();
+    void initializeSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setAccessToken(session?.access_token ?? null);
+
+        if (event === 'SIGNED_IN' && session) {
+          await fetchProfileOncePerToken(session.access_token);
+        } else if (event === 'SIGNED_OUT') {
+          lastProfileFetchTokenRef.current = null;
+          clearUserState();
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setAccessToken(session.access_token);
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setAccessToken(null);
+      setUser(null);
+      setCurrentProject(null);
+      setProjectRequirements(null);
+      localStorage.removeItem('edvance_user');
+      localStorage.removeItem('edvance_current_project');
+      localStorage.removeItem('edvance_project_requirements');
+      navigate("/", { replace: true });
+    };
+
+    window.addEventListener('edvance:auth-expired', handleAuthExpired as EventListener);
+    return () => {
+      window.removeEventListener('edvance:auth-expired', handleAuthExpired as EventListener);
+    };
+  }, [navigate]);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
-
-    // Save to localStorage with 1 hour expiry
-    const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour from now
     localStorage.setItem('edvance_user', JSON.stringify(userData));
-    localStorage.setItem('edvance_session_expiry', expiryTime.toString());
 
     if (userData.onboarding) {
       navigate("/dashboard");
@@ -124,28 +207,19 @@ export default function App() {
 
   const handleSignup = (userData: User) => {
     setUser(userData);
-
-    // Save to localStorage with 1 hour expiry
-    const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hour from now
     localStorage.setItem('edvance_user', JSON.stringify(userData));
-    localStorage.setItem('edvance_session_expiry', expiryTime.toString());
-
     navigate("/onboarding");
   };
 
   const handleLogout = async () => {
     try {
-      await fetch(`${BACKEND_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await supabase.auth.signOut();
     } catch (err) {
       console.error("Logout error:", err);
     }
 
     // Clear all localStorage
     localStorage.removeItem('edvance_user');
-    localStorage.removeItem('edvance_session_expiry');
     localStorage.removeItem('edvance_current_project');
     localStorage.removeItem('edvance_project_requirements');
 
@@ -159,20 +233,18 @@ export default function App() {
     if (user) {
       const updatedUser = { ...user, onboarding: onboardingData };
       setUser(updatedUser);
-
-      // Update localStorage
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
     navigate("/dashboard");
   };
 
   const handleRequirementsReady = (data: any) => {
-    console.log("📋 Requirements ready:", data);
+    console.log("Requirements ready:", data);
     const outlineVmType = data?.outline?.vm_type || data?.outline?.vmType;
     const requirements = {
       session: data.session || data.session_data,
       outline: data.outline,
-      experienceLevel: data.experienceLevel || user?.onboarding?.experienceLevel || 'beginner',
+      experienceLevel: data.experienceLevel || user?.onboarding?.pythonLevel || 'beginner',
       vmType: data.vm_type || data.vmType || outlineVmType || 'python',
     };
     setProjectRequirements(requirements);
@@ -181,7 +253,7 @@ export default function App() {
   };
 
   const handleProjectReady = (project: any) => {
-    console.log("📦 Project ready:", project);
+    console.log("Project ready:", project);
     setCurrentProject(project);
     localStorage.setItem('edvance_current_project', JSON.stringify(project));
     navigate("/project");
@@ -199,8 +271,6 @@ export default function App() {
     if (user) {
       const updatedUser = { ...user, onboarding: onboardingData };
       setUser(updatedUser);
-
-      // Update localStorage
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
     navigate("/dashboard");
@@ -256,6 +326,10 @@ export default function App() {
                 <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/")} />
               )
             }
+          />
+          <Route
+            path="/auth/callback"
+            element={<AuthCallback />}
           />
           <Route
             path="/onboarding"

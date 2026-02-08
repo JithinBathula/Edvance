@@ -1,11 +1,14 @@
 """
 Chat API routes - Requirement Gathering
 """
-from flask import Blueprint, request, jsonify, Response, stream_with_context
+from typing import Optional
+
+from flask import Blueprint, request, jsonify, Response, stream_with_context, g
 import json
 import traceback
 
 from agents.requirement_gathering_agent import RequirementGatheringAgent
+from api.middleware import require_auth
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
@@ -22,22 +25,28 @@ def get_requirement_agent():
 
 
 @chat_bp.route('/', methods=['POST'])
+@require_auth
 def chat():
     """Process chat message with streaming response."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         message = data.get('message')
         conversation_history = data.get('history', [])
-        session_id = data.get('session_id', 'default')
-        
+        session_id = str(g.user_id)
+        # Fetch from frontend
+        user_profile = data.get('user_profile', {})
+
         if not message:
             return jsonify({'error': 'Message is required'}), 400
         
         def generate():
             try:
+                # TODO: ensure chat does not run the llm directly
+
                 for chunk in get_requirement_agent().process_message(
                     message=message,
                     conversation_history=conversation_history,
+                    user_profile=user_profile,
                     session_id=session_id
                 ):
                     yield f"data: {json.dumps(chunk)}\n\n"
@@ -66,27 +75,24 @@ def chat():
         return jsonify({'error': str(e)}), 500
 
 
-@chat_bp.route('/reset-session', methods=['POST'])
-def reset_session():
-    """Reset the requirement gathering session."""
-    try:
-        data = request.get_json()
-        session_id = data.get('session_id', 'default')
-        get_requirement_agent().reset_session(session_id)
-        return jsonify({'status': 'success', 'message': 'Session reset'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
+@chat_bp.route('/requirements', methods=['GET'])
 @chat_bp.route('/requirements/<session_id>', methods=['GET'])
-def get_final_requirements(session_id: str):
+@require_auth
+def get_final_requirements(session_id: Optional[str] = None):
     """
     Retrieve the finalized project requirements from the agent's session state.
     """
     try:
-        session_state = get_requirement_agent().get_session_state(session_id)
+        authenticated_session_id = str(g.user_id)
+        if session_id and str(session_id) != authenticated_session_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'Forbidden'
+            }), 403
+
+        session_state = get_requirement_agent().get_session_state(authenticated_session_id)
         
-        if not session_state.get('requirements_finalized'):
+        if not session_state.get('ready_to_plan'):
             return jsonify({
                 'status': 'error',
                 'message': 'Requirements not yet finalized in this session'

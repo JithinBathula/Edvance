@@ -202,7 +202,7 @@ body {
 }
 
 .ide-editor-area {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
   background: #011627;
@@ -223,18 +223,6 @@ body {
   z-index: 50;
   color: #34d399;
   font-size: 0.875rem;
-}
-
-/* Sandpack Layout */
-.ide-editor-area .sp-wrapper {
-  height: 100%;
-  background: #011627 !important;
-}
-
-.ide-editor-area .sp-layout {
-  height: 100%;
-  background: #011627 !important;
-  border: none !important;
 }
 
 /* Sidebar */
@@ -299,8 +287,40 @@ body {
   overflow: auto;
 }
 
-.ide-file-list .sp-file-explorer {
-  background: #0d1b2a !important;
+.ide-file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+}
+
+.ide-file-item:hover {
+  background: rgba(30, 58, 95, 0.5);
+  color: #e2e8f0;
+}
+
+.ide-file-item.active {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+.ide-file-item .ide-file-menu {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ide-file-item:hover .ide-file-menu,
+.ide-file-item.active .ide-file-menu {
+  opacity: 0.7;
+}
+.ide-file-item .ide-file-menu:hover {
+  opacity: 1;
 }
 
 /* Main editor area */
@@ -315,37 +335,53 @@ body {
   background: #011627;
 }
 
-/* Code editor base sizing */
-.ide-main .sp-editor {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
+/* Tab Bar */
+.ide-tab-bar {
   display: flex;
-  flex-direction: column;
-  background: #011627 !important;
+  align-items: stretch;
+  background: #0a1929;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+  flex-shrink: 0;
+  overflow-x: auto;
 }
 
-/* Code editor takes top half in web mode */
-.ide-container[data-mode="web"] .ide-main .sp-editor {
-  flex: 1 1 0;
-  max-height: none;
-}
-
-/* Code editor fills full height in python mode */
-.ide-container[data-mode="python"] .ide-main .sp-editor {
-  flex: 1 1 0;
-  max-height: 100%;
-  height: 100%;
-}
-
-/* Code editor fills its container */
-.ide-main .sp-code-editor {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  background: #011627 !important;
+.ide-tab {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #6988a1;
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.ide-tab:hover {
+  color: #c5e4fd;
+  background: rgba(30, 58, 95, 0.3);
+}
+
+.ide-tab.active {
+  color: #ffffff;
+  border-bottom-color: #34d399;
+}
+
+.ide-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem;
+  border-radius: 0.25rem;
+  color: #64748b;
+  margin-left: 0.25rem;
+}
+
+.ide-tab-close:hover {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
 }
 
 /* Preview section */
@@ -360,7 +396,6 @@ body {
   flex-direction: column;
 }
 
-/* Preview takes bottom half in web mode */
 .ide-container[data-mode="web"] .ide-preview {
   flex: 1 1 0;
   max-height: none;
@@ -370,32 +405,56 @@ body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: 0;
+  padding: 0;
   font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.15em;
   color: #64748b;
   border-bottom: 1px solid rgba(30, 41, 59, 0.7);
 }
 
-/* Ensure Sandpack preview fills its half */
-.ide-preview .sp-preview {
-  flex: 1;
-  min-height: 0;
+.ide-preview-tab {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: #64748b;
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
 }
 
-/* Make Sandpack preview iframe scrollable */
-.ide-preview .sp-preview-container,
-.ide-preview .sp-preview-iframe {
-  height: 100%;
-  overflow: auto;
+.ide-preview-tab:hover {
+  color: #c5e4fd;
 }
 
-/* Terminal */
-.ide-terminal {
+.ide-preview-tab.active {
+  color: #e2e8f0;
+  border-bottom-color: #34d399;
+}
+
+.ide-preview-badge {
+  font-size: 0.625rem;
+  min-width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #475569;
+  color: #e2e8f0;
+  padding: 0 0.25rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Output Panel */
+.ide-output {
   height: 30px;
   border-top: 1px solid rgba(30, 41, 59, 0.8);
   background: #011627;
@@ -404,12 +463,13 @@ body {
   overflow: hidden;
 }
 
-.ide-terminal.open {
-  flex: 1;
+.ide-output.open {
+  flex: 1 1 0;
   height: auto;
+  min-height: 0;
 }
 
-.ide-terminal-header {
+.ide-output-header {
   flex-shrink: 0;
   height: 36px;
   display: flex;
@@ -422,11 +482,11 @@ body {
   color: #94a3b8;
 }
 
-.ide-terminal-header:hover {
+.ide-output-header:hover {
   background: #152238;
 }
 
-.ide-terminal-title {
+.ide-output-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -434,7 +494,7 @@ body {
   color: #cbd5e1;
 }
 
-.ide-terminal-status {
+.ide-output-status {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -443,7 +503,7 @@ body {
   margin-left: 0.5rem;
 }
 
-.ide-terminal-status::before {
+.ide-output-status::before {
   content: '';
   width: 0.45rem;
   height: 0.45rem;
@@ -452,58 +512,64 @@ body {
   box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
 }
 
-.ide-terminal-status[data-status="connecting"]::before {
+.ide-output-status[data-status="running"]::before {
   background: #fbbf24;
   box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
-.ide-terminal-status[data-status="connected"]::before {
-  background: #34d399;
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2);
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.ide-terminal-status[data-status="error"]::before {
-  background: #f87171;
-  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.2);
-}
-
-.ide-terminal-body {
+.ide-output-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
 }
 
-.ide-terminal-error {
-  padding: 0.4rem 0.75rem;
-  background: rgba(127, 29, 29, 0.25);
-  border-bottom: 1px solid rgba(248, 113, 113, 0.35);
-  color: #fca5a5;
-  font-size: 0.8rem;
-}
-
-.ide-terminal-output {
+.ide-output-content {
   flex: 1;
-  overflow: hidden;
-  background: #011627;
-}
-
-.ide-terminal-xterm {
-  height: 100%;
-  width: 100%;
-}
-
-.ide-terminal-xterm .xterm {
-  height: 100%;
-  padding: 0.75rem;
-}
-
-.ide-terminal-xterm .xterm-viewport {
+  min-height: 0;
   overflow: auto;
+  margin: 0;
+  padding: 0.75rem;
+  font-family: "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  background: #011627;
+  color: #6ee7b7;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.ide-terminal-input {
+.ide-output-xterm {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ide-output-xterm .xterm {
+  height: 100%;
+  padding: 0.5rem;
+}
+
+.ide-output-xterm .xterm-viewport {
+  overflow-y: auto !important;
+}
+
+.ide-output-placeholder {
+  color: #4b6479;
+  font-style: italic;
+}
+
+.ide-output-error {
+  color: #f87171;
+}
+
+.ide-output-input {
   display: flex;
   gap: 0.5rem;
   padding: 0.5rem;
@@ -511,20 +577,22 @@ body {
   border-top: 1px solid rgba(30, 41, 59, 0.7);
 }
 
-.ide-terminal-input input {
+.ide-output-input input {
   flex: 1;
   background: #011627;
   color: white;
   font-size: 0.875rem;
+  font-family: "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   border: 1px solid #334155;
 }
 
-.ide-terminal-input input:focus {
+.ide-output-input input:focus {
   outline: none;
   border-color: #34d399;
 }
+<<<<<<< HEAD
 
 /* ============================================
    Sandpack Overrides - CRITICAL FOR BACKGROUND
@@ -618,3 +686,5 @@ body {
 .sp-preview-container {
   background: #ffffff;
 }
+=======
+>>>>>>> main

@@ -12,8 +12,11 @@ from .submission import submission_bp
 from .assistant import assistant_bp
 from .health import health_bp
 from .workspace import workspace_bp
+<<<<<<< HEAD
 from .sandbox import sandbox_bp
 from .dashboard import dashboard_bp
+=======
+>>>>>>> main
 
 
 def register_blueprints(app):
@@ -28,8 +31,11 @@ def register_blueprints(app):
     app.register_blueprint(assistant_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(workspace_bp)
+<<<<<<< HEAD
     app.register_blueprint(sandbox_bp)
     app.register_blueprint(dashboard_bp)
+=======
+>>>>>>> main
 
 
 __all__ = [
@@ -43,6 +49,5 @@ __all__ = [
     'assistant_bp',
     'health_bp',
     'workspace_bp',
-    'sandbox_bp',
     'register_blueprints',
 ]

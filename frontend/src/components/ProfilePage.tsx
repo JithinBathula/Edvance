@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { User, OnboardingData } from '../App';
-import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
-import { ArrowLeft, Save, User as UserIcon, Target, Code2, Palette } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, GraduationCap, Code2, Target, Lightbulb, BookOpen } from 'lucide-react';
 
 type Props = {
   user: User;
@@ -16,24 +17,29 @@ type Props = {
 export function ProfilePage({ user, onUpdate, onBack }: Props) {
   const [loading, setLoading] = useState(false);
 
-  const [answers, setAnswers] = useState<OnboardingData>(
-    {
-      pythonExperience: user.onboarding?.pythonExperience || '',
-      experienceLevel: user.onboarding?.experienceLevel || '',
-      goal: user.onboarding?.goal || '',
-      theme: user.onboarding?.theme || '',
-    }
-  );
+  const [answers, setAnswers] = useState<OnboardingData>({
+    educationLevel: user.onboarding?.educationLevel || '',
+    schoolExperience: user.onboarding?.schoolExperience || '',
+    pythonLevel: user.onboarding?.pythonLevel || '',
+    biggestChallenges: user.onboarding?.biggestChallenges || [],
+    learningMode: user.onboarding?.learningMode || '',
+  });
+
+  const toggleChallenge = (value: string) => {
+    const current = answers.biggestChallenges || [];
+    const updated = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    setAnswers({ ...answers, biggestChallenges: updated });
+  };
 
   const handleSave = async () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/users/onboarding`, {
+      const response = await authFetch('/users/onboarding', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
           onboardingData: answers,
         }),
       });
@@ -47,19 +53,6 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
       console.error('Error updating profile:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getThemeIcon = (theme: string) => {
-    switch (theme) {
-      case 'chatbot':
-        return '🤖';
-      case 'gaming':
-        return '🎮';
-      case 'finance':
-        return '💰';
-      default:
-        return '✨';
     }
   };
 
@@ -109,31 +102,36 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
 
         {/* Learning Preferences */}
         <div className="space-y-6">
-          {/* Python Experience */}
+          {/* Education Level */}
           <Card className="p-6 bg-white">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Code2 className="w-5 h-5 text-[#7622e5]" />
+                <GraduationCap className="w-5 h-5 text-[#7622e5]" />
               </div>
               <div>
-                <h3 className="text-xl">Python Experience</h3>
-                <p className="text-sm text-gray-600">How long have you been coding in Python?</p>
+                <h3 className="text-xl">Education Level</h3>
+                <p className="text-sm text-gray-600">What is your current level?</p>
               </div>
             </div>
 
             <RadioGroup
-              value={answers.pythonExperience}
-              onValueChange={(value: string) => setAnswers({ ...answers, pythonExperience: value })}
+              value={answers.educationLevel}
+              onValueChange={(value: string) => setAnswers({ ...answers, educationLevel: value })}
             >
               <div className="grid grid-cols-2 gap-3">
-                {['Just starting out', '1-3 months', '3-6 months', '6+ months'].map((option) => (
+                {[
+                  { value: 'primary', label: 'Primary 5 / Primary 6' },
+                  { value: 'lower-sec', label: 'Lower Secondary (Sec 1-2)' },
+                  { value: 'upper-sec', label: 'Upper Secondary (Sec 3-5)' },
+                  { value: 'post-sec', label: 'JC / MI / Poly / ITE' },
+                ].map((option) => (
                   <label
-                    key={option}
+                    key={option.value}
                     className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
                   >
-                    <RadioGroupItem value={option} id={`exp-${option}`} />
-                    <Label htmlFor={`exp-${option}`} className="cursor-pointer">
-                      {option}
+                    <RadioGroupItem value={option.value} id={`edu-${option.value}`} />
+                    <Label htmlFor={`edu-${option.value}`} className="cursor-pointer">
+                      {option.label}
                     </Label>
                   </label>
                 ))}
@@ -141,32 +139,73 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
             </RadioGroup>
           </Card>
 
-          {/* Experience Level */}
+          {/* School Experience */}
           <Card className="p-6 bg-white">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                <Target className="w-5 h-5 text-[#ffa200]" />
+                <BookOpen className="w-5 h-5 text-[#ffa200]" />
               </div>
               <div>
-                <h3 className="text-xl">Experience Level</h3>
-                <p className="text-sm text-gray-600">What's your current skill level?</p>
+                <h3 className="text-xl">School Coding Experience</h3>
+                <p className="text-sm text-gray-600">What's the most advanced coding you've done in school?</p>
               </div>
             </div>
 
             <RadioGroup
-              value={answers.experienceLevel}
-              onValueChange={(value: string) => setAnswers({ ...answers, experienceLevel: value })}
+              value={answers.schoolExperience}
+              onValueChange={(value: string) => setAnswers({ ...answers, schoolExperience: value })}
             >
               <div className="space-y-3">
                 {[
-                  { value: 'never', label: "Never touched code", desc: "Complete beginner" },
-                  { value: 'basic', label: "Some experience", desc: "I know lists, variables, and loops" },
-                  { value: 'intermediate', label: "Intermediate", desc: "I understand classes and OOP" },
-                  { value: 'advanced', label: "Advanced", desc: "I work with different libraries" },
+                  { value: 'beginner', label: 'Just starting out', desc: "I've mostly used Scratch or block-based coding" },
+                  { value: 'cff', label: "Completed 'Code For Fun' (CFF)", desc: "I've done the 10-hour MOE workshop" },
+                  { value: 'computing', label: 'Taking/Took Upper Sec Computing', desc: "Familiar with O-Level/G3 7155 Syllabus" },
+                  { value: 'self-taught', label: 'Self-taught / Enrichment Hero', desc: 'External classes or self-learning' },
                 ].map((option) => (
                   <label
                     key={option.value}
                     className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#ffa200] cursor-pointer transition-colors"
+                  >
+                    <RadioGroupItem value={option.value} id={`school-${option.value}`} className="mt-1" />
+                    <div className="flex-1">
+                      <Label htmlFor={`school-${option.value}`} className="cursor-pointer">
+                        {option.label}
+                      </Label>
+                      <p className="text-sm text-gray-500 mt-1">{option.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </RadioGroup>
+          </Card>
+
+          {/* Python Level */}
+          <Card className="p-6 bg-white">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Code2 className="w-5 h-5 text-[#7622e5]" />
+              </div>
+              <div>
+                <h3 className="text-xl">Python Level</h3>
+                <p className="text-sm text-gray-600">Which level have you cleared?</p>
+              </div>
+            </div>
+
+            <RadioGroup
+              value={answers.pythonLevel}
+              onValueChange={(value: string) => setAnswers({ ...answers, pythonLevel: value })}
+            >
+              <div className="space-y-3">
+                {[
+                  { value: 'level-1', label: 'Level 1: Basics', desc: 'print(), variables, and input()' },
+                  { value: 'level-2', label: 'Level 2: Conditions', desc: 'if-elif-else and comparison operators' },
+                  { value: 'level-3', label: 'Level 3: Loops', desc: 'for and while loops' },
+                  { value: 'level-4', label: 'Level 4: Functions & Data', desc: 'def functions, lists, dictionaries' },
+                  { value: 'level-5', label: 'Level 5: Advanced', desc: 'Libraries, try/except, file I/O' },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
                   >
                     <RadioGroupItem value={option.value} id={`level-${option.value}`} className="mt-1" />
                     <div className="flex-1">
@@ -181,72 +220,80 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
             </RadioGroup>
           </Card>
 
-          {/* Goal */}
-          <Card className="p-6 bg-white">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Target className="w-5 h-5 text-[#7622e5]" />
-              </div>
-              <div>
-                <h3 className="text-xl">Learning Goal</h3>
-                <p className="text-sm text-gray-600">What brings you to Edvance?</p>
-              </div>
-            </div>
-
-            <RadioGroup
-              value={answers.goal}
-              onValueChange={(value: string) => setAnswers({ ...answers, goal: value })}
-            >
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  'Learn programming fundamentals',
-                  'Build projects for my portfolio',
-                  'Prepare for a career in tech',
-                  'Just exploring and having fun',
-                ].map((option) => (
-                  <label
-                    key={option}
-                    className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
-                  >
-                    <RadioGroupItem value={option} id={`goal-${option}`} />
-                    <Label htmlFor={`goal-${option}`} className="cursor-pointer">
-                      {option}
-                    </Label>
-                  </label>
-                ))}
-              </div>
-            </RadioGroup>
-          </Card>
-
-          {/* Theme */}
+          {/* Biggest Challenges (Multi-select) */}
           <Card className="p-6 bg-white">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                <Palette className="w-5 h-5 text-[#ffa200]" />
+                <Target className="w-5 h-5 text-[#ffa200]" />
               </div>
               <div>
-                <h3 className="text-xl">Learning Theme</h3>
-                <p className="text-sm text-gray-600">Choose your preferred project theme</p>
+                <h3 className="text-xl">Biggest Challenges</h3>
+                <p className="text-sm text-gray-600">Select all that apply</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'syntax', label: "I don't know the words", desc: 'Forget Python syntax' },
+                { value: 'planning', label: "I don't know the steps", desc: 'Struggle to break down problems' },
+                { value: 'debugging', label: 'I get stuck on bugs', desc: 'Hard to find and fix errors' },
+                { value: 'advanced', label: 'I want to do more', desc: 'Ready for advanced patterns' },
+              ].map((option) => {
+                const isChecked = answers.biggestChallenges?.includes(option.value) ?? false;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                      isChecked ? 'border-[#ffa200] bg-orange-50' : 'border-gray-200 hover:border-[#ffa200]'
+                    }`}
+                  >
+                    <Checkbox
+                      id={`challenge-${option.value}`}
+                      checked={isChecked}
+                      onCheckedChange={() => toggleChallenge(option.value)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor={`challenge-${option.value}`} className="cursor-pointer text-sm">
+                        {option.label}
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">{option.desc}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Learning Mode */}
+          <Card className="p-6 bg-white">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Lightbulb className="w-5 h-5 text-[#7622e5]" />
+              </div>
+              <div>
+                <h3 className="text-xl">Learning Mode</h3>
+                <p className="text-sm text-gray-600">How do you like to learn?</p>
               </div>
             </div>
 
             <RadioGroup
-              value={answers.theme}
-              onValueChange={(value: string) => setAnswers({ ...answers, theme: value })}
+              value={answers.learningMode}
+              onValueChange={(value: string) => setAnswers({ ...answers, learningMode: value })}
             >
               <div className="space-y-3">
                 {[
-                  { value: 'chatbot', label: '🤖 Chatbots & AI', desc: 'Build conversational AI and intelligent bots' },
-                  { value: 'gaming', label: '🎮 Gaming', desc: 'Create fun games and interactive experiences' },
-                  { value: 'finance', label: '💰 Finance & Budgeting', desc: 'Develop budget trackers and financial tools' },
+                  { value: 'guided', label: 'Hold my hand', desc: 'Detailed instructions for every line of code' },
+                  { value: 'roadmap', label: 'Give me the roadmap', desc: "High-level steps, I'll figure out the syntax" },
+                  { value: 'challenge', label: 'Challenge me', desc: 'Just the logic, I\'ll ask for hints when stuck' },
                 ].map((option) => (
                   <label
                     key={option.value}
-                    className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#ffa200] cursor-pointer transition-colors"
+                    className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
                   >
-                    <RadioGroupItem value={option.value} id={`theme-${option.value}`} className="mt-1" />
+                    <RadioGroupItem value={option.value} id={`mode-${option.value}`} className="mt-1" />
                     <div className="flex-1">
-                      <Label htmlFor={`theme-${option.value}`} className="cursor-pointer">
+                      <Label htmlFor={`mode-${option.value}`} className="cursor-pointer">
                         {option.label}
                       </Label>
                       <p className="text-sm text-gray-500 mt-1">{option.desc}</p>

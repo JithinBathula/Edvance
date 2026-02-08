@@ -3,25 +3,23 @@ import { OnboardingData, User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
-// Import the necessary BACKEND_URL constant
-import { BACKEND_URL } from '../utils/constants'; 
+import { authFetch } from '../utils/authFetch';
 
 type Props = {
-  // CORRECTED: Accept the full User object, which contains the unique ID
-  user: User; 
+  user: User;
   onComplete: (data: OnboardingData) => void;
 };
 
-// NOTE: Component now uses 'user' from props
 export function OnboardingScreen({ user, onComplete }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<Partial<OnboardingData>>({});
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progress = (step / totalSteps) * 100;
 
   const handleNext = () => {
@@ -42,34 +40,28 @@ export function OnboardingScreen({ user, onComplete }: Props) {
     setLoading(true);
 
     if (!isStepComplete()) {
-        console.error("Attempted submission before all steps were complete.");
-        setLoading(false);
-        return;
+      console.error("Attempted submission before all steps were complete.");
+      setLoading(false);
+      return;
     }
 
     try {
-      // --- REVISED: Call Flask Backend /api/onboarding using BACKEND_URL ---
-      const response = await fetch(
-        `${BACKEND_URL}/users/onboarding`,
+      const response = await authFetch(
+        '/users/onboarding',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
-            userId: user.id, // CRUCIAL: Send the user's generated ID
             onboardingData: answers,
           }),
         }
       );
 
       const data = await response.json();
-      
+
       if (data.success) {
-        // If the backend confirms success, update frontend state
         onComplete(answers as OnboardingData);
       } else {
-         console.error('Backend failed to save onboarding data:', data.error || 'Unknown error');
+        console.error('Backend failed to save onboarding data:', data.error || 'Unknown error');
       }
     } catch (err) {
       console.error('Onboarding network error:', err);
@@ -81,16 +73,26 @@ export function OnboardingScreen({ user, onComplete }: Props) {
   const isStepComplete = () => {
     switch (step) {
       case 1:
-        return !!answers.pythonExperience;
+        return !!answers.educationLevel;
       case 2:
-        return !!answers.experienceLevel;
+        return !!answers.schoolExperience;
       case 3:
-        return !!answers.goal;
+        return !!answers.pythonLevel;
       case 4:
-        return !!answers.theme;
+        return (answers.biggestChallenges?.length ?? 0) > 0;
+      case 5:
+        return !!answers.learningMode;
       default:
         return false;
     }
+  };
+
+  const toggleChallenge = (value: string) => {
+    const current = answers.biggestChallenges || [];
+    const updated = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    setAnswers({ ...answers, biggestChallenges: updated });
   };
 
   return (
@@ -98,8 +100,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
       <div className="w-full max-w-2xl">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            {/* Use user.name from the user object */}
-            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your learning</h1> 
+            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your learning</h1>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Sparkles className="w-4 h-4" />
               Step {step} of {totalSteps}
@@ -109,53 +110,24 @@ export function OnboardingScreen({ user, onComplete }: Props) {
         </div>
 
         <Card className="p-8 bg-white shadow-xl border-gray-100">
+          {/* Step 1: Educational Level */}
           {step === 1 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl mb-2">How long have you been coding in Python?</h2>
-                <p className="text-gray-600">This helps us tailor the experience to your level</p>
+                <h2 className="text-2xl mb-2">What is your current level?</h2>
+                <p className="text-gray-600">This helps us give you the right level of support</p>
               </div>
 
               <RadioGroup
-                value={answers.pythonExperience}
-                // FIX: Explicitly type 'value' as string
-                onValueChange={(value: string) => setAnswers({ ...answers, pythonExperience: value })}
-              >
-                <div className="space-y-3">
-                  {['Just starting out', '1-3 months', '3-6 months', '6+ months'].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
-                    >
-                      <RadioGroupItem value={option} id={option} />
-                      <Label htmlFor={option} className="cursor-pointer flex-1">
-                        {option}
-                      </Label>
-                    </label>
-                  ))}
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl mb-2">What's your experience level?</h2>
-                <p className="text-gray-600">Be honest - we'll adjust to your pace!</p>
-              </div>
-
-              <RadioGroup
-                value={answers.experienceLevel}
-                // FIX: Explicitly type 'value' as string
-                onValueChange={(value: string) => setAnswers({ ...answers, experienceLevel: value })}
+                value={answers.educationLevel}
+                onValueChange={(value: string) => setAnswers({ ...answers, educationLevel: value })}
               >
                 <div className="space-y-3">
                   {[
-                    { value: 'never', label: "Never touched code", desc: "Complete beginner" },
-                    { value: 'basic', label: "Some experience", desc: "I know lists, variables, and loops" },
-                    { value: 'intermediate', label: "Intermediate", desc: "I understand classes and OOP" },
-                    { value: 'advanced', label: "Advanced", desc: "I work with different libraries" },
+                    { value: 'primary', label: 'Primary 5 / Primary 6', desc: 'Upper primary school student' },
+                    { value: 'lower-sec', label: 'Lower Secondary (Sec 1 - Sec 2)', desc: 'Just started secondary school' },
+                    { value: 'upper-sec', label: 'Upper Secondary (Sec 3 - Sec 5)', desc: 'Preparing for O/N Levels' },
+                    { value: 'post-sec', label: 'Junior College / MI / Poly / ITE', desc: 'Post-secondary education' },
                   ].map((option) => (
                     <label
                       key={option.value}
@@ -163,7 +135,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
-                        <Label htmlFor={option.value} className="cursor-pointer">
+                        <Label htmlFor={option.value} className="cursor-pointer font-medium">
                           {option.label}
                         </Label>
                         <p className="text-sm text-gray-500 mt-1">{option.desc}</p>
@@ -175,57 +147,24 @@ export function OnboardingScreen({ user, onComplete }: Props) {
             </div>
           )}
 
-          {step === 3 && (
+          {/* Step 2: School Coding Experience */}
+          {step === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl mb-2">What's your goal?</h2>
-                <p className="text-gray-600">What brings you to Edvance?</p>
+                <h2 className="text-2xl mb-2">What's the most advanced coding you've done in school?</h2>
+                <p className="text-gray-600">Pick the one that best describes your experience</p>
               </div>
 
               <RadioGroup
-                value={answers.goal}
-                // FIX: Explicitly type 'value' as string
-                onValueChange={(value: string) => setAnswers({ ...answers, goal: value })}
+                value={answers.schoolExperience}
+                onValueChange={(value: string) => setAnswers({ ...answers, schoolExperience: value })}
               >
                 <div className="space-y-3">
                   {[
-                    'Learn programming fundamentals',
-                    'Build projects for my portfolio',
-                    'Prepare for a career in tech',
-                    'Just exploring and having fun',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
-                    >
-                      <RadioGroupItem value={option} id={option} />
-                      <Label htmlFor={option} className="cursor-pointer flex-1">
-                        {option}
-                      </Label>
-                    </label>
-                  ))}
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl mb-2">Choose your theme</h2>
-                <p className="text-gray-600">Your lessons will be tailored to this theme (you can still create custom projects!)</p>
-              </div>
-
-              <RadioGroup
-                value={answers.theme}
-                // FIX: Explicitly type 'value' as string
-                onValueChange={(value: string) => setAnswers({ ...answers, theme: value })}
-              >
-                <div className="space-y-3">
-                  {[
-                    { value: 'chatbot', label: '🤖 Chatbots & AI', desc: 'Build conversational AI and intelligent bots' },
-                    { value: 'gaming', label: '🎮 Gaming', desc: 'Create fun games and interactive experiences' },
-                    { value: 'finance', label: '💰 Finance & Budgeting', desc: 'Develop budget trackers and financial tools' },
+                    { value: 'beginner', label: 'Just starting out', desc: "I've mostly used Scratch or block-based coding" },
+                    { value: 'cff', label: "Completed 'Code For Fun' (CFF)", desc: "I've done the 10-hour MOE primary/secondary workshop" },
+                    { value: 'computing', label: 'Taking/Took Upper Sec Computing', desc: "I'm familiar with the O-Level/G3 7155 Syllabus" },
+                    { value: 'self-taught', label: 'Self-taught / Enrichment Hero', desc: 'I take external classes or learn on my own' },
                   ].map((option) => (
                     <label
                       key={option.value}
@@ -233,7 +172,123 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
-                        <Label htmlFor={option.value} className="cursor-pointer">
+                        <Label htmlFor={option.value} className="cursor-pointer font-medium">
+                          {option.label}
+                        </Label>
+                        <p className="text-sm text-gray-500 mt-1">{option.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
+          {/* Step 3: Python Skills Level */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl mb-2">Which Python level have you cleared?</h2>
+                <p className="text-gray-600">Pick the highest level you're comfortable with</p>
+              </div>
+
+              <RadioGroup
+                value={answers.pythonLevel}
+                onValueChange={(value: string) => setAnswers({ ...answers, pythonLevel: value })}
+              >
+                <div className="space-y-3">
+                  {[
+                    { value: 'level-1', label: 'Level 1: Basics', desc: 'I can use print(), variables, and input() to talk to the user' },
+                    { value: 'level-2', label: 'Level 2: Conditions', desc: "I'm comfortable with if-elif-else and comparison operators like == or >" },
+                    { value: 'level-3', label: 'Level 3: Loops', desc: 'I can use for and while loops to make things happen multiple times' },
+                    { value: 'level-4', label: 'Level 4: Functions & Data', desc: 'I can write my own def functions() and work with lists or dictionaries' },
+                    { value: 'level-5', label: 'Level 5: Advanced', desc: 'I can import libraries, handle try/except errors, and read/write files' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                    >
+                      <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor={option.value} className="cursor-pointer font-medium">
+                          {option.label}
+                        </Label>
+                        <p className="text-sm text-gray-500 mt-1">{option.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
+          {/* Step 4: Biggest Challenges (Multi-select) */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl mb-2">When you start a project, what are your biggest challenges?</h2>
+                <p className="text-gray-600">Select all that apply</p>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { value: 'syntax', label: "I don't know the words", desc: 'I know what I want to do, but I forget the Python syntax/commands' },
+                  { value: 'planning', label: "I don't know the steps", desc: 'I know Python, but I struggle to break a big problem into small steps' },
+                  { value: 'debugging', label: 'I get stuck on bugs', desc: 'I can write code, but I struggle to find and fix errors when they happen' },
+                  { value: 'advanced', label: 'I want to do more', desc: "I'm bored with the basics; I want to learn better ways to structure my code" },
+                ].map((option) => {
+                  const isChecked = answers.biggestChallenges?.includes(option.value) ?? false;
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                        isChecked ? 'border-[#7622e5] bg-purple-50' : 'border-gray-200 hover:border-[#7622e5]'
+                      }`}
+                    >
+                      <Checkbox
+                        id={`challenge-${option.value}`}
+                        checked={isChecked}
+                        onCheckedChange={() => toggleChallenge(option.value)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor={`challenge-${option.value}`} className="cursor-pointer font-medium">
+                          {option.label}
+                        </Label>
+                        <p className="text-sm text-gray-500 mt-1">{option.desc}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Learning Mode / Guidance Preference */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl mb-2">How do you like to learn?</h2>
+                <p className="text-gray-600">This controls how detailed our guidance will be</p>
+              </div>
+
+              <RadioGroup
+                value={answers.learningMode}
+                onValueChange={(value: string) => setAnswers({ ...answers, learningMode: value })}
+              >
+                <div className="space-y-3">
+                  {[
+                    { value: 'guided', label: 'Hold my hand', desc: 'Detailed instructions for every single line of code' },
+                    { value: 'roadmap', label: 'Give me the roadmap', desc: "High-level steps, I'll figure out the syntax myself" },
+                    { value: 'challenge', label: 'Challenge me', desc: "Just tell me the logic, I'll write the code and ask for hints only when stuck" },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                    >
+                      <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor={option.value} className="cursor-pointer font-medium">
                           {option.label}
                         </Label>
                         <p className="text-sm text-gray-500 mt-1">{option.desc}</p>

@@ -160,23 +160,6 @@ class CurriculumPlanner:
         except ValidationError as exc:
             raise CurriculumGenerationError(f"Curriculum assembly failed: {exc}") from exc
 
-    def generate_curriculum_json(
-        self,
-        *,
-        requirements: Sequence[str] | str,
-        tech_stack: Sequence[str] | str,
-        experience_level: str,
-    ) -> Dict[str, Any]:
-        """
-        Convenience helper that returns a JSON-serializable dictionary.
-        """
-        curriculum = self.generate_curriculum(
-            requirements=requirements,
-            tech_stack=tech_stack,
-            experience_level=experience_level,
-        )
-        return curriculum.model_dump()
-
     def generate_first_milestone_only(
         self,
         *,

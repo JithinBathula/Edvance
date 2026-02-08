@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BACKEND_URL } from "../utils/constants";
+import { authFetch } from "../utils/authFetch";
 import { LessonSection, LessonTask, ChatMessage, MessageRole } from "../types/types";
 import { mockLesson, LessonSectionData } from "../data/mockLessonData";
 
@@ -213,8 +214,8 @@ export function CoursePage({ user, onBack }: Props) {
     const loadProgress = async () => {
       if (!course?.id) return;
       try {
-        const response = await fetch(
-          `${BACKEND_URL}/user/${user.id}/course-progress/${course.id}`
+        const response = await authFetch(
+          `/courses/progress/${course.id}`
         );
         const data = await response.json();
         if (data.success && data.progress?.completed_lessons) {
@@ -326,13 +327,10 @@ export function CoursePage({ user, onBack }: Props) {
 
     // Save progress to new API
     try {
-      await fetch(
-        `${BACKEND_URL}/user/${user.id}/course-progress/${course.id}`,
+      await authFetch(
+        `/courses/progress/${course.id}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
             completedLessons: newCompleted,
             currentLessonId: currentLesson.id,
