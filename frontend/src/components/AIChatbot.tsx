@@ -53,6 +53,7 @@ export function AIChatbot({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prefillProcessedRef = useRef<string | null>(null);
 
   // Load chat history when component mounts or userId/projectId changes
   useEffect(() => {
@@ -148,7 +149,8 @@ export function AIChatbot({
 
   // Handle prefilled messages from "Ask AI Tutor" button
   useEffect(() => {
-    if (prefillMessage && !isLoading) {
+    if (prefillMessage && !isLoading && prefillMessage !== prefillProcessedRef.current) {
+      prefillProcessedRef.current = prefillMessage;
       sendMessage(prefillMessage);
       onPrefillConsumed?.();
     }
