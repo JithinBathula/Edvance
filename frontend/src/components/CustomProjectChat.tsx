@@ -185,8 +185,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
     const history = messages.map(m => ({ role: m.role, content: m.content }));
     
-    let fullResponse = "";
-
     await streamChatResponse(
       {
         message: textToBackend,
@@ -200,7 +198,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         },
         guiding_complete: !!options.skipUserBubble,      
       },
-      (data: any) => { // 'data' is now the full JSON object from backend
+      (data: any) => { 
       
       // 1. Handle Text Content - cleaning data from streaming
       if (data.content) {
@@ -208,18 +206,18 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
           if (msg.id === assistantId) {
             let updatedContent = (msg.content || '') + data.content;
 
-            // 1. Convert literal escaped strings to real characters
+            // Convert literal escaped strings to real characters
             let clean = updatedContent
               .replace(/\\n/g, '\n') 
               .replace(/\\"/g, '"')
               .replace(/\\t/g, '  ');
 
-            // 2. Markdown List 
+            // Markdown List 
             // Ensure there is a newline before any bullet point or numbered list 
             // if it follows text, otherwise it won't trigger the list parser.
             clean = clean.replace(/([^\n])\n(\s*[\*\-\d+\.])/g, '$1\n\n$2');
 
-            // 3. Strip wrapping quotes if the whole message is wrapped
+            // Strip wrapping quotes if the whole message is wrapped
             if (clean.startsWith('"') && clean.endsWith('"')) {
               clean = clean.slice(1, -1);
             }
@@ -233,7 +231,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       // 2. Handle Backend-Driven Handoff Trigger
       if (data.handoff && data.session_data) {
         console.log("[Handoff] Backend signaled ready. Data received:", data.session_data);
-        // Pass the session data directly to your handoff function
         triggerHandoff(data.session_data);
       }
     },
@@ -395,7 +392,7 @@ useEffect(() => {
       {/* Header */}
       <header className="border-b bg-white px-4 py-3 flex items-center gap-4 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 pointer-events-auto cursor-pointer" />
         </Button>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
@@ -417,7 +414,7 @@ useEffect(() => {
             return (
               <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-10 h-10 rounded-full bg-[#7622e5] flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[#7622e5] flex items-center justify-center shrink-0">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
@@ -567,7 +564,9 @@ useEffect(() => {
             <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
               <div className="flex justify-between items-center mb-3">
                  <p className="text-sm text-gray-500 font-medium">
-                    {currentQuestion.multiSelect ? "Select one or more options:" : "Select an option:"}
+                    {currentQuestion.multiSelect ? "Select one or more options:" 
+                    : currentQuestion.inputType === "text" ? "Type your answer below:" 
+                    : "Select an option:"}
                  </p>
               </div>
 

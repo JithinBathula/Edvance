@@ -255,6 +255,10 @@ ol, ul, menu {
   padding: 0;
 }
 
+.last\:mb-0:last-child {
+  margin-bottom: 0 !important;
+}
+
 /* Add this to force bullets/numbers inside the chat bubbles */
 .prose ul {
   list-style-type: disc !important;
