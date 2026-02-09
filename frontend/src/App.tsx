@@ -111,6 +111,10 @@ export default function App() {
       localStorage.removeItem('edvance_user');
     };
 
+    // If the URL contains an OAuth hash fragment, wait for onAuthStateChange
+    // to process it instead of relying on getSession() which may not see it yet.
+    const hasAuthHash = window.location.hash.includes('access_token');
+
     const initializeSession = async () => {
       try {
         const { data, error } = await withTimeout(
@@ -123,6 +127,7 @@ export default function App() {
           console.error('Failed to restore session:', error);
           setAccessToken(null);
           clearUserState();
+          if (isMounted) setLoading(false);
           return;
         }
 
@@ -130,9 +135,10 @@ export default function App() {
         setAccessToken(session?.access_token ?? null);
 
         if (session) {
-          // Sync profile in background. Do not block app bootstrap on API latency.
-          void fetchProfileOncePerToken(session.access_token);
-        } else {
+          // Await profile so user state is ready before rendering routes.
+          await fetchProfileOncePerToken(session.access_token);
+        } else if (!hasAuthHash) {
+          // Only clear if there's no pending OAuth hash being processed.
           lastProfileFetchTokenRef.current = null;
           clearUserState();
         }
@@ -142,7 +148,8 @@ export default function App() {
         lastProfileFetchTokenRef.current = null;
         clearUserState();
       } finally {
-        if (isMounted) {
+        // If there's an auth hash, let onAuthStateChange set loading=false after sign-in.
+        if (isMounted && !hasAuthHash) {
           setLoading(false);
         }
       }
@@ -150,12 +157,22 @@ export default function App() {
 
     void initializeSession();
 
+    // Safety timeout: if the auth hash is never processed, stop loading after 6s.
+    let hashTimeout: ReturnType<typeof setTimeout> | undefined;
+    if (hasAuthHash) {
+      hashTimeout = setTimeout(() => {
+        if (isMounted) setLoading(false);
+      }, 6000);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setAccessToken(session?.access_token ?? null);
 
         if (event === 'SIGNED_IN' && session) {
           await fetchProfileOncePerToken(session.access_token);
+          // If we were waiting on an OAuth hash, loading can now finish.
+          if (isMounted) setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           lastProfileFetchTokenRef.current = null;
           clearUserState();
@@ -168,6 +185,7 @@ export default function App() {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      if (hashTimeout) clearTimeout(hashTimeout);
     };
   }, []);
 
