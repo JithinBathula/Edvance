@@ -72,6 +72,7 @@
     --color-purple-100: oklch(.946 .033 307.174);
     --color-purple-200: oklch(.902 .063 306.703);
     --color-purple-600: oklch(.558 .288 302.321);
+    --color-purple-700: oklch(27.266% 0.1429 303.406);
     --color-amber-50: oklch(.987 .022 95.277);
     --color-amber-100: oklch(.962 .059 95.617);
     --color-amber-200: #ffcc00;
@@ -569,6 +570,10 @@ ol, ul, menu {
     z-index: 50;
   }
 
+  .z-60 {
+    z-index: 60;
+  }
+
   .col-start-2 {
     grid-column-start: 2;
   }
@@ -625,6 +630,10 @@ ol, ul, menu {
     margin-right: calc(var(--spacing) * 2);
   }
 
+  .mr-4 {
+    margin-right: calc(var(--spacing) * 4);
+  }
+
   .mb-1 {
     margin-bottom: calc(var(--spacing) * 1);
   }
@@ -655,6 +664,10 @@ ol, ul, menu {
 
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
+  }
+
+  .ml-auto {
+    margin-left: auto;
   }
 
   .block {
@@ -1174,6 +1187,11 @@ ol, ul, menu {
     background-color: #7622e5;
   }
 
+  .text-purple-600 {
+    color: var(--color-purple-600);
+  }
+  
+
   .bg-\[\#ffa200\] {
     background-color: #ffa200;
   }
@@ -1268,8 +1286,20 @@ ol, ul, menu {
     background-color: var(--color-gray-50);
   }
 
-    .hover\:bg-gray-700:hover {
+  .hover\:bg-gray-100:hover {
+    background-color: var(--color-gray-100);
+  }
+
+  .hover\:bg-gray-700:hover {
     background-color: var(--color-gray-700);
+  }
+
+  .hover\:text-white:hover {
+    color: var(--color-white);
+  }
+
+  .hover\:bg-red-600:hover {
+    background-color: var(--color-red-600);
   }
 
   @media (hover: hover) {
@@ -1303,6 +1333,18 @@ ol, ul, menu {
 
   .bg-purple-100 {
     background-color: var(--color-purple-100);
+  }
+
+  .bg-purple-600 {
+    background-color: var(--color-purple-600);
+  }
+
+  .bg-purple-700 {
+    background-color: var(--color-purple-700);
+  }
+
+  .hover\:bg-purple-800:hover {
+    background-color: #7622e5;
   }
 
   .bg-secondary {

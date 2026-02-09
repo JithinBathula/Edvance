@@ -318,7 +318,7 @@ class RequirementGatheringAgent:
         iteration_count = 0
         while iteration_count < MAX_ITERATIONS:
             iteration_count += 1
-            print(f"Turn {current_turn} | Iteration {iteration_count}/{MAX_ITERATIONS}")            
+            print(f"Turn {current_turn} | Iteration {iteration_count}/{MAX_ITERATIONS} | Session ID: {session_id}")            
             try:
                 response = self.client.chat.completions.create(
                     model="openai/gpt-5.2",

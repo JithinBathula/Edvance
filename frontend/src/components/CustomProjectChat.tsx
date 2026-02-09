@@ -11,6 +11,7 @@ import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
 import { cn } from './ui/utils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 interface ChatMessage {
   id: string;
@@ -112,18 +113,22 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   const [isProcessingHandoff, setIsProcessingHandoff] = useState(false);
   const [isInitializingAI, setIsInitializingAI] = useState(false);
 
-  const hasInitializedChat = useRef(false);
+  const hasInitializedChat = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [guidingAnswers, setGuidingAnswers] = useState<Record<string, string | string[]>>({});
-                  
+
+  const [chatSessionId, setChatSessionId] = useState(crypto.randomUUID());
+  const [isRestartOpen, setIsRestartOpen] = useState(false); 
+
+
   // 1. Initialization 
   useEffect(() => {
-    if (hasInitializedChat.current) return;
-    hasInitializedChat.current = true;
+    if (hasInitializedChat.current === chatSessionId) return;
+    hasInitializedChat.current = chatSessionId;
 
-    console.log("Chat Initialized for user:", user);
+    console.log("Chat Initialized for session:", chatSessionId);
                     
     if (messages.length === 0) {
       // Map pythonLevel to friendly display text
@@ -150,7 +155,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     ]);
   }
 } 
-,[user.name, user.onboarding?.pythonLevel, messages.length]);
+,[user.name, user.onboarding?.pythonLevel, messages.length, chatSessionId]);
   
 
   // 2. Auto-scroll
@@ -189,6 +194,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       {
         message: textToBackend,
         history: history,
+        session_id: chatSessionId,
         user_profile: {
           educationLevel: user.onboarding?.educationLevel || 'primary',
           schoolExperience: user.onboarding?.schoolExperience || 'beginner',
@@ -247,7 +253,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       }
     );
     console.groupEnd();
-  }, [isLoading, messages, user, guidingAnswers]);
+  }, [isLoading, messages, user, guidingAnswers, chatSessionId]);
 
   // 4. Helper to proceed to next step
   const proceedToNextStep = (answers: Record<string, string | string[]>, userVisual: string) => {
@@ -338,11 +344,10 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
     setTimeout(async () => {
       try {
-        const reqRes = await authFetch('/chat/requirements');
+        const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
         const reqJson = await reqRes.json();
         if (!reqRes.ok || reqJson.status !== 'success') throw new Error("Failed to get requirements");
 
-        const sessionData = reqJson.requirements.session_data;
         const outlineRes = await fetch(`${BACKEND_URL}/planning/outline`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -369,6 +374,28 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     }, 2000);
   };
 
+  const handleRestart = useCallback(() => {
+  try {
+    setMessages([]);
+    setCurrentStep(0);
+    setGuidingAnswers({});
+    setInput('');
+
+    const newId = crypto.randomUUID();
+    setChatSessionId(newId);
+    console.log("[Chat] Restarted session. New session ID:", newId);
+
+    hasInitializedChat.current = null; 
+      
+    toast.success("Session reset!");
+    setIsRestartOpen(false);
+    console.log("[Chat] Restart confirmed by user.");
+  } catch (err) {
+    console.error("Failed to reset session:", err);
+    setIsRestartOpen(false);
+  }
+}, [setChatSessionId, setMessages, setCurrentStep, setGuidingAnswers, setInput, setIsRestartOpen]);
+
   // --- Render ---
   const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
   const currentQuestion = GUIDING_QUESTIONS[currentStep];
@@ -386,9 +413,10 @@ useEffect(() => {
   }
 }, [input]); // Runs every time 'input' changes
 
+console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
+
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">
-      
+    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">      
       {/* Header */}
       <header className="border-b bg-white px-4 py-3 flex items-center gap-4 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
@@ -403,6 +431,48 @@ useEffect(() => {
             <p className="text-sm text-gray-600">AI Project Architect</p>
           </div>
         </div>
+
+       <AlertDialog open={isRestartOpen} onOpenChange={setIsRestartOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="default"
+            size="lg"
+            className="ml-auto mr-4 hover:bg-gray-700 border-gray-200 transition-all duration-200 pointer-events-auto cursor-pointer"
+            type="button"
+          >
+            Restart
+          </Button>
+        </AlertDialogTrigger>
+
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restart Chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear your current chat history and requirements. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="font-semibold ml-auto text-[#7622e5] hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+            >
+              CANCEL</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="ghost"
+              size="lg"
+              onClick={handleRestart}
+              className="font-semibold text-[#7622e5] hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+              
+            >
+              RESTART NOW
+            </AlertDialogAction>
+          </AlertDialogFooter> 
+        </AlertDialogContent>
+      </AlertDialog>
       </header>
 
       {/* Chat Area */}
@@ -661,8 +731,6 @@ useEffect(() => {
               )}
             </div>
           )}
-
-          {/*
 
           {/* Normal Chat Input */}
           {!isGuidingPhase && !isProcessingHandoff && (

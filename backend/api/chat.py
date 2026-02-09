@@ -32,7 +32,8 @@ def chat():
         data = request.get_json(silent=True) or {}
         message = data.get('message')
         conversation_history = data.get('history', [])
-        session_id = str(g.user_id)
+        session_id = data.get('session_id') or str(g.user_id)
+        print(f"Chat request received for session_id: {session_id}")
         # Fetch from frontend
         user_profile = data.get('user_profile', {})
 
