@@ -399,10 +399,66 @@ export function ProjectWorkspace({
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatPrefill, setChatPrefill] = useState<string | null>(null);
 
+  // Text selection "Ask Cody" popup — uses refs + direct DOM to avoid re-renders that kill selection
+  const taskContentRef = useRef<HTMLDivElement>(null);
+  const askCodyPopupRef = useRef<HTMLDivElement>(null);
+  const selectedTextRef = useRef<string>('');
+
   const handleAskTutor = (term: string) => {
     setChatPrefill(`Can you explain what "${term}" means in the context of this task?`);
     if (!isChatOpen) setIsChatOpen(true);
   };
+
+  const showAskCodyPopup = (x: number, y: number, text: string) => {
+    selectedTextRef.current = text;
+    const el = askCodyPopupRef.current;
+    if (el) {
+      el.style.display = 'block';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    }
+  };
+
+  const hideAskCodyPopup = () => {
+    selectedTextRef.current = '';
+    const el = askCodyPopupRef.current;
+    if (el) {
+      el.style.display = 'none';
+    }
+  };
+
+  const handleAskCodySelection = () => {
+    if (selectedTextRef.current) {
+      setChatPrefill(`Can you help me understand this part from the task?\n\n"${selectedTextRef.current}"`);
+      if (!isChatOpen) setIsChatOpen(true);
+      hideAskCodyPopup();
+      window.getSelection()?.removeAllRanges();
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseUp = (e: MouseEvent) => {
+      setTimeout(() => {
+        const selection = window.getSelection();
+        const selectedText = selection?.toString().trim();
+
+        if (selectedText && selectedText.length > 2 && taskContentRef.current?.contains(selection?.anchorNode ?? null)) {
+          const range = selection!.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          const text = selectedText.length > 200 ? selectedText.slice(0, 200) + '...' : selectedText;
+          showAskCodyPopup(rect.left + rect.width / 2, rect.top - 8, text);
+        } else {
+          const popupEl = askCodyPopupRef.current;
+          if (!popupEl?.contains(e.target as Node)) {
+            hideAskCodyPopup();
+          }
+        }
+      }, 10);
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, []);
 
   // Screen Size State (Default to true/large)
   const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth > 1200);
@@ -895,8 +951,25 @@ export function ProjectWorkspace({
           <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
-              <div className="max-w-none mb-6">
+              <div ref={taskContentRef} className="max-w-none mb-6 relative">
                 <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} onAskTutor={handleAskTutor} />
+              </div>
+
+              {/* Ask Cody selection popup — always rendered, shown/hidden via ref to avoid re-renders */}
+              <div
+                ref={askCodyPopupRef}
+                className="fixed z-50"
+                style={{ display: 'none', transform: 'translate(-50%, -100%)' }}
+              >
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleAskCodySelection}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg border border-blue-200 transition-all hover:scale-105 hover:shadow-xl"
+                  style={{ background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', color: '#4338ca' }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Ask Cody
+                </button>
               </div>
 
               {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
