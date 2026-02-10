@@ -298,7 +298,7 @@ function FormattedDescription({
               <code className="inline-code">{children}</code>
             ),
             pre: ({ children }) => (
-              <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono overflow-x-auto mb-4 leading-relaxed border border-gray-200">
+              <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
                 {children}
               </pre>
             ),
