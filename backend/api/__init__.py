@@ -12,6 +12,8 @@ from .submission import submission_bp
 from .assistant import assistant_bp
 from .health import health_bp
 from .workspace import workspace_bp
+from .teacher import teacher_bp
+from .student_classroom import student_classroom_bp
 
 
 def register_blueprints(app):
@@ -26,6 +28,8 @@ def register_blueprints(app):
     app.register_blueprint(assistant_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(workspace_bp)
+    app.register_blueprint(teacher_bp)
+    app.register_blueprint(student_classroom_bp)
 
 
 __all__ = [
@@ -39,5 +43,7 @@ __all__ = [
     'assistant_bp',
     'health_bp',
     'workspace_bp',
+    'teacher_bp',
+    'student_classroom_bp',
     'register_blueprints',
 ]

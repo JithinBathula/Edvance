@@ -15,6 +15,9 @@ import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { ProfilePage } from "./components/ProfilePage";
+import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
+import { ClassroomDetail } from "./components/teacher/ClassroomDetail";
+import { StudentDetail } from "./components/teacher/StudentDetail";
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -33,6 +36,7 @@ export type User = {
   xp: number;
   completedProjects: string[];
   projects?: string[];
+  role: 'student' | 'teacher';
 };
 
 export default function App() {
@@ -193,10 +197,12 @@ export default function App() {
     setUser(userData);
     localStorage.setItem('edvance_user', JSON.stringify(userData));
 
-    if (userData.onboarding) {
-      navigate("/dashboard");
-    } else {
+    if (!userData.onboarding) {
       navigate("/onboarding");
+    } else if (userData.role === 'teacher') {
+      navigate("/teacher/dashboard");
+    } else {
+      navigate("/dashboard");
     }
   };
 
@@ -224,13 +230,20 @@ export default function App() {
     navigate("/");
   };
 
-  const handleOnboardingComplete = (onboardingData: OnboardingData) => {
+  const handleOnboardingComplete = (onboardingData: OnboardingData, role?: 'student' | 'teacher') => {
     if (user) {
-      const updatedUser = { ...user, onboarding: onboardingData };
+      const updatedUser = { ...user, onboarding: onboardingData, role: role || user.role || 'student' };
       setUser(updatedUser);
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+
+      if (updatedUser.role === 'teacher') {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    } else {
+      navigate("/dashboard");
     }
-    navigate("/dashboard");
   };
 
   const handleRequirementsReady = (data: any) => {
@@ -286,6 +299,22 @@ export default function App() {
     return <>{children}</>;
   };
 
+  const RequireTeacher = ({ children }: { children: React.ReactNode }) => {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    if (!user) return <Navigate to="/" replace />;
+    if (user.role !== 'teacher') return <Navigate to="/dashboard" replace />;
+    return <>{children}</>;
+  };
+
   // Show loading spinner while checking session
   if (loading) {
     return (
@@ -306,7 +335,11 @@ export default function App() {
             path="/"
             element={
               user ? (
-                <Navigate to={user.onboarding ? "/dashboard" : "/onboarding"} replace />
+                <Navigate to={
+                  !user.onboarding ? "/onboarding"
+                    : user.role === 'teacher' ? "/teacher/dashboard"
+                    : "/dashboard"
+                } replace />
               ) : (
                 <LoginScreen onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />
               )
@@ -421,6 +454,30 @@ export default function App() {
               <RequireUser>
                 <ProfilePage user={user!} onUpdate={handleProfileUpdate} onBack={handleBackToLanding} />
               </RequireUser>
+            }
+          />
+          <Route
+            path="/teacher/dashboard"
+            element={
+              <RequireTeacher>
+                <TeacherDashboard user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:classroomId"
+            element={
+              <RequireTeacher>
+                <ClassroomDetail user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:classroomId/student/:studentId"
+            element={
+              <RequireTeacher>
+                <StudentDetail user={user!} />
+              </RequireTeacher>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />

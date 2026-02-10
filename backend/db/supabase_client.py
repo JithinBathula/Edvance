@@ -3,9 +3,11 @@ Supabase Client for Edvance Backend
 Provides helper functions for database operations.
 """
 import os
+import string
+import random
 import hashlib
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -573,3 +575,175 @@ def update_project_storage_type(project_id: str, storage_type: str) -> Dict[str,
     if result.data:
         return result.data[0]
     raise Exception(f"Failed to update storage type for project {project_id}")
+
+
+# =============================================================================
+# ROLE & CLASSROOM OPERATIONS
+# =============================================================================
+
+def _generate_join_code(length: int = 6) -> str:
+    """Generate a random alphanumeric uppercase join code."""
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(chars, k=length))
+
+
+def update_user_role(user_id: str, role: str) -> Dict[str, Any]:
+    """Update a user's role ('student' or 'teacher')."""
+    if role not in ('student', 'teacher'):
+        raise ValueError(f"Invalid role: {role}")
+    result = supabase.table("users").update({"role": role}).eq("id", user_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update role for user {user_id}")
+
+
+def create_classroom(teacher_id: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
+    """Create a new classroom with a unique join code."""
+    # Try up to 5 times to generate a unique code
+    for _ in range(5):
+        code = _generate_join_code()
+        try:
+            data = {
+                "teacher_id": teacher_id,
+                "name": name,
+                "description": description,
+                "join_code": code,
+            }
+            result = supabase.table("classrooms").insert(data).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            continue
+    raise Exception("Failed to create classroom after multiple attempts")
+
+
+def get_teacher_classrooms(teacher_id: str) -> List[Dict[str, Any]]:
+    """List all active classrooms for a teacher."""
+    result = supabase.table("classrooms").select("*").eq(
+        "teacher_id", teacher_id
+    ).eq("is_active", True).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_classroom_by_id(classroom_id: str) -> Optional[Dict[str, Any]]:
+    """Get a single classroom by ID."""
+    result = supabase.table("classrooms").select("*").eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def get_classroom_by_join_code(code: str) -> Optional[Dict[str, Any]]:
+    """Look up an active classroom by its join code."""
+    result = supabase.table("classrooms").select("*").eq(
+        "join_code", code.upper()
+    ).eq("is_active", True).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def add_student_to_classroom(classroom_id: str, student_id: str) -> Dict[str, Any]:
+    """Add a student to a classroom (upsert to handle duplicates)."""
+    data = {"classroom_id": classroom_id, "student_id": student_id}
+    result = supabase.table("classroom_members").upsert(
+        data, on_conflict="classroom_id,student_id"
+    ).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to add student to classroom")
+
+
+def remove_student_from_classroom(classroom_id: str, student_id: str) -> bool:
+    """Remove a student from a classroom."""
+    supabase.table("classroom_members").delete().eq(
+        "classroom_id", classroom_id
+    ).eq("student_id", student_id).execute()
+    return True
+
+
+def get_classroom_students(classroom_id: str) -> List[Dict[str, Any]]:
+    """Get all students in a classroom with their user info."""
+    result = supabase.table("classroom_members").select(
+        "*, users:student_id(id, name, email, xp, onboarding, created_at)"
+    ).eq("classroom_id", classroom_id).execute()
+    return result.data or []
+
+
+def get_classroom_student_count(classroom_id: str) -> int:
+    """Get student count for a classroom."""
+    result = supabase.table("classroom_members").select(
+        "id", count="exact"
+    ).eq("classroom_id", classroom_id).execute()
+    return result.count or 0
+
+
+def get_student_classrooms(student_id: str) -> List[Dict[str, Any]]:
+    """Get all classrooms a student belongs to."""
+    result = supabase.table("classroom_members").select(
+        "*, classrooms:classroom_id(id, name, description, join_code, teacher_id, created_at)"
+    ).eq("student_id", student_id).execute()
+    return result.data or []
+
+
+def deactivate_classroom(classroom_id: str) -> Dict[str, Any]:
+    """Soft-delete a classroom by setting is_active=false."""
+    result = supabase.table("classrooms").update(
+        {"is_active": False}
+    ).eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to deactivate classroom {classroom_id}")
+
+
+def regenerate_classroom_join_code(classroom_id: str) -> Dict[str, Any]:
+    """Generate and set a new join code for a classroom."""
+    new_code = _generate_join_code()
+    result = supabase.table("classrooms").update(
+        {"join_code": new_code}
+    ).eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to regenerate join code for classroom {classroom_id}")
+
+
+def get_student_progress_for_projects(user_id: str) -> List[Dict[str, Any]]:
+    """Get all progress records for a student across all their projects."""
+    result = supabase.table("user_progress").select(
+        "*, tasks:task_id(id, task_id_slug, instruction_theory, milestone_id)"
+    ).eq("user_id", user_id).execute()
+    return result.data or []
+
+
+def get_student_projects(user_id: str) -> List[Dict[str, Any]]:
+    """Get all projects for a student with milestone and task counts."""
+    projects = supabase.table("projects").select("*").eq(
+        "user_id", user_id
+    ).order("created_at", desc=True).execute()
+    return projects.data or []
+
+
+def get_project_full_detail(project_id: str) -> Optional[Dict[str, Any]]:
+    """Get project with milestones and tasks nested."""
+    project = get_project_by_id(project_id)
+    if not project:
+        return None
+
+    milestones = get_project_milestones(project_id)
+    for ms in milestones:
+        ms['tasks'] = get_milestone_tasks(ms['id'])
+
+    project['milestones'] = milestones
+    return project
+
+
+def get_students_recent_activity(student_ids: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recent task completions from a list of students."""
+    if not student_ids:
+        return []
+    result = supabase.table("user_progress").select(
+        "*, users:user_id(name), tasks:task_id(task_id_slug, milestone_id)"
+    ).in_("user_id", student_ids).eq(
+        "status", "completed"
+    ).order("completed_at", desc=True).limit(limit).execute()
+    return result.data or []

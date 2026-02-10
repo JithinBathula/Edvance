@@ -1,7 +1,8 @@
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon, LogOut } from 'lucide-react';
+import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon, LogOut, Users } from 'lucide-react';
+import { JoinClassroom } from './student/JoinClassroom';
 
 type Props = {
   user: User;
@@ -48,6 +49,13 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
               <div className="px-3 py-1 rounded-full bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white text-sm">
                 {user.xp} XP
               </div>
+              <JoinClassroom
+                trigger={
+                  <Button variant="ghost" size="icon" className="rounded-full" title="Join Classroom">
+                    <Users className="w-5 h-5" />
+                  </Button>
+                }
+              />
               <Button
                 variant="ghost"
                 size="icon"

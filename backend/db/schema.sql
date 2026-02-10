@@ -314,3 +314,50 @@ CREATE TRIGGER update_repo_files_updated_at
     BEFORE UPDATE ON repo_files
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- TEACHER/CLASSROOM TABLES
+-- =============================================================================
+
+-- Add role column to users table (defaults to 'student' for existing users)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student'
+    CHECK (role IN ('student', 'teacher'));
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- =============================================================================
+-- CLASSROOMS TABLE
+-- A teacher can create classrooms; students join via a 6-char code.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS classrooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    join_code TEXT NOT NULL UNIQUE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_classrooms_teacher_id ON classrooms(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_classrooms_join_code ON classrooms(join_code);
+
+CREATE TRIGGER update_classrooms_updated_at
+    BEFORE UPDATE ON classrooms
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- CLASSROOM_MEMBERS TABLE
+-- Junction table linking students to classrooms.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS classroom_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(classroom_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_classroom_members_classroom ON classroom_members(classroom_id);
+CREATE INDEX IF NOT EXISTS idx_classroom_members_student ON classroom_members(student_id);

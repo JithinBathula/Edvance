@@ -1,6 +1,6 @@
 """
 Authentication middleware for Supabase Auth.
-Provides @require_auth decorator that verifies Supabase JWT tokens.
+Provides @require_auth and @require_teacher decorators.
 """
 import os
 import functools
@@ -58,4 +58,18 @@ def require_auth(f):
 
         return f(*args, **kwargs)
 
+    return decorated
+
+
+def require_teacher(f):
+    """
+    Decorator that verifies the user is authenticated AND has role='teacher'.
+    Must be used instead of (not in addition to) @require_auth.
+    """
+    @functools.wraps(f)
+    @require_auth
+    def decorated(*args, **kwargs):
+        if g.user.get('role', 'student') != 'teacher':
+            return jsonify({'success': False, 'error': 'Teacher access required'}), 403
+        return f(*args, **kwargs)
     return decorated

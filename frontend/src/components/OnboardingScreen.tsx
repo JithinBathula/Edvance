@@ -6,24 +6,32 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
-import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Sparkles, GraduationCap, BookOpen } from 'lucide-react';
 import { authFetch } from '../utils/authFetch';
 
 type Props = {
   user: User;
-  onComplete: (data: OnboardingData) => void;
+  onComplete: (data: OnboardingData, role?: 'student' | 'teacher') => void;
 };
 
 export function OnboardingScreen({ user, onComplete }: Props) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Step 0 = role selection
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [answers, setAnswers] = useState<Partial<OnboardingData>>({});
 
-  const totalSteps = 5;
-  const progress = (step / totalSteps) * 100;
+  const totalSteps = role === 'teacher' ? 1 : 6; // Role step + 5 student steps
+  const progress = ((step + 1) / totalSteps) * 100;
 
   const handleNext = () => {
-    if (step < totalSteps) {
+    // Step 0 = role selection
+    if (step === 0 && role === 'teacher') {
+      // Teachers skip student-specific steps
+      handleSubmit();
+      return;
+    }
+    const maxStep = role === 'teacher' ? 0 : 5;
+    if (step < maxStep) {
       setStep(step + 1);
     } else {
       handleSubmit();
@@ -31,7 +39,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
   };
 
   const handleBack = () => {
-    if (step > 1) {
+    if (step > 0) {
       setStep(step - 1);
     }
   };
@@ -45,13 +53,18 @@ export function OnboardingScreen({ user, onComplete }: Props) {
       return;
     }
 
+    const onboardingData = role === 'teacher'
+      ? { educationLevel: 'teacher', schoolExperience: 'teacher', pythonLevel: 'teacher', biggestChallenges: [], learningMode: 'teacher' }
+      : answers;
+
     try {
       const response = await authFetch(
         '/users/onboarding',
         {
           method: 'POST',
           body: JSON.stringify({
-            onboardingData: answers,
+            onboardingData,
+            role,
           }),
         }
       );
@@ -59,7 +72,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
       const data = await response.json();
 
       if (data.success) {
-        onComplete(answers as OnboardingData);
+        onComplete(onboardingData as OnboardingData, role);
       } else {
         console.error('Backend failed to save onboarding data:', data.error || 'Unknown error');
       }
@@ -72,6 +85,8 @@ export function OnboardingScreen({ user, onComplete }: Props) {
 
   const isStepComplete = () => {
     switch (step) {
+      case 0:
+        return !!role;
       case 1:
         return !!answers.educationLevel;
       case 2:
@@ -100,16 +115,58 @@ export function OnboardingScreen({ user, onComplete }: Props) {
       <div className="w-full max-w-2xl">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your learning</h1>
+            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your experience</h1>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Sparkles className="w-4 h-4" />
-              Step {step} of {totalSteps}
+              Step {step + 1} of {totalSteps}
             </div>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
 
         <Card className="p-8 bg-white shadow-xl border-gray-100">
+          {/* Step 0: Role Selection */}
+          {step === 0 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl mb-2">I am a...</h2>
+                <p className="text-gray-600">Choose your role to get the right experience</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setRole('student')}
+                  className={`p-6 rounded-xl border-2 transition-all text-left ${
+                    role === 'student'
+                      ? 'border-[#7622e5] bg-purple-50 shadow-md'
+                      : 'border-gray-200 hover:border-[#7622e5]'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center mb-3">
+                    <GraduationCap className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">Student</h3>
+                  <p className="text-sm text-gray-500">Learn to code through projects and courses</p>
+                </button>
+
+                <button
+                  onClick={() => setRole('teacher')}
+                  className={`p-6 rounded-xl border-2 transition-all text-left ${
+                    role === 'teacher'
+                      ? 'border-[#7622e5] bg-purple-50 shadow-md'
+                      : 'border-gray-200 hover:border-[#7622e5]'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center mb-3">
+                    <BookOpen className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">Teacher</h3>
+                  <p className="text-sm text-gray-500">Create classrooms and track student progress</p>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Step 1: Educational Level */}
           {step === 1 && (
             <div className="space-y-6">
@@ -304,7 +361,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
             <Button
               onClick={handleBack}
               variant="ghost"
-              disabled={step === 1}
+              disabled={step === 0}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
@@ -315,8 +372,10 @@ export function OnboardingScreen({ user, onComplete }: Props) {
               disabled={!isStepComplete() || loading}
               className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
             >
-              {step === totalSteps ? (loading ? 'Saving...' : 'Complete') : 'Next'}
-              {step < totalSteps && <ArrowRight className="w-4 h-4 ml-2" />}
+              {(step === 0 && role === 'teacher') || step === 5
+                ? (loading ? 'Saving...' : 'Complete')
+                : 'Next'}
+              {!((step === 0 && role === 'teacher') || step === 5) && <ArrowRight className="w-4 h-4 ml-2" />}
             </Button>
           </div>
         </Card>
