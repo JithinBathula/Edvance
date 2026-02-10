@@ -692,7 +692,55 @@ export function ProjectWorkspace({
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2">
                   {(() => {
-                    // Group tasks by their major number (1, 2, 3, etc.)
+                    // Use milestones structure when available
+                    if (project.milestones && project.milestones.length > 0) {
+                      return project.milestones.map((milestone: any, mIdx: number) => {
+                        const milestoneTasks = (milestone.tasks || []);
+                        const isGenerating = milestoneTasks.length === 0;
+
+                        return (
+                          <div key={milestone.id} className="mb-3">
+                            {/* Milestone Header */}
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1 flex items-center gap-1.5">
+                              <span>Task {mIdx + 1}: {milestone.title}</span>
+                              {isGenerating && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
+                            </div>
+                            {/* Tasks */}
+                            {isGenerating ? (
+                              <div className="px-3 py-1.5 ml-2 text-[11px] text-gray-400 italic">
+                                Generating tasks...
+                              </div>
+                            ) : (
+                              milestoneTasks.map((task: any, tIdx: number) => {
+                                const idx = tasks.findIndex((t) => t.id === task.id);
+                                return (
+                                  <button
+                                    key={task.id}
+                                    onClick={() => {
+                                      if (idx >= 0) {
+                                        setCurrentTaskIndex(idx);
+                                        setShowHints(false);
+                                      }
+                                    }}
+                                    className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                                    style={idx === currentTaskIndex
+                                      ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
+                                      : completedTasks.includes(task.id)
+                                        ? { color: '#059669', borderLeft: '3px solid #10b981' }
+                                        : { color: '#374151', borderLeft: '3px solid transparent' }
+                                    }
+                                  >
+                                    <span className="text-xs font-medium">• {mIdx + 1}.{tIdx + 1}</span>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        );
+                      });
+                    }
+
+                    // Fallback: group tasks by their major number from title
                     const groupedTasks: { [key: string]: { name: string; tasks: Array<typeof tasks[0] & { originalIdx: number }> } } = {};
                     tasks.forEach((task, idx) => {
                       const match = task.title.match(/(\d+)\.(\d+)/);
@@ -706,11 +754,9 @@ export function ProjectWorkspace({
 
                     return Object.entries(groupedTasks).map(([majorNum, group]) => (
                       <div key={majorNum} className="mb-3">
-                        {/* Group Header */}
                         <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1">
                           Task {majorNum}: {group.name}
                         </div>
-                        {/* Subtasks */}
                         {group.tasks.map((task) => {
                           const idx = task.originalIdx;
                           const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';

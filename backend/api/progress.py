@@ -45,21 +45,33 @@ def get_project_full(project_id: str):
         if str(project.get('user_id')) != str(g.user_id):
             return jsonify({'success': False, 'error': 'Project not found'}), 404
 
-        milestones = get_project_milestones(project_id)
+        milestones_raw = get_project_milestones(project_id)
 
-        # Flatten tasks for workspace format
+        # Build milestones with tasks + flat task list
         tasks = []
-        for milestone in milestones:
+        milestones = []
+        for milestone in milestones_raw:
             milestone_tasks = get_milestone_tasks(milestone['id'])
+            formatted_tasks = []
             for task in milestone_tasks:
-                tasks.append({
+                task_obj = {
                     'id': task['id'],
                     'title': f"{milestone['title']}: {task['task_id_slug']}",
                     'description': task['instruction_theory'],
                     'hints': task.get('hints', []),
                     'starterCode': task.get('starter_code') or '# Write your code here\n',
                     'testSpec': task.get('test_specification', {}),
-                })
+                }
+                tasks.append(task_obj)
+                formatted_tasks.append(task_obj)
+
+            milestones.append({
+                'id': milestone['id'],
+                'title': milestone['title'],
+                'description': milestone.get('description', ''),
+                'position': milestone.get('position'),
+                'tasks': formatted_tasks,
+            })
 
         return jsonify({
             'success': True,
@@ -69,7 +81,8 @@ def get_project_full(project_id: str):
                 'brief': project.get('brief'),
                 'status': project['status'],
                 'vm_type': project.get('vm_type'),
-                'tasks': tasks
+                'tasks': tasks,
+                'milestones': milestones,
             }
         }), 200
     except Exception as e:
