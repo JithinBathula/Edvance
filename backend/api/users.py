@@ -2,11 +2,15 @@
 Users API routes - User management and onboarding
 """
 from flask import Blueprint, request, jsonify, g
+import base64
+import uuid
+from datetime import datetime
 
 from api.middleware import require_auth
 from db.supabase_client import (
     update_user_onboarding as db_update_onboarding,
     update_user_role,
+    supabase
 )
 
 users_bp = Blueprint('users', __name__, url_prefix='/api/users')
@@ -34,4 +38,52 @@ def update_onboarding():
             'message': f"Onboarding data saved for user {g.user_id}"
         }), 200
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@users_bp.route('/profile-picture', methods=['POST'])
+@require_auth
+def upload_profile_picture():
+    """Upload or update user's profile picture."""
+    try:
+        data = request.json
+        image_data = data.get('image')  # Base64 encoded image
+
+        if not image_data:
+            return jsonify({'success': False, 'error': 'No image data provided'}), 400
+
+        # Remove data URL prefix if present (e.g., "data:image/png;base64,")
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+
+        # Generate unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{g.user_id}_{timestamp}_{uuid.uuid4().hex[:8]}.jpg"
+        file_path = f"profile-pictures/{filename}"
+
+        # Upload to Supabase Storage
+        response = supabase.storage.from_('avatars').upload(
+            file_path,
+            image_bytes,
+            file_options={"content-type": "image/jpeg", "upsert": "true"}
+        )
+
+        # Get public URL
+        public_url = supabase.storage.from_('avatars').get_public_url(file_path)
+
+        # Update user record with profile picture URL
+        supabase.table('users').update({
+            'profile_picture_url': public_url
+        }).eq('id', g.user_id).execute()
+
+        return jsonify({
+            'success': True,
+            'profile_picture_url': public_url
+        }), 200
+
+    except Exception as e:
+        print(f"Error uploading profile picture: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

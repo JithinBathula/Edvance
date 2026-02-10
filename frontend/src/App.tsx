@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "./utils/supabase/client";
@@ -18,6 +19,8 @@ import { ProfilePage } from "./components/ProfilePage";
 import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
 import { ClassroomDetail } from "./components/teacher/ClassroomDetail";
 import { StudentDetail } from "./components/teacher/StudentDetail";
+import { StudentDashboard } from "./components/StudentDashboard";
+import { BACKEND_URL } from "./utils/constants";
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -25,6 +28,7 @@ export type OnboardingData = {
   pythonLevel: string;           // Level 1-5 skill assessment
   biggestChallenges: string[];   // Multiple: syntax, steps, bugs, want more
   learningMode: string;          // hold-my-hand, roadmap, challenge-me
+  theme?: string;                // Project theme: finance, gaming, etc.
 };
 
 export type User = {
@@ -37,6 +41,7 @@ export type User = {
   completedProjects: string[];
   projects?: string[];
   role: 'student' | 'teacher';
+  profilePictureUrl?: string;
 };
 
 export default function App() {
@@ -284,13 +289,21 @@ export default function App() {
     navigate("/dashboard");
   };
 
+  const handleProfilePictureUpdate = (profilePictureUrl: string) => {
+    if (user) {
+      const updatedUser = { ...user, profilePictureUrl };
+      setUser(updatedUser);
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+    }
+  };
+
   const RequireUser = ({ children }: { children: React.ReactNode }) => {
     if (loading) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading...</p>
+            <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+            <p className="text-slate-600 text-base">Loading...</p>
           </div>
         </div>
       );
@@ -318,10 +331,10 @@ export default function App() {
   // Show loading spinner while checking session
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+          <p className="text-slate-600 text-base">Loading...</p>
         </div>
       </div>
     );
@@ -376,6 +389,7 @@ export default function App() {
                   onStartCourse={() => navigate("/course")}
                   onStartCustomProject={() => navigate("/projects")}
                   onOpenProfile={() => navigate("/profile")}
+                  onOpenDashboard={() => navigate("/student-dashboard")}
                   onLogout={handleLogout}
                 />
               </RequireUser>
@@ -449,10 +463,27 @@ export default function App() {
             }
           />
           <Route
+            path="/student-dashboard"
+            element={
+              <RequireUser>
+                <StudentDashboard
+                  user={user!}
+                  onBack={handleBackToLanding}
+                  onSelectProject={handleProjectReady}
+                />
+              </RequireUser>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <RequireUser>
-                <ProfilePage user={user!} onUpdate={handleProfileUpdate} onBack={handleBackToLanding} />
+                <ProfilePage
+                  user={user!}
+                  onUpdate={handleProfileUpdate}
+                  onProfilePictureUpdate={handleProfilePictureUpdate}
+                  onBack={handleBackToLanding}
+                />
               </RequireUser>
             }
           />
