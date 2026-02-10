@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { authFetch } from '../../utils/authFetch';
 import { User } from '../../App';
 import { Button } from '../ui/button';
@@ -401,9 +403,16 @@ export function StudentDetail({ user }: StudentDetailProps) {
                                           )}
                                         </div>
                                         {isTaskExpanded && task.submitted_code && (
-                                          <pre className="mt-3 bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto text-sm">
-                                            <code>{task.submitted_code}</code>
-                                          </pre>
+                                          <div className="mt-3 rounded-md overflow-hidden text-sm">
+                                            <SyntaxHighlighter
+                                              language="python"
+                                              style={oneDark}
+                                              showLineNumbers
+                                              customStyle={{ margin: 0, borderRadius: '0.375rem' }}
+                                            >
+                                              {task.submitted_code}
+                                            </SyntaxHighlighter>
+                                          </div>
                                         )}
                                       </div>
                                     );
