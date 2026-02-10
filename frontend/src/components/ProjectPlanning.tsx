@@ -7,12 +7,20 @@ import { Card } from './ui/card';
 import { Progress } from './ui/progress';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles, BookOpen } from 'lucide-react';
 
+type UserProfile = {
+    educationLevel: string;
+    schoolExperience: string;
+    pythonLevel: string;
+    biggestChallenges: string[];
+    learningMode: string;
+};
+
 type Props = {
     user: User;
     requirements: {
         session: any;
         outline?: Outline | null;
-        experienceLevel: string;
+        userProfile?: UserProfile;
         vmType?: string;
     };
     onProjectReady: (project: any) => void;
@@ -43,8 +51,13 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
         }
     }, []);
 
-    const experienceLevel =
-        requirements.experienceLevel || user.onboarding?.experienceLevel || 'beginner';
+    const userProfile: UserProfile = requirements.userProfile || {
+        educationLevel: user.onboarding?.educationLevel || 'primary',
+        schoolExperience: user.onboarding?.schoolExperience || 'none',
+        pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+        biggestChallenges: user.onboarding?.biggestChallenges || [],
+        learningMode: user.onboarding?.learningMode || 'guided',
+    };
     const vmType = requirements.vmType || 'python';
     const serializedSession = JSON.stringify(requirements.session ?? {}, null, 2);
 
@@ -63,7 +76,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session: requirements.session,
-                    experience_level: experienceLevel,
+                    user_profile: userProfile,
                 }),
             });
 
@@ -88,7 +101,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                 method: 'POST',
                 body: JSON.stringify({
                     requirements: serializedSession,
-                    experience_level: experienceLevel,
+                    user_profile: userProfile,
                     outline: outline,
                     vm_type: vmType,
                 }),

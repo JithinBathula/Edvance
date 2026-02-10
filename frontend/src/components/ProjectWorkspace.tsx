@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { User } from "../App";
 import { authFetch } from "../utils/authFetch";
 import { EditorIDE } from "./EditorIDE";
@@ -10,6 +10,8 @@ import { Progress } from "./ui/progress";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui/resizable";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   Check,
@@ -204,7 +206,25 @@ function parseTextToNodes(
   return nodes;
 }
 
-// Component to format task description with code highlighting, glossary terms, and structure
+/**
+ * Apply glossary/keyword highlighting to string children within ReactMarkdown output.
+ * Leaves non-string children (React elements like <code>, <strong>) untouched.
+ */
+function withGlossary(
+  children: React.ReactNode,
+  matchedTerms: Set<string>,
+  onAskTutor?: (term: string) => void
+): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === "string") {
+      return parseSegmentWithTerms(child, matchedTerms, onAskTutor);
+    }
+    return child;
+  });
+}
+
+// Component to format task description with full markdown rendering,
+// code highlighting, glossary terms, and structured Learn → Try → Do content
 function FormattedDescription({
   text,
   onAskTutor,
@@ -212,42 +232,14 @@ function FormattedDescription({
   text: string;
   onAskTutor?: (term: string) => void;
 }) {
-  // Split into sentences but keep them as logical blocks
-  const paragraphs = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const matchedTermsRef = useRef(new Set<string>());
 
-  // Track which terms have been highlighted (first occurrence only, across entire description)
-  const matchedTerms = new Set<string>();
+  // Reset matched terms when text changes
+  useEffect(() => {
+    matchedTermsRef.current = new Set<string>();
+  }, [text]);
 
-  const renderContent = () => {
-    if (paragraphs.length <= 2) {
-      return (
-        <p className="text-gray-600 text-base leading-relaxed">
-          {parseTextToNodes(text, matchedTerms, onAskTutor)}
-        </p>
-      );
-    }
-
-    return (
-      <div className="space-y-4">
-        <p className="text-gray-700 text-base leading-relaxed font-medium">
-          {parseTextToNodes(paragraphs[0], matchedTerms, onAskTutor)}
-        </p>
-
-        <div className="space-y-3">
-          {paragraphs.slice(1).map((sentence, i) => (
-            <div key={i} className="flex items-start gap-3 pl-1">
-              <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
-                {i + 1}
-              </span>
-              <p className="text-gray-600 text-base leading-relaxed flex-1">
-                {parseTextToNodes(sentence, matchedTerms, onAskTutor)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const matchedTerms = matchedTermsRef.current;
 
   return (
     <>
@@ -265,8 +257,86 @@ function FormattedDescription({
           color: #059669;
           font-weight: 600;
         }
+        .task-content .code-block code {
+          background: transparent !important;
+          color: inherit !important;
+          padding: 0 !important;
+          font-weight: normal !important;
+          font-size: inherit !important;
+        }
       `}</style>
-      {renderContent()}
+      <div className="task-content">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children }) => (
+              <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
+                {children}
+              </h1>
+            ),
+            h2: ({ children }) => (
+              <h2 className="text-lg font-bold text-gray-800 mt-6 mb-2 first:mt-0 leading-snug">
+                {children}
+              </h2>
+            ),
+            h3: ({ children }) => (
+              <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2 first:mt-0 leading-snug">
+                {children}
+              </h3>
+            ),
+            p: ({ children }) => (
+              <p className="text-gray-600 text-[15px] leading-relaxed mb-3 last:mb-0">
+                {withGlossary(children, matchedTerms, onAskTutor)}
+              </p>
+            ),
+            strong: ({ children }) => (
+              <strong className="font-semibold text-gray-900">{children}</strong>
+            ),
+            em: ({ children }) => <em className="italic">{children}</em>,
+            code: ({ children }: any) => (
+              <code className="inline-code">{children}</code>
+            ),
+            pre: ({ children }) => (
+              <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono overflow-x-auto mb-4 leading-relaxed border border-gray-200">
+                {children}
+              </pre>
+            ),
+            ul: ({ children }) => (
+              <ul className="list-disc ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+                {children}
+              </ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="list-decimal ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+                {children}
+              </ol>
+            ),
+            li: ({ children }) => (
+              <li className="leading-relaxed">
+                {withGlossary(children, matchedTerms, onAskTutor)}
+              </li>
+            ),
+            blockquote: ({ children }) => (
+              <blockquote className="border-l-4 border-orange-300 bg-orange-50/50 pl-4 py-2 my-3 rounded-r">
+                {children}
+              </blockquote>
+            ),
+            a: ({ href, children }) => (
+              <a
+                href={href}
+                className="text-blue-600 underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {children}
+              </a>
+            ),
+            hr: () => <hr className="my-4 border-gray-200" />,
+          }}
+        >
+          {text}
+        </ReactMarkdown>
+      </div>
     </>
   );
 }
@@ -795,7 +865,7 @@ export function ProjectWorkspace({
           <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
-              <div className="prose max-w-none mb-6">
+              <div className="max-w-none mb-6">
                 <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} onAskTutor={handleAskTutor} />
               </div>
 

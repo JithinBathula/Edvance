@@ -22,7 +22,10 @@ def generate_outline():
         or payload.get("session_snapshot")
         or payload.get("session_data")
     )
-    experience_level = payload.get("experience_level") or "beginner"
+    user_profile = payload.get("user_profile") or {}
+    # Backwards compatibility: if no user_profile, build one from experience_level
+    if not user_profile and payload.get("experience_level"):
+        user_profile = {"pythonLevel": payload["experience_level"]}
 
     try:
         if session_snapshot is None:
@@ -33,7 +36,7 @@ def generate_outline():
 
         outline = planner.generate_outline(
             session_snapshot=session_snapshot,
-            experience_level=experience_level,
+            user_profile=user_profile,
         )
         return jsonify(outline.model_dump())
     except (CurriculumGenerationError, ValidationError) as exc:
@@ -56,19 +59,22 @@ def generate_curriculum():
 
     user_id = g.user_id
     requirements = payload.get("requirements")
-    experience_level = payload.get("experience_level")
+    user_profile = payload.get("user_profile") or {}
+    # Backwards compatibility
+    if not user_profile and payload.get("experience_level"):
+        user_profile = {"pythonLevel": payload["experience_level"]}
+    experience_level = user_profile.get("pythonLevel", "level-1")
     outline_payload = payload.get("outline")
     vm_type = payload.get("vm_type")
     first_milestone_only = payload.get("first_milestone_only", True)
 
     if (
         requirements is None
-        or experience_level is None
         or outline_payload is None
     ):
         return (
             jsonify(
-                {"error": "requirements, experience_level, and outline are required"}
+                {"error": "requirements and outline are required"}
             ),
             400,
         )
@@ -83,14 +89,14 @@ def generate_curriculum():
             curriculum = planner.generate_first_milestone_only(
                 requirements=requirements,
                 tech_stack=None,
-                experience_level=experience_level,
+                user_profile=user_profile,
                 outline=outline,
             )
         else:
             curriculum = planner.generate_curriculum(
                 requirements=requirements,
                 tech_stack=None,
-                experience_level=experience_level,
+                user_profile=user_profile,
                 outline=outline,
             )
 
@@ -195,7 +201,7 @@ def generate_curriculum():
                                 project_brief=outline.project_brief,
                                 requirements=requirements,
                                 tech_stack=None,
-                                experience_level=experience_level,
+                                user_profile=user_profile,
                                 milestone=milestone_outline,
                                 milestone_position=milestone_position,
                             )
