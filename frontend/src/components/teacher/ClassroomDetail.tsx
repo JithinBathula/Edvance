@@ -38,7 +38,7 @@ interface ClassroomDetailProps {
 }
 
 interface Classroom {
-  id: number;
+  id: string;
   name: string;
   description: string;
   join_code: string;
@@ -47,7 +47,7 @@ interface Classroom {
 }
 
 interface Student {
-  id: number;
+  id: string;
   name: string;
   email: string;
   xp: number;

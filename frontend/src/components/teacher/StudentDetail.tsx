@@ -162,7 +162,7 @@ export function StudentDetail({ user }: StudentDetailProps) {
       try {
         setLoading(true);
         const response = await authFetch(
-          `${import.meta.env.VITE_BACKEND_URL}/teacher/classrooms/${classroomId}/students/${studentId}/progress`
+          `/teacher/classrooms/${classroomId}/students/${studentId}/progress`
         );
         const data = await response.json();
 
