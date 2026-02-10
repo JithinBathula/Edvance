@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { authFetch } from '../../utils/authFetch';
+import { formatDuration, vmTypeToLanguage } from '../../utils/formatTime';
 import { User } from '../../App';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -19,6 +20,7 @@ import {
   Award,
   GraduationCap,
   MessageSquare,
+  TrendingUp,
 } from 'lucide-react';
 import {
   BarChart,
@@ -59,6 +61,13 @@ interface Project {
   milestones: Milestone[];
 }
 
+interface PerProjectUsage {
+  project_id: string;
+  project_title: string;
+  student_messages: number;
+  assistant_messages: number;
+}
+
 interface Student {
   id: string;
   name: string;
@@ -72,35 +81,29 @@ interface Student {
   created_at: string;
 }
 
+interface ClassroomAverages {
+  avg_xp: number;
+  avg_completion_rate: number;
+  avg_tasks_completed: number;
+  avg_ai_messages: number;
+}
+
 interface StudentData {
   student: Student;
   projects: Project[];
   ai_tutor_usage: {
     total_messages: number;
+    student_messages: number;
+    assistant_messages: number;
     avg_per_project: number;
+    per_project: PerProjectUsage[];
   };
+  classroom_averages: ClassroomAverages;
 }
 
 interface StudentDetailProps {
   user: User;
 }
-
-const formatDuration = (start?: string, end?: string): string => {
-  if (!start || !end) return 'N/A';
-
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  const diffMs = endDate.getTime() - startDate.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-
-  if (diffMins < 60) {
-    return `${diffMins}m`;
-  }
-
-  const hours = Math.floor(diffMins / 60);
-  const mins = diffMins % 60;
-  return `${hours}h ${mins}m`;
-};
 
 const getStatusBadgeVariant = (status: string): 'default' | 'secondary' | 'outline' => {
   switch (status) {
@@ -148,6 +151,58 @@ const formatPythonLevel = (level?: string): string => {
   };
   return levels[level] || level;
 };
+
+function ComparisonBar({
+  label,
+  studentValue,
+  classAvg,
+  suffix = '',
+}: {
+  label: string;
+  studentValue: number;
+  classAvg: number;
+  suffix?: string;
+}) {
+  const maxVal = Math.max(studentValue, classAvg, 1);
+  const studentPct = (studentValue / maxVal) * 100;
+  const classPct = (classAvg / maxVal) * 100;
+  const diff = studentValue - classAvg;
+  const diffLabel = diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+  const isAbove = diff >= 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-gray-700">{label}</span>
+        <span className={`text-xs font-medium ${isAbove ? 'text-green-600' : 'text-amber-600'}`}>
+          {diffLabel}{suffix} vs avg
+        </span>
+      </div>
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-14">Student</span>
+          <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-teal-500 rounded-full transition-all"
+              style={{ width: `${studentPct}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium w-16 text-right">{studentValue.toFixed(1)}{suffix}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-14">Class</span>
+          <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gray-400 rounded-full transition-all"
+              style={{ width: `${classPct}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium w-16 text-right">{classAvg.toFixed(1)}{suffix}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function StudentDetail({ user }: StudentDetailProps) {
   const { classroomId, studentId } = useParams<{ classroomId: string; studentId: string }>();
@@ -236,7 +291,19 @@ export function StudentDetail({ user }: StudentDetailProps) {
     );
   }
 
-  const { student, projects, ai_tutor_usage } = studentData;
+  const { student, projects, ai_tutor_usage, classroom_averages } = studentData;
+
+  // Compute student-level completion rate for comparison
+  const totalTasks = projects.reduce((sum, p) => sum + p.tasks_total, 0);
+  const completedTasks = projects.reduce((sum, p) => sum + p.tasks_completed, 0);
+  const studentCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  // Per-project AI usage chart data
+  const aiUsageChartData = (ai_tutor_usage.per_project || []).map(p => ({
+    name: p.project_title.length > 20 ? p.project_title.slice(0, 18) + '...' : p.project_title,
+    questions: p.student_messages,
+    responses: p.assistant_messages,
+  }));
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -278,9 +345,10 @@ export function StudentDetail({ user }: StudentDetailProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="projects" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="ai-usage">AI Usage</TabsTrigger>
+          <TabsTrigger value="comparison">Comparison</TabsTrigger>
         </TabsList>
 
         {/* Projects Tab */}
@@ -295,6 +363,7 @@ export function StudentDetail({ user }: StudentDetailProps) {
             ) : (
               projects.map((project) => {
                 const isExpanded = expandedProjects.has(project.id);
+                const lang = vmTypeToLanguage(project.vm_type);
                 return (
                   <Card key={project.id} className="overflow-hidden">
                     <CardHeader className="bg-gray-50">
@@ -405,7 +474,7 @@ export function StudentDetail({ user }: StudentDetailProps) {
                                         {isTaskExpanded && task.submitted_code && (
                                           <div className="mt-3 rounded-md overflow-hidden text-sm">
                                             <SyntaxHighlighter
-                                              language="python"
+                                              language={lang}
                                               style={oneDark}
                                               showLineNumbers
                                               customStyle={{ margin: 0, borderRadius: '0.375rem' }}
@@ -441,33 +510,92 @@ export function StudentDetail({ user }: StudentDetailProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="bg-teal-50 rounded-lg p-6 border border-teal-200">
                   <div className="text-4xl font-bold text-teal-600 mb-2">
-                    {ai_tutor_usage.total_messages}
+                    {ai_tutor_usage.student_messages}
                   </div>
-                  <div className="text-gray-700">Total Messages</div>
+                  <div className="text-gray-700">Questions Asked</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                  <div className="text-4xl font-bold text-blue-600 mb-2">
+                    {ai_tutor_usage.assistant_messages}
+                  </div>
+                  <div className="text-gray-700">AI Responses</div>
                 </div>
                 <div className="bg-amber-50 rounded-lg p-6 border border-amber-200">
                   <div className="text-4xl font-bold text-amber-600 mb-2">
                     {ai_tutor_usage.avg_per_project.toFixed(1)}
                   </div>
-                  <div className="text-gray-700">Average per Project</div>
+                  <div className="text-gray-700">Avg per Project</div>
                 </div>
               </div>
+
+              {/* Per-project usage chart */}
+              {aiUsageChartData.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Messages per Project</h4>
+                  <ResponsiveContainer width="100%" height={Math.max(200, aiUsageChartData.length * 50)}>
+                    <BarChart data={aiUsageChartData} layout="vertical" margin={{ left: 120 }}>
+                      <XAxis type="number" />
+                      <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="questions" fill="#14b8a6" name="Questions" stackId="a" />
+                      <Bar dataKey="responses" fill="#93c5fd" name="Responses" stackId="a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                 <p className="text-gray-700">
-                  {student.name} has actively engaged with the AI tutor, sending a total of{' '}
-                  <strong>{ai_tutor_usage.total_messages}</strong> messages across their
-                  projects. This averages to approximately{' '}
-                  <strong>{ai_tutor_usage.avg_per_project.toFixed(1)}</strong> messages per
-                  project, indicating{' '}
-                  {ai_tutor_usage.avg_per_project > 15
+                  {student.name} has asked the AI tutor{' '}
+                  <strong>{ai_tutor_usage.student_messages}</strong> questions across their
+                  projects, receiving{' '}
+                  <strong>{ai_tutor_usage.assistant_messages}</strong> responses. This indicates{' '}
+                  {ai_tutor_usage.student_messages > 15
                     ? 'high engagement with AI-assisted learning'
-                    : ai_tutor_usage.avg_per_project > 5
+                    : ai_tutor_usage.student_messages > 5
                     ? 'moderate use of AI support'
                     : 'some use of AI support'}.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Comparison Tab */}
+        <TabsContent value="comparison" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-teal-600" />
+                Student vs Class Average
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <ComparisonBar
+                  label="XP"
+                  studentValue={student.xp}
+                  classAvg={classroom_averages.avg_xp}
+                />
+                <ComparisonBar
+                  label="Completion Rate"
+                  studentValue={studentCompletionRate}
+                  classAvg={classroom_averages.avg_completion_rate}
+                  suffix="%"
+                />
+                <ComparisonBar
+                  label="Tasks Completed"
+                  studentValue={completedTasks}
+                  classAvg={classroom_averages.avg_tasks_completed}
+                />
+                <ComparisonBar
+                  label="AI Questions Asked"
+                  studentValue={ai_tutor_usage.student_messages}
+                  classAvg={classroom_averages.avg_ai_messages}
+                />
               </div>
             </CardContent>
           </Card>

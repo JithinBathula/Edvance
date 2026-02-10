@@ -2,8 +2,10 @@
 Teacher API routes — classroom management and student analytics.
 All endpoints require teacher role.
 """
+import csv
+import io
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, Response
 
 from api.middleware import require_teacher
 from db.supabase_client import (
@@ -15,13 +17,20 @@ from db.supabase_client import (
     deactivate_classroom,
     regenerate_classroom_join_code,
     get_student_projects,
-    get_student_progress_for_projects,
-    get_project_full_detail,
     get_project_milestones,
     get_milestone_tasks,
     get_students_recent_activity,
+    get_students_recent_activity_all,
+    get_students_recent_projects,
     get_user_by_id,
     get_chat_history,
+    get_bulk_student_progress,
+    get_bulk_student_projects,
+    get_total_tasks_for_projects,
+    get_bulk_chat_message_counts,
+    get_chat_message_counts_for_student,
+    update_classroom,
+    remove_student_from_classroom,
     supabase,
 )
 
@@ -34,6 +43,27 @@ def _verify_classroom_owner(classroom_id: str):
     if not classroom or classroom['teacher_id'] != g.user_id:
         return None
     return classroom
+
+
+def _parse_datetime(dt_str):
+    """Safely parse an ISO datetime string."""
+    if not dt_str:
+        return None
+    try:
+        return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return None
+
+
+def _group_by(items, key):
+    """Group a list of dicts by a key, returning {key_value: [items]}."""
+    groups = {}
+    for item in items:
+        k = item.get(key)
+        if k not in groups:
+            groups[k] = []
+        groups[k].append(item)
+    return groups
 
 
 # ── Dashboard overview ─────────────────────────────────────────────
@@ -55,7 +85,6 @@ def get_dashboard():
         student_ids = [s['users']['id'] for s in students if s.get('users')]
         all_student_ids.extend(student_ids)
 
-        # Compute per-classroom averages
         total_xp = sum(s['users'].get('xp', 0) for s in students if s.get('users'))
 
         classroom_summaries.append({
@@ -67,21 +96,35 @@ def get_dashboard():
             'created_at': c['created_at'],
         })
 
-    # Active students in last 7 days
+    unique_student_ids = list(set(all_student_ids))
+    seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+
+    # ── Bulk fetch all progress and projects ──
+    all_progress = get_bulk_student_progress(unique_student_ids)
+    all_projects = get_bulk_student_projects(unique_student_ids)
+
+    progress_by_user = _group_by(all_progress, 'user_id')
+    projects_by_user = _group_by(all_projects, 'user_id')
+
+    # Get true task counts for all projects
+    all_project_ids = [p['id'] for p in all_projects]
+    project_task_counts = get_total_tasks_for_projects(all_project_ids)
+
     active_7d = 0
     total_tasks_completed = 0
     completion_rates = []
 
-    unique_student_ids = list(set(all_student_ids))
-    seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
-
     for sid in unique_student_ids:
-        progress = get_student_progress_for_projects(sid)
+        progress = progress_by_user.get(sid, [])
         completed = [p for p in progress if p.get('status') == 'completed']
         total_tasks_completed += len(completed)
 
-        if progress:
-            rate = (len(completed) / len(progress)) * 100
+        # Calculate true total tasks from student's projects
+        student_projects = projects_by_user.get(sid, [])
+        true_total = sum(project_task_counts.get(p['id'], 0) for p in student_projects)
+
+        if true_total > 0:
+            rate = (len(completed) / true_total) * 100
             completion_rates.append(rate)
 
         recent = [p for p in completed if p.get('completed_at') and p['completed_at'] >= seven_days_ago]
@@ -90,16 +133,41 @@ def get_dashboard():
 
     avg_completion = round(sum(completion_rates) / len(completion_rates), 1) if completion_rates else 0
 
-    # Recent activity
-    recent_activity = get_students_recent_activity(unique_student_ids, limit=10)
+    # ── Expanded activity feed ──
+    recent_completions = get_students_recent_activity(unique_student_ids, limit=10)
+    recent_starts = get_students_recent_activity_all(unique_student_ids, limit=10)
+    recent_projects = get_students_recent_projects(unique_student_ids, limit=10)
+
     activity_items = []
-    for a in recent_activity:
+
+    for a in recent_completions:
         activity_items.append({
             'student_name': a.get('users', {}).get('name', 'Unknown'),
             'action': 'completed_task',
             'task_slug': a.get('tasks', {}).get('task_id_slug', ''),
             'timestamp': a.get('completed_at'),
         })
+
+    for a in recent_starts:
+        if a.get('status') == 'in_progress' and a.get('started_at'):
+            activity_items.append({
+                'student_name': a.get('users', {}).get('name', 'Unknown'),
+                'action': 'started_task',
+                'task_slug': a.get('tasks', {}).get('task_id_slug', ''),
+                'timestamp': a.get('started_at'),
+            })
+
+    for p in recent_projects:
+        activity_items.append({
+            'student_name': p.get('users', {}).get('name', 'Unknown'),
+            'action': 'started_project',
+            'task_slug': p.get('title', ''),
+            'timestamp': p.get('created_at'),
+        })
+
+    # Sort by timestamp descending, take top 10
+    activity_items.sort(key=lambda x: x.get('timestamp') or '', reverse=True)
+    activity_items = activity_items[:10]
 
     return jsonify({
         'success': True,
@@ -153,36 +221,50 @@ def get_classroom_detail(classroom_id: str):
         return jsonify({'success': False, 'error': 'Classroom not found'}), 404
 
     students_raw = get_classroom_students(classroom_id)
+    student_ids = [s['users']['id'] for s in students_raw if s.get('users')]
+
+    # ── Bulk fetch ──
+    all_progress = get_bulk_student_progress(student_ids)
+    all_projects = get_bulk_student_projects(student_ids)
+
+    progress_by_user = _group_by(all_progress, 'user_id')
+    projects_by_user = _group_by(all_projects, 'user_id')
+
+    all_project_ids = [p['id'] for p in all_projects]
+    project_task_counts = get_total_tasks_for_projects(all_project_ids)
+
     students = []
     for s in students_raw:
         user = s.get('users', {})
         if not user:
             continue
+        uid = user['id']
 
-        progress = get_student_progress_for_projects(user['id'])
+        progress = progress_by_user.get(uid, [])
         completed = [p for p in progress if p.get('status') == 'completed']
-        total = len(progress) if progress else 0
-        rate = round((len(completed) / total) * 100, 1) if total else 0
 
-        projects = get_student_projects(user['id'])
+        student_projects = projects_by_user.get(uid, [])
+        true_total = sum(project_task_counts.get(p['id'], 0) for p in student_projects)
+        rate = round((len(completed) / true_total) * 100, 1) if true_total else 0
 
         # Last activity
         last_active = None
-        if completed:
-            dates = [p['completed_at'] for p in completed if p.get('completed_at')]
-            if dates:
-                last_active = max(dates)
+        dates = [p['completed_at'] for p in completed if p.get('completed_at')]
+        start_dates = [p['started_at'] for p in progress if p.get('started_at')]
+        all_dates = dates + start_dates
+        if all_dates:
+            last_active = max(all_dates)
 
         students.append({
-            'id': user['id'],
+            'id': uid,
             'name': user.get('name', 'Unknown'),
             'email': user.get('email'),
             'xp': user.get('xp', 0),
-            'projects_count': len(projects),
-            'completed_projects': len([p for p in projects if p.get('status') == 'completed']),
+            'projects_count': len(student_projects),
+            'completed_projects': len([p for p in student_projects if p.get('status') == 'completed']),
             'completion_rate': rate,
             'tasks_completed': len(completed),
-            'tasks_total': total,
+            'tasks_total': true_total,
             'last_active': last_active,
             'joined_at': s.get('joined_at'),
         })
@@ -192,6 +274,28 @@ def get_classroom_detail(classroom_id: str):
         'classroom': classroom,
         'students': students,
     }), 200
+
+
+@teacher_bp.route('/classrooms/<classroom_id>', methods=['PUT'])
+@require_teacher
+def edit_classroom(classroom_id: str):
+    classroom = _verify_classroom_owner(classroom_id)
+    if not classroom:
+        return jsonify({'success': False, 'error': 'Classroom not found'}), 404
+
+    data = request.json or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Classroom name is required'}), 400
+
+    try:
+        updated = update_classroom(classroom_id, {
+            'name': name,
+            'description': data.get('description', '').strip() or None,
+        })
+        return jsonify({'success': True, 'classroom': updated}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @teacher_bp.route('/classrooms/<classroom_id>', methods=['DELETE'])
@@ -216,6 +320,83 @@ def regenerate_code(classroom_id: str):
     return jsonify({'success': True, 'join_code': updated['join_code']}), 200
 
 
+@teacher_bp.route('/classrooms/<classroom_id>/students/<student_id>', methods=['DELETE'])
+@require_teacher
+def remove_student(classroom_id: str, student_id: str):
+    classroom = _verify_classroom_owner(classroom_id)
+    if not classroom:
+        return jsonify({'success': False, 'error': 'Classroom not found'}), 404
+
+    try:
+        remove_student_from_classroom(classroom_id, student_id)
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ── CSV Export ───────────────────────────────────────────────────
+
+@teacher_bp.route('/classrooms/<classroom_id>/export', methods=['GET'])
+@require_teacher
+def export_classroom_csv(classroom_id: str):
+    classroom = _verify_classroom_owner(classroom_id)
+    if not classroom:
+        return jsonify({'success': False, 'error': 'Classroom not found'}), 404
+
+    students_raw = get_classroom_students(classroom_id)
+    student_ids = [s['users']['id'] for s in students_raw if s.get('users')]
+
+    all_progress = get_bulk_student_progress(student_ids)
+    all_projects = get_bulk_student_projects(student_ids)
+    progress_by_user = _group_by(all_progress, 'user_id')
+    projects_by_user = _group_by(all_projects, 'user_id')
+    all_project_ids = [p['id'] for p in all_projects]
+    project_task_counts = get_total_tasks_for_projects(all_project_ids)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'Name', 'Email', 'XP', 'Projects Started', 'Projects Completed',
+        'Tasks Completed', 'Total Tasks', 'Completion Rate (%)',
+        'Last Active', 'Joined Date',
+    ])
+
+    for s in students_raw:
+        user = s.get('users', {})
+        if not user:
+            continue
+        uid = user['id']
+        progress = progress_by_user.get(uid, [])
+        completed = [p for p in progress if p.get('status') == 'completed']
+        student_projects = projects_by_user.get(uid, [])
+        true_total = sum(project_task_counts.get(p['id'], 0) for p in student_projects)
+        rate = round((len(completed) / true_total) * 100, 1) if true_total else 0
+
+        dates = [p['completed_at'] for p in completed if p.get('completed_at')]
+        last_active = max(dates) if dates else ''
+
+        writer.writerow([
+            user.get('name', 'Unknown'),
+            user.get('email', ''),
+            user.get('xp', 0),
+            len(student_projects),
+            len([p for p in student_projects if p.get('status') == 'completed']),
+            len(completed),
+            true_total,
+            rate,
+            last_active[:10] if last_active else '',
+            (s.get('joined_at') or '')[:10],
+        ])
+
+    output.seek(0)
+    filename = f"{classroom['name'].replace(' ', '_')}_students.csv"
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
 # ── Classroom Analytics ───────────────────────────────────────────
 
 @teacher_bp.route('/classrooms/<classroom_id>/analytics', methods=['GET'])
@@ -227,6 +408,16 @@ def get_classroom_analytics(classroom_id: str):
 
     students_raw = get_classroom_students(classroom_id)
     student_ids = [s['users']['id'] for s in students_raw if s.get('users')]
+
+    # ── Bulk fetch ──
+    all_progress = get_bulk_student_progress(student_ids)
+    all_projects = get_bulk_student_projects(student_ids)
+
+    progress_by_user = _group_by(all_progress, 'user_id')
+    projects_by_user = _group_by(all_projects, 'user_id')
+
+    all_project_ids = [p['id'] for p in all_projects]
+    project_task_counts = get_total_tasks_for_projects(all_project_ids)
 
     # Progress distribution buckets
     buckets = {'0-25': 0, '25-50': 0, '50-75': 0, '75-100': 0}
@@ -247,10 +438,14 @@ def get_classroom_analytics(classroom_id: str):
             continue
         uid = user['id']
 
-        progress = get_student_progress_for_projects(uid)
+        progress = progress_by_user.get(uid, [])
         completed = [p for p in progress if p.get('status') == 'completed']
-        total = len(progress)
-        rate = (len(completed) / total * 100) if total else 0
+        in_progress_tasks = [p for p in progress if p.get('status') == 'in_progress']
+
+        # True total from project structure
+        student_projects = projects_by_user.get(uid, [])
+        true_total = sum(project_task_counts.get(p['id'], 0) for p in student_projects)
+        rate = (len(completed) / true_total * 100) if true_total else 0
 
         # Bucket
         if rate <= 25:
@@ -263,18 +458,17 @@ def get_classroom_analytics(classroom_id: str):
             buckets['75-100'] += 1
 
         # Leaderboard
-        projects = get_student_projects(uid)
-        completed_proj = len([p for p in projects if p.get('status') == 'completed'])
+        completed_proj = len([p for p in student_projects if p.get('status') == 'completed'])
         leaderboard.append({
             'student_name': user.get('name', 'Unknown'),
             'xp': user.get('xp', 0),
             'projects_completed': completed_proj,
         })
 
-        total_started += len(projects)
+        total_started += len(student_projects)
         total_completed_projects += completed_proj
 
-        for proj in projects:
+        for proj in student_projects:
             vt = proj.get('vm_type', 'python')
             vm_counts[vt] = vm_counts.get(vt, 0) + 1
 
@@ -288,39 +482,64 @@ def get_classroom_analytics(classroom_id: str):
                 daily_activity[day]['active_students'].add(uid)
 
             # Task time calculation
-            if p.get('started_at') and p.get('completed_at'):
-                try:
-                    start = datetime.fromisoformat(p['started_at'].replace('Z', '+00:00'))
-                    end = datetime.fromisoformat(p['completed_at'].replace('Z', '+00:00'))
-                    hours = (end - start).total_seconds() / 3600
-                    if 0 < hours < 100:
-                        all_task_times.append(hours)
-                except (ValueError, TypeError):
-                    pass
+            start_dt = _parse_datetime(p.get('started_at'))
+            end_dt = _parse_datetime(p.get('completed_at'))
+            if start_dt and end_dt:
+                hours = (end_dt - start_dt).total_seconds() / 3600
+                if 0 < hours < 100:
+                    all_task_times.append(hours)
 
-        # Students needing help: inactive >5 days or stuck
+        # ── Improved "students needing help" detection ──
         last_dates = [p['completed_at'] for p in completed if p.get('completed_at')]
+
+        # Get stuck task name (prefer in_progress tasks)
+        stuck_task = ''
+        if in_progress_tasks:
+            stuck_task = in_progress_tasks[0].get('tasks', {}).get('task_id_slug', '')
+
         if last_dates:
-            try:
-                last = datetime.fromisoformat(max(last_dates).replace('Z', '+00:00'))
-                days_inactive = (now.replace(tzinfo=last.tzinfo) - last).days if last.tzinfo else (now - last).days
+            last_dt = _parse_datetime(max(last_dates))
+            if last_dt:
+                days_inactive = (now.replace(tzinfo=last_dt.tzinfo) - last_dt).days if last_dt.tzinfo else (now - last_dt).days
                 if days_inactive >= 5:
-                    # Find last worked task
-                    in_progress = [p for p in progress if p.get('status') == 'in_progress']
-                    stuck_task = in_progress[0].get('tasks', {}).get('task_id_slug', '') if in_progress else ''
                     students_needing_help.append({
                         'student_name': user.get('name', 'Unknown'),
                         'days_inactive': days_inactive,
-                        'stuck_on_task': stuck_task,
+                        'stuck_on_task': stuck_task or 'Inactive',
+                        'reason': 'inactive_5_days',
                     })
-            except (ValueError, TypeError):
-                pass
-        elif total == 0:
+                elif rate < 25 and days_inactive >= 3 and len(completed) > 0:
+                    # Low completion rate and stalling
+                    students_needing_help.append({
+                        'student_name': user.get('name', 'Unknown'),
+                        'days_inactive': days_inactive,
+                        'stuck_on_task': stuck_task or 'Low progress',
+                        'reason': 'low_completion',
+                    })
+        elif in_progress_tasks and len(completed) == 0:
+            # Started tasks but never completed any
+            oldest_start = None
+            for ip in in_progress_tasks:
+                start_dt = _parse_datetime(ip.get('started_at'))
+                if start_dt and (oldest_start is None or start_dt < oldest_start):
+                    oldest_start = start_dt
+            days_stuck = 0
+            if oldest_start:
+                days_stuck = (now.replace(tzinfo=oldest_start.tzinfo) - oldest_start).days if oldest_start.tzinfo else (now - oldest_start).days
+            if days_stuck >= 5:
+                students_needing_help.append({
+                    'student_name': user.get('name', 'Unknown'),
+                    'days_inactive': days_stuck,
+                    'stuck_on_task': stuck_task or 'Never completed a task',
+                    'reason': 'started_never_completed',
+                })
+        elif true_total == 0 and len(progress) == 0:
             # Never started any task
             students_needing_help.append({
                 'student_name': user.get('name', 'Unknown'),
                 'days_inactive': -1,
                 'stuck_on_task': 'No tasks started',
+                'reason': 'no_activity',
             })
 
     # Sort leaderboard by XP descending
@@ -392,6 +611,13 @@ def get_student_progress(classroom_id: str, student_id: str):
     projects_raw = get_student_projects(student_id)
     projects_detail = []
 
+    # Bulk fetch all progress for this student
+    all_progress_result = supabase.table("user_progress").select("*").eq(
+        "user_id", student_id
+    ).execute()
+    all_student_progress = all_progress_result.data or []
+    progress_by_task = {p['task_id']: p for p in all_student_progress}
+
     for proj in projects_raw:
         milestones = get_project_milestones(proj['id'])
         milestone_details = []
@@ -404,11 +630,7 @@ def get_student_progress(classroom_id: str, student_id: str):
 
             for t in tasks:
                 tasks_total += 1
-                # Get progress for this task
-                prog_result = supabase.table("user_progress").select("*").eq(
-                    "user_id", student_id
-                ).eq("task_id", t['id']).execute()
-                prog = prog_result.data[0] if prog_result.data else None
+                prog = progress_by_task.get(t['id'])
 
                 status = prog.get('status', 'not_started') if prog else 'not_started'
                 if status == 'completed':
@@ -443,13 +665,69 @@ def get_student_progress(classroom_id: str, student_id: str):
             'milestones': milestone_details,
         })
 
-    # AI tutor usage: count chat messages per project
-    total_messages = 0
-    for proj in projects_raw:
-        history = get_chat_history(student_id, proj['id'], limit=1000)
-        total_messages += len(history)
+    # AI tutor usage: count chat messages per project, split by role
+    project_ids = [p['id'] for p in projects_raw]
+    chat_counts = get_chat_message_counts_for_student(student_id, project_ids)
 
+    total_student_messages = 0
+    total_assistant_messages = 0
+    per_project_usage = []
+
+    for proj in projects_raw:
+        pid = proj['id']
+        counts = chat_counts.get(pid, {'user': 0, 'assistant': 0})
+        total_student_messages += counts['user']
+        total_assistant_messages += counts['assistant']
+        per_project_usage.append({
+            'project_id': pid,
+            'project_title': proj.get('title', ''),
+            'student_messages': counts['user'],
+            'assistant_messages': counts['assistant'],
+        })
+
+    total_messages = total_student_messages + total_assistant_messages
     avg_per_project = round(total_messages / len(projects_raw), 1) if projects_raw else 0
+
+    # ── Classroom averages for comparison ──
+    all_student_ids = [s['users']['id'] for s in students if s.get('users')]
+    all_class_progress = get_bulk_student_progress(all_student_ids)
+    all_class_projects = get_bulk_student_projects(all_student_ids)
+    class_progress_by_user = _group_by(all_class_progress, 'user_id')
+    class_projects_by_user = _group_by(all_class_projects, 'user_id')
+    class_project_ids = [p['id'] for p in all_class_projects]
+    class_task_counts = get_total_tasks_for_projects(class_project_ids)
+
+    # Get class chat counts
+    class_chat_counts = get_bulk_chat_message_counts(all_student_ids, class_project_ids)
+
+    xp_values = []
+    rate_values = []
+    task_values = []
+    msg_values = []
+
+    for sid in all_student_ids:
+        s_user = next((s['users'] for s in students if s.get('users', {}).get('id') == sid), None)
+        if s_user:
+            xp_values.append(s_user.get('xp', 0))
+
+        s_progress = class_progress_by_user.get(sid, [])
+        s_completed = [p for p in s_progress if p.get('status') == 'completed']
+        s_projects = class_projects_by_user.get(sid, [])
+        s_true_total = sum(class_task_counts.get(p['id'], 0) for p in s_projects)
+        if s_true_total > 0:
+            rate_values.append((len(s_completed) / s_true_total) * 100)
+        task_values.append(len(s_completed))
+
+        s_chat = class_chat_counts.get(sid, {'user': 0, 'assistant': 0})
+        msg_values.append(s_chat['user'])
+
+    num_students = len(all_student_ids) or 1
+    classroom_averages = {
+        'avg_xp': round(sum(xp_values) / num_students, 1) if xp_values else 0,
+        'avg_completion_rate': round(sum(rate_values) / len(rate_values), 1) if rate_values else 0,
+        'avg_tasks_completed': round(sum(task_values) / num_students, 1) if task_values else 0,
+        'avg_ai_messages': round(sum(msg_values) / num_students, 1) if msg_values else 0,
+    }
 
     return jsonify({
         'success': True,
@@ -457,6 +735,10 @@ def get_student_progress(classroom_id: str, student_id: str):
         'projects': projects_detail,
         'ai_tutor_usage': {
             'total_messages': total_messages,
+            'student_messages': total_student_messages,
+            'assistant_messages': total_assistant_messages,
             'avg_per_project': avg_per_project,
+            'per_project': per_project_usage,
         },
+        'classroom_averages': classroom_averages,
     }), 200

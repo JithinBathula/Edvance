@@ -1,22 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authFetch } from '../../utils/authFetch';
+import { timeAgo, isInactiveForDays } from '../../utils/formatTime';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Input } from '../ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '../ui/dialog';
 import {
   ArrowLeft,
   Copy,
   RefreshCw,
   Users,
-  TrendingUp,
   Clock,
   Target,
   AlertCircle,
   Trophy,
-  Activity
+  Activity,
+  Search,
+  ArrowUpDown,
+  Download,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -87,8 +101,15 @@ interface Analytics {
     student_name: string;
     days_inactive: number;
     stuck_on_task: string;
+    reason?: string;
   }>;
 }
+
+type SortColumn = 'name' | 'xp' | 'completion_rate' | 'last_active' | 'tasks_completed';
+type SortDirection = 'asc' | 'desc';
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
   const { classroomId } = useParams<{ classroomId: string }>();
@@ -100,6 +121,23 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [activeTab, setActiveTab] = useState('students');
   const [regenerating, setRegenerating] = useState(false);
+
+  // Sorting & filtering state
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // Edit classroom dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Remove student dialog
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState<Student | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     fetchClassroomData();
@@ -176,27 +214,158 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
     }
   };
 
-  const timeAgo = (dateString: string | null): string => {
-    if (!dateString) return 'Never';
-
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-
-    if (diffDays > 0) return `${diffDays}d ago`;
-    if (diffHours > 0) return `${diffHours}h ago`;
-    if (diffMins > 0) return `${diffMins}m ago`;
-    return 'Just now';
+  const handleEditClassroom = async () => {
+    if (!editName.trim()) {
+      toast.error('Classroom name is required');
+      return;
+    }
+    try {
+      setSaving(true);
+      const response = await authFetch(`/teacher/classrooms/${classroomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), description: editDescription.trim() }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setClassroom(data.classroom);
+        setEditDialogOpen(false);
+        toast.success('Classroom updated');
+      } else {
+        toast.error(data.error || 'Failed to update classroom');
+      }
+    } catch (error) {
+      console.error('Error updating classroom:', error);
+      toast.error('Failed to update classroom');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const isStudentInactive = (lastActive: string | null): boolean => {
-    if (!lastActive) return true;
-    const daysSinceActive = (new Date().getTime() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24);
-    return daysSinceActive > 7;
+  const openEditDialog = () => {
+    if (classroom) {
+      setEditName(classroom.name);
+      setEditDescription(classroom.description || '');
+      setEditDialogOpen(true);
+    }
   };
+
+  const handleRemoveStudent = async () => {
+    if (!studentToRemove) return;
+    try {
+      setRemoving(true);
+      const response = await authFetch(
+        `/teacher/classrooms/${classroomId}/students/${studentToRemove.id}`,
+        { method: 'DELETE' }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setStudents(prev => prev.filter(s => s.id !== studentToRemove.id));
+        setRemoveDialogOpen(false);
+        setStudentToRemove(null);
+        toast.success('Student removed from classroom');
+      } else {
+        toast.error(data.error || 'Failed to remove student');
+      }
+    } catch (error) {
+      console.error('Error removing student:', error);
+      toast.error('Failed to remove student');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const response = await authFetch(`/teacher/classrooms/${classroomId}/export`);
+      if (!response.ok) {
+        toast.error('Failed to export CSV');
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${classroom?.name || 'classroom'}_students.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('CSV downloaded');
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      toast.error('Failed to export CSV');
+    }
+  };
+
+  // ── Sorting & filtering logic ──
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection(column === 'name' ? 'asc' : 'desc');
+    }
+  };
+
+  const filteredAndSortedStudents = useMemo(() => {
+    let result = [...students];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        s => s.name.toLowerCase().includes(q) || (s.email && s.email.toLowerCase().includes(q))
+      );
+    }
+
+    // Status filter
+    if (statusFilter === 'active') {
+      result = result.filter(s => !isInactiveForDays(s.last_active));
+    } else if (statusFilter === 'inactive') {
+      result = result.filter(s => isInactiveForDays(s.last_active));
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'xp':
+          cmp = a.xp - b.xp;
+          break;
+        case 'completion_rate':
+          cmp = a.completion_rate - b.completion_rate;
+          break;
+        case 'tasks_completed':
+          cmp = a.tasks_completed - b.tasks_completed;
+          break;
+        case 'last_active': {
+          const aTime = a.last_active ? new Date(a.last_active).getTime() : 0;
+          const bTime = b.last_active ? new Date(b.last_active).getTime() : 0;
+          cmp = aTime - bTime;
+          break;
+        }
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [students, searchQuery, statusFilter, sortColumn, sortDirection]);
+
+  const SortHeader = ({ column, children }: { column: SortColumn; children: React.ReactNode }) => (
+    <TableHead
+      className="cursor-pointer select-none hover:bg-gray-50"
+      onClick={() => handleSort(column)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        <ArrowUpDown className={`h-3 w-3 ${sortColumn === column ? 'text-teal-600' : 'text-gray-400'}`} />
+      </div>
+    </TableHead>
+  );
 
   if (loading) {
     return (
@@ -249,13 +418,28 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
 
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{classroom.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold text-gray-900">{classroom.name}</h1>
+                <button
+                  onClick={openEditDialog}
+                  className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                  title="Edit classroom"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
               <p className="mt-2 text-gray-600">{classroom.description}</p>
             </div>
-            <Badge variant="secondary" className="text-base px-4 py-2">
-              <Users className="h-4 w-4 mr-2" />
-              {students.length} Students
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Badge variant="secondary" className="text-base px-4 py-2">
+                <Users className="h-4 w-4 mr-2" />
+                {students.length} Students
+              </Badge>
+            </div>
           </div>
 
           {/* Join Code */}
@@ -297,32 +481,61 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
           <TabsContent value="students">
             <Card>
               <CardHeader>
-                <CardTitle>Student Roster</CardTitle>
-                <CardDescription>
-                  Click on a student to view detailed progress
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Student Roster</CardTitle>
+                    <CardDescription>
+                      Click on a student to view detailed progress
+                    </CardDescription>
+                  </div>
+                </div>
+
+                {/* Search & Filter Bar */}
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by name or email..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value as StatusFilter)}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="all">All Students</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>XP</TableHead>
+                      <SortHeader column="name">Name</SortHeader>
+                      <SortHeader column="xp">XP</SortHeader>
                       <TableHead>Projects</TableHead>
-                      <TableHead>Completion</TableHead>
-                      <TableHead>Last Active</TableHead>
+                      <SortHeader column="completion_rate">Completion</SortHeader>
+                      <SortHeader column="last_active">Last Active</SortHeader>
                       <TableHead>Status</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {students.length === 0 ? (
+                    {filteredAndSortedStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                          No students in this classroom yet
+                        <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                          {students.length === 0
+                            ? 'No students in this classroom yet'
+                            : 'No students match the filter'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      students.map((student) => (
+                      filteredAndSortedStudents.map((student) => (
                         <TableRow
                           key={student.id}
                           className="cursor-pointer hover:bg-gray-50"
@@ -354,15 +567,28 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
                           <TableCell>{timeAgo(student.last_active)}</TableCell>
                           <TableCell>
                             <Badge
-                              variant={isStudentInactive(student.last_active) ? 'secondary' : 'default'}
+                              variant={isInactiveForDays(student.last_active) ? 'secondary' : 'default'}
                               className={
-                                isStudentInactive(student.last_active)
+                                isInactiveForDays(student.last_active)
                                   ? 'bg-gray-200 text-gray-700'
                                   : 'bg-green-100 text-green-700'
                               }
                             >
-                              {isStudentInactive(student.last_active) ? 'Inactive' : 'Active'}
+                              {isInactiveForDays(student.last_active) ? 'Inactive' : 'Active'}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStudentToRemove(student);
+                                setRemoveDialogOpen(true);
+                              }}
+                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+                              title="Remove student"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -391,7 +617,7 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
                         Students Needing Help
                       </CardTitle>
                       <CardDescription className="text-amber-700">
-                        These students have been inactive for 5+ days
+                        These students may be stuck or disengaged
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -408,7 +634,9 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
                               </p>
                             </div>
                             <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                              {student.days_inactive} days inactive
+                              {student.days_inactive === -1
+                                ? 'No activity'
+                                : `${student.days_inactive}d inactive`}
                             </Badge>
                           </div>
                         ))}
@@ -471,7 +699,7 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
                       <div className="text-2xl font-bold">
                         {analytics.students_needing_help.length}
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">Students inactive 5+ days</p>
+                      <p className="text-xs text-gray-600 mt-1">Students needing attention</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -584,6 +812,78 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Classroom Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Classroom</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Classroom Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Classroom name"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Description
+              </label>
+              <Input
+                value={editDescription}
+                onChange={e => setEditDescription(e.target.value)}
+                placeholder="Optional description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditClassroom} disabled={saving || !editName.trim()} className="bg-teal-600 hover:bg-teal-700">
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Student Confirmation Dialog */}
+      <Dialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Student</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <strong>{studentToRemove?.name}</strong> from this
+              classroom? Their project data will not be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRemoveDialogOpen(false);
+                setStudentToRemove(null);
+              }}
+              disabled={removing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveStudent}
+              disabled={removing}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {removing ? 'Removing...' : 'Remove'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

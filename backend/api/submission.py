@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, g
 
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase
+from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic
 from services.git_repo import read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
@@ -108,17 +108,9 @@ def evaluate_submission():
                     feedback={'message': result.feedback}
                 )
 
-                # Award XP for task completion
+                # Award XP for task completion (atomic increment)
                 try:
-                    current_user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
-
-                    current_xp = current_user.data.get('xp', 0) if current_user.data else 0
-
-                    new_xp = current_xp + XP_PER_TASK
-
-                    supabase.table('users').update({
-                        'xp': new_xp
-                    }).eq('id', user_id).execute()
+                    new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
                 except Exception as xp_error:
                     print(f"Warning: Failed to update XP: {xp_error}")
 

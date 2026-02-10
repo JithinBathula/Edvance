@@ -10,6 +10,8 @@ import {
   Copy,
   LogOut,
   GraduationCap,
+  Play,
+  FolderPlus,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -23,6 +25,7 @@ import {
 } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { authFetch } from '../../utils/authFetch';
+import { timeAgo } from '../../utils/formatTime';
 import { User } from '../../App';
 
 interface TeacherDashboardProps {
@@ -166,18 +169,30 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
     return colors[index];
   };
 
-  const formatRelativeTime = (timestamp: string) => {
-    const now = new Date();
-    const past = new Date(timestamp);
-    const diffMs = now.getTime() - past.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
+  const getActivityIcon = (action: string) => {
+    switch (action) {
+      case 'completed_task':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'started_task':
+        return <Play className="h-4 w-4 text-amber-600" />;
+      case 'started_project':
+        return <FolderPlus className="h-4 w-4 text-teal-600" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-400" />;
+    }
+  };
 
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+  const getActivityLabel = (action: string) => {
+    switch (action) {
+      case 'completed_task':
+        return 'completed';
+      case 'started_task':
+        return 'started working on';
+      case 'started_project':
+        return 'created project';
+      default:
+        return action;
+    }
   };
 
   if (loading) {
@@ -388,18 +403,19 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
                           {getInitials(activity.student_name)}
                         </div>
                         <div className="ml-4 flex-1">
-                          <p className="text-sm text-gray-900">
+                          <p className="text-sm text-gray-900 flex items-center gap-1.5">
+                            {getActivityIcon(activity.action)}
                             <span className="font-medium">
                               {activity.student_name}
                             </span>{' '}
-                            {activity.action}{' '}
+                            {getActivityLabel(activity.action)}{' '}
                             <span className="font-medium">
                               {activity.task_slug}
                             </span>
                           </p>
                         </div>
                         <div className="ml-4 text-sm text-gray-500">
-                          {formatRelativeTime(activity.timestamp)}
+                          {timeAgo(activity.timestamp)}
                         </div>
                       </div>
                     ))}

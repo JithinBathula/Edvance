@@ -361,3 +361,12 @@ CREATE TABLE IF NOT EXISTS classroom_members (
 
 CREATE INDEX IF NOT EXISTS idx_classroom_members_classroom ON classroom_members(classroom_id);
 CREATE INDEX IF NOT EXISTS idx_classroom_members_student ON classroom_members(student_id);
+
+-- =============================================================================
+-- ATOMIC XP INCREMENT FUNCTION
+-- Used by submission endpoint to avoid race conditions on concurrent XP updates.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION increment_xp(uid UUID, amount INT)
+RETURNS void AS $$
+  UPDATE users SET xp = xp + amount WHERE id = uid;
+$$ LANGUAGE sql;

@@ -781,3 +781,159 @@ def get_students_recent_activity(student_ids: List[str], limit: int = 10) -> Lis
         "status", "completed"
     ).order("completed_at", desc=True).limit(limit).execute()
     return result.data or []
+
+
+def get_students_recent_activity_all(student_ids: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recent activity including task starts and completions."""
+    if not student_ids:
+        return []
+    result = supabase.table("user_progress").select(
+        "*, users:user_id(name), tasks:task_id(task_id_slug, milestone_id)"
+    ).in_("user_id", student_ids).in_(
+        "status", ["in_progress", "completed"]
+    ).order("completed_at", desc=True).limit(limit * 3).execute()
+    return result.data or []
+
+
+def get_students_recent_projects(student_ids: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recently created projects from a list of students."""
+    if not student_ids:
+        return []
+    result = supabase.table("projects").select(
+        "id, title, user_id, created_at, users:user_id(name)"
+    ).in_("user_id", student_ids).order(
+        "created_at", desc=True
+    ).limit(limit).execute()
+    return result.data or []
+
+
+# =============================================================================
+# BULK QUERY OPERATIONS (for teacher dashboard performance)
+# =============================================================================
+
+def get_bulk_student_progress(student_ids: List[str]) -> List[Dict[str, Any]]:
+    """Get all progress records for multiple students in a single query."""
+    if not student_ids:
+        return []
+    result = supabase.table("user_progress").select(
+        "*, tasks:task_id(id, task_id_slug, milestone_id)"
+    ).in_("user_id", student_ids).execute()
+    return result.data or []
+
+
+def get_bulk_student_projects(student_ids: List[str]) -> List[Dict[str, Any]]:
+    """Get all projects for multiple students in a single query."""
+    if not student_ids:
+        return []
+    result = supabase.table("projects").select("*").in_(
+        "user_id", student_ids
+    ).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_total_tasks_for_projects(project_ids: List[str]) -> Dict[str, int]:
+    """
+    Get the true total task count for each project by joining
+    projects → milestones → tasks.  Returns {project_id: task_count}.
+    """
+    if not project_ids:
+        return {}
+    milestones_result = supabase.table("milestones").select(
+        "id, project_id"
+    ).in_("project_id", project_ids).execute()
+    milestones = milestones_result.data or []
+    if not milestones:
+        return {}
+
+    milestone_to_project = {m['id']: m['project_id'] for m in milestones}
+    milestone_ids = list(milestone_to_project.keys())
+
+    tasks_result = supabase.table("tasks").select(
+        "id, milestone_id"
+    ).in_("milestone_id", milestone_ids).execute()
+    tasks = tasks_result.data or []
+
+    counts: Dict[str, int] = {}
+    for t in tasks:
+        pid = milestone_to_project.get(t['milestone_id'])
+        if pid:
+            counts[pid] = counts.get(pid, 0) + 1
+    return counts
+
+
+def get_bulk_chat_message_counts(student_ids: List[str], project_ids: List[str]) -> Dict[str, Dict[str, int]]:
+    """
+    Get chat message counts grouped by user_id and role.
+    Returns {user_id: {'user': N, 'assistant': N}}.
+    """
+    if not student_ids or not project_ids:
+        return {}
+    result = supabase.table("chat_messages").select(
+        "user_id, project_id, role"
+    ).in_("user_id", student_ids).in_(
+        "project_id", project_ids
+    ).execute()
+    messages = result.data or []
+
+    counts: Dict[str, Dict[str, int]] = {}
+    for m in messages:
+        uid = m['user_id']
+        role = m.get('role', 'user')
+        if uid not in counts:
+            counts[uid] = {'user': 0, 'assistant': 0}
+        counts[uid][role] = counts[uid].get(role, 0) + 1
+    return counts
+
+
+def get_chat_message_counts_for_student(user_id: str, project_ids: List[str]) -> Dict[str, Dict[str, int]]:
+    """
+    Get chat message counts per project for a single student, split by role.
+    Returns {project_id: {'user': N, 'assistant': N}}.
+    """
+    if not project_ids:
+        return {}
+    result = supabase.table("chat_messages").select(
+        "project_id, role"
+    ).eq("user_id", user_id).in_(
+        "project_id", project_ids
+    ).execute()
+    messages = result.data or []
+
+    counts: Dict[str, Dict[str, int]] = {}
+    for m in messages:
+        pid = m['project_id']
+        role = m.get('role', 'user')
+        if pid not in counts:
+            counts[pid] = {'user': 0, 'assistant': 0}
+        counts[pid][role] = counts[pid].get(role, 0) + 1
+    return counts
+
+
+def update_classroom(classroom_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update classroom name and/or description."""
+    allowed = {k: v for k, v in data.items() if k in ('name', 'description')}
+    if not allowed:
+        raise ValueError("No valid fields to update")
+    result = supabase.table("classrooms").update(allowed).eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update classroom {classroom_id}")
+
+
+def increment_xp_atomic(user_id: str, amount: int) -> Optional[int]:
+    """Atomically increment a user's XP using an RPC call.
+    Falls back to read-update if the RPC function doesn't exist."""
+    try:
+        result = supabase.rpc('increment_xp', {'uid': user_id, 'amount': amount}).execute()
+        if result.data is not None:
+            return result.data
+        # RPC returned void — read back the new value
+        user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
+        return user.data.get('xp', 0) if user.data else 0
+    except Exception:
+        # Fallback: non-atomic but functional if RPC not set up yet
+        user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
+        current_xp = user.data.get('xp', 0) if user.data else 0
+        new_xp = current_xp + amount
+        supabase.table('users').update({'xp': new_xp}).eq('id', user_id).execute()
+        return new_xp
