@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { GLOSSARY } from "../utils/glossary";
 import { TechnicalTermHover } from "./TechnicalTermHover";
+import { BACKEND_URL } from '../utils/constants';
+
 
 // Sorted glossary terms by length descending for longest-match-first
 const SORTED_GLOSSARY_TERMS = Object.keys(GLOSSARY).sort(
@@ -409,6 +411,29 @@ export function ProjectWorkspace({
 
     fetchProject();
   }, [initialProject.id]);
+  
+  // Hydrate completed tasks from database if localStorage is empty
+  useEffect(() => {
+    const hydrateFromDatabase = async () => {
+      // Only fetch from DB if localStorage is empty
+      if (completedTasks.length === 0) {
+        try {
+          const response = await authFetch(`/progress/projects/${project.id}/completed-tasks/${user.id}`);
+          const data = await response.json();
+          
+          if (data.success && data.completed_tasks?.length > 0) {
+            console.log('✅ Hydrated from DB:', data.completed_tasks);
+            setCompletedTasks(data.completed_tasks);
+          }
+        } catch (error) {
+          console.error('Hydration failed:', error);
+        }
+      }
+    };
+    
+    hydrateFromDatabase();
+  }, [project.id, user.id, completedTasks.length]);
+
 
   // Poll for milestone updates (tasks are generated async)
   useEffect(() => {
