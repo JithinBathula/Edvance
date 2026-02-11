@@ -11,6 +11,7 @@ import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
 import { cn } from './ui/utils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 interface ChatMessage {
   id: string;
@@ -112,18 +113,22 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
   const [isProcessingHandoff, setIsProcessingHandoff] = useState(false);
   const [isInitializingAI, setIsInitializingAI] = useState(false);
 
-  const hasInitializedChat = useRef(false);
+  const hasInitializedChat = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [guidingAnswers, setGuidingAnswers] = useState<Record<string, string | string[]>>({});
-                  
+
+  const [chatSessionId, setChatSessionId] = useState(crypto.randomUUID());
+  const [isRestartOpen, setIsRestartOpen] = useState(false); 
+
+
   // 1. Initialization 
   useEffect(() => {
-    if (hasInitializedChat.current) return;
-    hasInitializedChat.current = true;
+    if (hasInitializedChat.current === chatSessionId) return;
+    hasInitializedChat.current = chatSessionId;
 
-    console.log("Chat Initialized for user:", user);
+    console.log("Chat Initialized for session:", chatSessionId);
                     
     if (messages.length === 0) {
       // Map pythonLevel to friendly display text
@@ -150,7 +155,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     ]);
   }
 } 
-,[user.name, user.onboarding?.pythonLevel, messages.length]);
+,[user.name, user.onboarding?.pythonLevel, messages.length, chatSessionId]);
   
 
   // 2. Auto-scroll
@@ -185,12 +190,11 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
     const history = messages.map(m => ({ role: m.role, content: m.content }));
     
-    let fullResponse = "";
-
     await streamChatResponse(
       {
         message: textToBackend,
         history: history,
+        session_id: chatSessionId,
         user_profile: {
           educationLevel: user.onboarding?.educationLevel || 'primary',
           schoolExperience: user.onboarding?.schoolExperience || 'beginner',
@@ -200,7 +204,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         },
         guiding_complete: !!options.skipUserBubble,      
       },
-      (data: any) => { // 'data' is now the full JSON object from backend
+      (data: any) => { 
       
       // 1. Handle Text Content - cleaning data from streaming
       if (data.content) {
@@ -208,18 +212,18 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
           if (msg.id === assistantId) {
             let updatedContent = (msg.content || '') + data.content;
 
-            // 1. Convert literal escaped strings to real characters
+            // Convert literal escaped strings to real characters
             let clean = updatedContent
               .replace(/\\n/g, '\n') 
               .replace(/\\"/g, '"')
               .replace(/\\t/g, '  ');
 
-            // 2. Markdown List 
+            // Markdown List 
             // Ensure there is a newline before any bullet point or numbered list 
             // if it follows text, otherwise it won't trigger the list parser.
             clean = clean.replace(/([^\n])\n(\s*[\*\-\d+\.])/g, '$1\n\n$2');
 
-            // 3. Strip wrapping quotes if the whole message is wrapped
+            // Strip wrapping quotes if the whole message is wrapped
             if (clean.startsWith('"') && clean.endsWith('"')) {
               clean = clean.slice(1, -1);
             }
@@ -233,7 +237,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       // 2. Handle Backend-Driven Handoff Trigger
       if (data.handoff && data.session_data) {
         console.log("[Handoff] Backend signaled ready. Data received:", data.session_data);
-        // Pass the session data directly to your handoff function
         triggerHandoff(data.session_data);
       }
     },
@@ -250,7 +253,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
       }
     );
     console.groupEnd();
-  }, [isLoading, messages, user, guidingAnswers]);
+  }, [isLoading, messages, user, guidingAnswers, chatSessionId]);
 
   // 4. Helper to proceed to next step
   const proceedToNextStep = (answers: Record<string, string | string[]>, userVisual: string) => {
@@ -341,7 +344,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
     setTimeout(async () => {
       try {
-        const reqRes = await authFetch('/chat/requirements');
+        const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
         const reqJson = await reqRes.json();
         if (!reqRes.ok || reqJson.status !== 'success') throw new Error("Failed to get requirements");
 
@@ -380,6 +383,28 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     }, 2000);
   };
 
+  const handleRestart = useCallback(() => {
+  try {
+    setMessages([]);
+    setCurrentStep(0);
+    setGuidingAnswers({});
+    setInput('');
+
+    const newId = crypto.randomUUID();
+    setChatSessionId(newId);
+    console.log("[Chat] Restarted session. New session ID:", newId);
+
+    hasInitializedChat.current = null; 
+      
+    toast.success("Session reset!");
+    setIsRestartOpen(false);
+    console.log("[Chat] Restart confirmed by user.");
+  } catch (err) {
+    console.error("Failed to reset session:", err);
+    setIsRestartOpen(false);
+  }
+}, [setChatSessionId, setMessages, setCurrentStep, setGuidingAnswers, setInput, setIsRestartOpen]);
+
   // --- Render ---
   const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
   const currentQuestion = GUIDING_QUESTIONS[currentStep];
@@ -398,15 +423,14 @@ useEffect(() => {
 }, [input]); // Runs every time 'input' changes
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">
-      
+    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">      
       {/* Header */}
       <header className="border-b bg-white px-4 py-3 flex items-center gap-4 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 pointer-events-auto cursor-pointer" />
         </Button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-800 to-cyan-500 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -414,6 +438,48 @@ useEffect(() => {
             <p className="text-sm text-gray-600">AI Project Architect</p>
           </div>
         </div>
+
+       <AlertDialog open={isRestartOpen} onOpenChange={setIsRestartOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="default"
+            size="lg"
+            className="ml-auto mr-4 hover:bg-gray-700 border-gray-200 transition-all duration-200 pointer-events-auto cursor-pointer"
+            type="button"
+          >
+            Restart
+          </Button>
+        </AlertDialogTrigger>
+
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restart Chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear your current chat history and requirements. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="font-semibold ml-auto text-cyan-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+            >
+              CANCEL</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="ghost"
+              size="lg"
+              onClick={handleRestart}
+              className="font-semibold text-cyan-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+              
+            >
+              RESTART NOW
+            </AlertDialogAction>
+          </AlertDialogFooter> 
+        </AlertDialogContent>
+      </AlertDialog>
       </header>
 
       {/* Chat Area */}
@@ -425,7 +491,7 @@ useEffect(() => {
             return (
               <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-10 h-10 rounded-full bg-[#7622e5] flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-cyan-800 flex items-center justify-center shrink-0">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
@@ -540,15 +606,15 @@ useEffect(() => {
           {/* Loading Indicator */}
           {(isLoading || isInitializingAI) && !isProcessingHandoff && (            
             <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-800 to-cyan-500 flex items-center justify-center flex-shrink-0">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
                 <Card className="p-4 bg-white">
                   <div className="flex gap-2 items-center">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                     <span className="text-sm text-gray-600"></span>
                   </div>
@@ -560,7 +626,7 @@ useEffect(() => {
           {isProcessingHandoff && (
             <div className="flex flex-col items-center justify-center py-8 gap-3 animate-in fade-in">
               <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500 text-sm font-medium">Generating Project Blueprint...</p>
+              <p className="text-gray-500 text-lg font-medium">Generating Project Blueprint...</p>
             </div>
           )}
 
@@ -575,7 +641,9 @@ useEffect(() => {
             <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
               <div className="flex justify-between items-center mb-3">
                  <p className="text-sm text-gray-500 font-medium">
-                    {currentQuestion.multiSelect ? "Select one or more options:" : "Select an option:"}
+                    {currentQuestion.multiSelect ? "Select one or more options:" 
+                    : currentQuestion.inputType === "text" ? "Type your answer below:" 
+                    : "Select an option:"}
                  </p>
               </div>
 
@@ -593,7 +661,7 @@ useEffect(() => {
                       key={opt.id}  
                       variant="user_multi_option"
                       className={cn(
-                        "group h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 hover:resize-none pointer-events-auto cursor-pointer",
+                        "group border-4 border-invisible h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 resize-none pointer-events-auto cursor-pointer",
                         isSelected 
                           ? "bg-amber-400 shadow-md" 
                           : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-blue-50 hover:border-4 hover:bg-gray-50"
@@ -622,7 +690,7 @@ useEffect(() => {
               </div>
               
               {currentQuestion.multiSelect && (
-                <div className="flex justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex border justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
                   <Button 
                     onClick={handleMultiSelectContinue}
                         disabled={
@@ -670,8 +738,6 @@ useEffect(() => {
               )}
             </div>
           )}
-
-          {/*
 
           {/* Normal Chat Input */}
           {!isGuidingPhase && !isProcessingHandoff && (

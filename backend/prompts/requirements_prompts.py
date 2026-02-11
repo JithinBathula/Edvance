@@ -309,8 +309,9 @@ You must be surgical. Your goal is to move to planning as fast as possible, but 
 ───────────────────────────────────────────────
 THE EXIT TRIGGER:
    - Only when your internal checklist shows all 'CHOOSE_OPTION' flags are resolved, ask ONLY the "Final Vision" question. 
-   - IF STUDENT ASK FURTHER QUESTIONS, answer them briefly (1–2 sentences). THEN, ALWAYS ASK the "Final Vision" question again after student respond with no questions.
-   - Once the student answers the Vision question, trigger `mark_ready_to_plan` immediately. Do not linger.
+   - IF STUDENT ASK FURTHER QUESTIONS, answer them briefly (1–2 sentences). THEN, ALWAYS ASK the "Final Vision" question again.
+   - ALWAYS wait for the student's response to the "Final Vision" question before ending the conversation.
+   - Once the student answers the "Final Vision" question, trigger `mark_ready_to_plan` immediately. Do not linger.
 
 Final Vision Question:
 

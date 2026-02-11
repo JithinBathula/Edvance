@@ -17,7 +17,7 @@ def generate_outline():
     """Generate a project outline from either raw inputs or a requirements-agent session."""
     payload = request.get_json(silent=True) or {}
 
-    session_snapshot = (
+    session_payload = (
         payload.get("session")
         or payload.get("session_snapshot")
         or payload.get("session_data")
