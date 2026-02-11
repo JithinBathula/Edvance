@@ -17,12 +17,17 @@ def generate_outline():
     """Generate a project outline from either raw inputs or a requirements-agent session."""
     payload = request.get_json(silent=True) or {}
 
-    session_snapshot = (
+    session_payload = (
         payload.get("session")
         or payload.get("session_snapshot")
         or payload.get("session_data")
     )
-    experience_level = payload.get("experience_level") or "beginner"
+    pythonLevel = payload.get("pythonLevel") or "level-1"
+
+    session_snapshot = session_payload.get("snapshot") if isinstance(session_payload, dict) else session_payload
+    if session_snapshot is None:
+        return jsonify({"error": "session snapshot missing (expected key 'snapshot')"}), 400
+
 
     try:
         if session_snapshot is None:
@@ -33,7 +38,7 @@ def generate_outline():
 
         outline = planner.generate_outline(
             session_snapshot=session_snapshot,
-            experience_level=experience_level,
+            pythonLevel=pythonLevel,
         )
         return jsonify(outline.model_dump())
     except (CurriculumGenerationError, ValidationError) as exc:
@@ -56,7 +61,7 @@ def generate_curriculum():
 
     user_id = g.user_id
     requirements = payload.get("requirements")
-    experience_level = payload.get("experience_level")
+    experience_level = payload.get("pythonLevel")
     outline_payload = payload.get("outline")
     vm_type = payload.get("vm_type")
     first_milestone_only = payload.get("first_milestone_only", True)
@@ -83,14 +88,14 @@ def generate_curriculum():
             curriculum = planner.generate_first_milestone_only(
                 requirements=requirements,
                 tech_stack=None,
-                experience_level=experience_level,
+                pythonLevel=experience_level,
                 outline=outline,
             )
         else:
             curriculum = planner.generate_curriculum(
                 requirements=requirements,
                 tech_stack=None,
-                experience_level=experience_level,
+                pythonLevel=experience_level,
                 outline=outline,
             )
 
@@ -195,7 +200,7 @@ def generate_curriculum():
                                 project_brief=outline.project_brief,
                                 requirements=requirements,
                                 tech_stack=None,
-                                experience_level=experience_level,
+                                pythonLevel=experience_level,
                                 milestone=milestone_outline,
                                 milestone_position=milestone_position,
                             )

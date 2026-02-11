@@ -22,7 +22,7 @@ REQUIREMENTS SESSION (verbatim JSON):
 {session_json}
 
 USER EXPERIENCE LEVEL & KNOWLEDGE:
-{experience_level}
+{pythonLevel}
 
 CALIBRATION RULES:
 1. **Scope Check First:**

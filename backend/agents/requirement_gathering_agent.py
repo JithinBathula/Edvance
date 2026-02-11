@@ -454,7 +454,6 @@ class RequirementGatheringAgent:
         if iteration_count >= MAX_ITERATIONS and not session.get("ready_to_plan"):
             yield {
                 "content": (
-                    "\n\nI can’t hand off to planning yet because requirements weren’t explicitly finalized.\n"
-                    "Tell me what to finalize or confirm, and I’ll proceed."
+                    "\n\nI can’t hand off to planning yet because requirements weren’t explicitly finalized. Tell me what to finalize or confirm, and I’ll proceed."
                 )
             }

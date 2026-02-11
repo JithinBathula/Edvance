@@ -56,7 +56,7 @@ class CurriculumPlanner:
         self,
         *,
         session_snapshot: Dict[str, Any],
-        experience_level: str,
+        pythonLevel: str,
     ) -> OutlineProject:
         """
         Generates an outline directly from the requirements agent session snapshot.
@@ -68,7 +68,7 @@ class CurriculumPlanner:
                 "role": "user",
                 "content": prompt_bank.outline_user_prompt.format(
                     session_json=session_json,
-                    experience_level=experience_level.strip(),
+                    pythonLevel=pythonLevel.strip(),
                 ),
             },
         ]
@@ -88,7 +88,7 @@ class CurriculumPlanner:
         project_brief: str,
         requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
-        experience_level: str,
+        pythonLevel: str,
         milestone: OutlineMilestone,
         milestone_position: int,
     ) -> Milestone:
@@ -106,7 +106,7 @@ class CurriculumPlanner:
                     project_brief=project_brief,
                     requirements=requirements_text,
                     tech_stack=tech_stack_text,
-                    experience_level=experience_level.strip(),
+                    experience_level=pythonLevel.strip(),
                     milestone_position=milestone_position,
                     subheading_title=milestone.subheading_title,
                     description=milestone.description,
@@ -131,7 +131,7 @@ class CurriculumPlanner:
         *,
         requirements: Sequence[str] | str,
         tech_stack: Optional[Sequence[str] | str] = None,
-        experience_level: str,
+        pythonLevel: str,
         outline: OutlineProject | None = None,
     ) -> ProjectCurriculum:
         """
@@ -145,7 +145,7 @@ class CurriculumPlanner:
                 project_brief=outline.project_brief,
                 requirements=requirements,
                 tech_stack=tech_stack,
-                experience_level=experience_level,
+                pythonLevel=pythonLevel,
                 milestone=outline_milestone,
                 milestone_position=idx,
             )
@@ -165,7 +165,7 @@ class CurriculumPlanner:
         *,
         requirements: Sequence[str] | str,
         tech_stack: Optional[Sequence[str] | str] = None,
-        experience_level: str,
+        pythonLevel: str,
         outline: OutlineProject,
     ) -> ProjectCurriculum:
         """
@@ -184,7 +184,7 @@ class CurriculumPlanner:
             project_brief=outline.project_brief,
             requirements=requirements,
             tech_stack=tech_stack,
-            experience_level=experience_level,
+            pythonLevel=pythonLevel,
             milestone=first_milestone_outline,
             milestone_position=1,
         )

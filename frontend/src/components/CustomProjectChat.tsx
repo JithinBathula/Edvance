@@ -353,7 +353,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               session: backendSessionData,
-              experience_level: user.onboarding?.pythonLevel || 'level-1',
+              pythonLevel: user.onboarding?.pythonLevel || 'level-1',
             }),
         });
         
@@ -363,7 +363,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         onProjectCreated({
             session: backendSessionData,
             outline: outlineJson,
-            experienceLevel: user.onboarding?.pythonLevel || 'level-1',
+            pythonLevel: user.onboarding?.pythonLevel || 'level-1',
         });
 
       } catch (e) {
@@ -413,8 +413,6 @@ useEffect(() => {
   }
 }, [input]); // Runs every time 'input' changes
 
-console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
-
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">      
       {/* Header */}
@@ -423,7 +421,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
           <ArrowLeft className="w-5 h-5 pointer-events-auto cursor-pointer" />
         </Button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-800 to-cyan-500 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -457,7 +455,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
             type="button"
             variant="ghost"
             size="lg"
-            className="font-semibold ml-auto text-[#7622e5] hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+            className="font-semibold ml-auto text-cyan-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
             >
               CANCEL</AlertDialogCancel>
             <AlertDialogAction
@@ -465,7 +463,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
               variant="ghost"
               size="lg"
               onClick={handleRestart}
-              className="font-semibold text-[#7622e5] hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+              className="font-semibold text-cyan-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
               
             >
               RESTART NOW
@@ -484,7 +482,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
             return (
               <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-10 h-10 rounded-full bg-[#7622e5] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-cyan-800 flex items-center justify-center shrink-0">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
@@ -599,15 +597,15 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
           {/* Loading Indicator */}
           {(isLoading || isInitializingAI) && !isProcessingHandoff && (            
             <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-800 to-cyan-500 flex items-center justify-center flex-shrink-0">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
                 <Card className="p-4 bg-white">
                   <div className="flex gap-2 items-center">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-[#7622e5] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                     <span className="text-sm text-gray-600"></span>
                   </div>
@@ -619,7 +617,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
           {isProcessingHandoff && (
             <div className="flex flex-col items-center justify-center py-8 gap-3 animate-in fade-in">
               <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500 text-sm font-medium">Generating Project Blueprint...</p>
+              <p className="text-gray-500 text-lg font-medium">Generating Project Blueprint...</p>
             </div>
           )}
 
@@ -654,7 +652,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
                       key={opt.id}  
                       variant="user_multi_option"
                       className={cn(
-                        "group h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 hover:resize-none pointer-events-auto cursor-pointer",
+                        "group border-4 border-invisible h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 resize-none pointer-events-auto cursor-pointer",
                         isSelected 
                           ? "bg-amber-400 shadow-md" 
                           : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-blue-50 hover:border-4 hover:bg-gray-50"
@@ -683,7 +681,7 @@ console.log("[Render Check] isRestartOpen is currently:", isRestartOpen);
               </div>
               
               {currentQuestion.multiSelect && (
-                <div className="flex justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex border justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
                   <Button 
                     onClick={handleMultiSelectContinue}
                         disabled={
