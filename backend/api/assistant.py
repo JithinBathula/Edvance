@@ -52,8 +52,8 @@ def chat():
             except Exception as save_err:
                 print(f"Warning: Failed to save user message: {save_err}")
 
-        # If project_id provided, load all files from cloud storage
-        if project_id:
+        # If no code was sent, fall back to cloud storage
+        if not code and project_id:
             project = get_project_by_id(project_id)
             if project and str(project.get('user_id')) == str(user_id):
                 files = read_repo_files(project_id)

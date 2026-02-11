@@ -348,22 +348,31 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
         const reqJson = await reqRes.json();
         if (!reqRes.ok || reqJson.status !== 'success') throw new Error("Failed to get requirements");
 
+        const sessionData = reqJson.requirements.session_data;
+        const userProfile = {
+              educationLevel: user.onboarding?.educationLevel || 'primary',
+              schoolExperience: user.onboarding?.schoolExperience || 'none',
+              pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+              biggestChallenges: user.onboarding?.biggestChallenges || [],
+              learningMode: user.onboarding?.learningMode || 'guided',
+        };
+
         const outlineRes = await fetch(`${BACKEND_URL}/planning/outline`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               session: backendSessionData,
-              pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+              user_profile: userProfile,
             }),
         });
-        
+
         const outlineJson = await outlineRes.json();
-        
+
         toast.success("Plan Created!");
         onProjectCreated({
             session: backendSessionData,
             outline: outlineJson,
-            pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+            userProfile,
         });
 
       } catch (e) {

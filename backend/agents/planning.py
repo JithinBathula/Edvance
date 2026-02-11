@@ -52,23 +52,78 @@ class CurriculumPlanner:
         )
         return response.choices[0].message.content
     
+    @staticmethod
+    def _format_user_profile(user_profile: Dict[str, Any]) -> str:
+        """Format all onboarding fields into a readable string for LLM prompts."""
+        level_labels = {
+            "level-1": "Level 1 – Knows basics (print, variables)",
+            "level-2": "Level 2 – Knows conditions (if/else)",
+            "level-3": "Level 3 – Knows loops (for/while)",
+            "level-4": "Level 4 – Knows functions & data structures",
+            "level-5": "Level 5 – Advanced (OOP, files, libraries)",
+        }
+        education_labels = {
+            "primary": "Primary 5-6",
+            "lower-sec": "Lower Secondary",
+            "upper-sec": "Upper Secondary",
+            "jc-poly-ite": "JC / Polytechnic / ITE",
+        }
+        experience_labels = {
+            "scratch": "Scratch (block-based coding)",
+            "cff": "Code for Fun (CFF)",
+            "computing": "O/N-Level Computing",
+            "self-taught": "Self-taught programming",
+            "none": "No prior experience",
+        }
+        mode_labels = {
+            "guided": "Guided (step-by-step with explanations)",
+            "roadmap": "Roadmap (milestone-based, less hand-holding)",
+            "challenge": "Challenge (minimal guidance, figure it out)",
+        }
+
+        python_level = user_profile.get("pythonLevel", "level-1")
+        education = user_profile.get("educationLevel", "primary")
+        experience = user_profile.get("schoolExperience", "none")
+        challenges = user_profile.get("biggestChallenges", [])
+        learning_mode = user_profile.get("learningMode", "guided")
+
+        if isinstance(challenges, str):
+            challenges = [challenges]
+
+        challenge_labels = {
+            "syntax": "Remembering syntax",
+            "planning": "Planning before coding",
+            "debugging": "Debugging errors",
+            "advanced": "Understanding advanced concepts",
+        }
+
+        lines = [
+            f"- Python skill level: {level_labels.get(python_level, python_level)}",
+            f"- Education level: {education_labels.get(education, education)}",
+            f"- Prior coding experience: {experience_labels.get(experience, experience)}",
+            f"- Biggest challenges: {', '.join(challenge_labels.get(c, c) for c in challenges) if challenges else 'Not specified'}",
+            f"- Preferred learning mode: {mode_labels.get(learning_mode, learning_mode)}",
+        ]
+        return "\n".join(lines)
+
     def generate_outline(
         self,
         *,
         session_snapshot: Dict[str, Any],
-        pythonLevel: str,
+        user_profile: Dict[str, Any],
     ) -> OutlineProject:
         """
         Generates an outline directly from the requirements agent session snapshot.
         """
         session_json = json.dumps(session_snapshot or {}, indent=2)
+        user_profile_text = self._format_user_profile(user_profile)
         messages = [
             {"role": "system", "content": prompt_bank.outline_system_prompt},
             {
                 "role": "user",
                 "content": prompt_bank.outline_user_prompt.format(
                     session_json=session_json,
-                    pythonLevel=pythonLevel.strip(),
+                    user_profile=user_profile_text,
                 ),
             },
         ]
@@ -88,7 +143,7 @@ class CurriculumPlanner:
         project_brief: str,
         requirements: Sequence[str] | str,
         tech_stack: Sequence[str] | str,
-        pythonLevel: str,
+        user_profile: Dict[str, Any],
         milestone: OutlineMilestone,
         milestone_position: int,
     ) -> Milestone:
@@ -97,6 +152,7 @@ class CurriculumPlanner:
         """
         tech_stack_text = self._stringify_stack(tech_stack)
         requirements_text = self._format_requirements(requirements)
+        user_profile_text = self._format_user_profile(user_profile)
         messages = [
             {"role": "system", "content": prompt_bank.task_generation_system_prompt},
             {
@@ -106,7 +162,7 @@ class CurriculumPlanner:
                     project_brief=project_brief,
                     requirements=requirements_text,
                     tech_stack=tech_stack_text,
-                    experience_level=pythonLevel.strip(),
+                    user_profile=user_profile_text,
                     milestone_position=milestone_position,
                     subheading_title=milestone.subheading_title,
                     description=milestone.description,
@@ -131,7 +187,7 @@ class CurriculumPlanner:
         *,
         requirements: Sequence[str] | str,
         tech_stack: Optional[Sequence[str] | str] = None,
-        pythonLevel: str,
+        user_profile: Dict[str, Any],
         outline: OutlineProject | None = None,
     ) -> ProjectCurriculum:
         """
@@ -145,7 +201,7 @@ class CurriculumPlanner:
                 project_brief=outline.project_brief,
                 requirements=requirements,
                 tech_stack=tech_stack,
-                pythonLevel=pythonLevel,
+                user_profile=user_profile,
                 milestone=outline_milestone,
                 milestone_position=idx,
             )
@@ -165,7 +221,7 @@ class CurriculumPlanner:
         *,
         requirements: Sequence[str] | str,
         tech_stack: Optional[Sequence[str] | str] = None,
-        pythonLevel: str,
+        user_profile: Dict[str, Any],
         outline: OutlineProject,
     ) -> ProjectCurriculum:
         """
@@ -184,7 +240,7 @@ class CurriculumPlanner:
             project_brief=outline.project_brief,
             requirements=requirements,
             tech_stack=tech_stack,
-            pythonLevel=pythonLevel,
+            user_profile=user_profile,
             milestone=first_milestone_outline,
             milestone_position=1,
         )

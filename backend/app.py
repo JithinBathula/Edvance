@@ -12,9 +12,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# CORS configuration for deployed environment
-CORS(app, 
-     resources={r"/api/*": {"origins": "*"}},
+# CORS configuration - restrict origins in production via ALLOWED_ORIGINS env var
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
+CORS(app,
+     resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])

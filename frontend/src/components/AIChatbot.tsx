@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2, RotateCcw } from 'lucide-react';
 import { authFetch } from '../utils/authFetch';
 import ReactMarkdown from 'react-markdown';
 
@@ -172,15 +172,28 @@ export function AIChatbot({
             <p className="text-xs text-gray-500">Always here to help</p>
           </div>
         </div>
-        {onClose && (
+        <div className="flex items-center gap-1">
           <button
-            onClick={onClose}
+            onClick={() => {
+              setMessages([DEFAULT_WELCOME_MESSAGE]);
+              setError(null);
+              scrollRef.current?.scrollTo({ top: 0 });
+              if (projectId) authFetch(`/assistant/history/${projectId}`, { method: 'DELETE' });
+            }}
             className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-
+            title="Restart conversation"
           >
-            <X className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" />
           </button>
-        )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-white/50 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages Area */}
