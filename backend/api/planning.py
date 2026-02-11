@@ -23,19 +23,19 @@ def generate_outline():
         or payload.get("session_data")
     )
     user_profile = payload.get("user_profile") or {}
-    # Backwards compatibility: if no user_profile, build one from experience_level
-    if not user_profile and payload.get("experience_level"):
-        user_profile = {"pythonLevel": payload["experience_level"]}
+    # Backwards compatibility: if no user_profile, build one from pythonLevel
+    if not user_profile and payload.get("pythonLevel"):
+        user_profile = {"pythonLevel": payload["pythonLevel"]}
 
     try:
-        if session_snapshot is None:
+        if session_payload is None:
             return (
                 jsonify({"error": "session data is required to generate an outline"}),
                 400,
             )
 
         outline = planner.generate_outline(
-            session_snapshot=session_snapshot,
+            session_snapshot=session_payload,
             user_profile=user_profile,
         )
         return jsonify(outline.model_dump())
@@ -61,8 +61,8 @@ def generate_curriculum():
     requirements = payload.get("requirements")
     user_profile = payload.get("user_profile") or {}
     # Backwards compatibility
-    if not user_profile and payload.get("experience_level"):
-        user_profile = {"pythonLevel": payload["experience_level"]}
+    if not user_profile and payload.get("pythonLevel"):
+        user_profile = {"pythonLevel": payload["pythonLevel"]}
     experience_level = user_profile.get("pythonLevel", "level-1")
     outline_payload = payload.get("outline")
     vm_type = payload.get("vm_type")
