@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { User, OnboardingData } from '../App';
 import { authFetch } from '../utils/authFetch';
 import { Button } from './ui/button';
@@ -6,16 +6,21 @@ import { Card } from './ui/card';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
-import { ArrowLeft, Save, User as UserIcon, GraduationCap, Code2, Target, Lightbulb, BookOpen } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, GraduationCap, Code2, Target, Lightbulb, BookOpen, Camera } from 'lucide-react';
+import { toast } from 'sonner';
 
 type Props = {
   user: User;
   onUpdate: (data: OnboardingData) => void;
+  onProfilePictureUpdate?: (profilePictureUrl: string) => void;
   onBack: () => void;
 };
 
-export function ProfilePage({ user, onUpdate, onBack }: Props) {
+export function ProfilePage({ user, onUpdate, onProfilePictureUpdate, onBack }: Props) {
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(user.profilePictureUrl || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [answers, setAnswers] = useState<OnboardingData>({
     educationLevel: user.onboarding?.educationLevel || '',
@@ -31,6 +36,76 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
       ? current.filter((v) => v !== value)
       : [...current, value];
     setAnswers({ ...answers, biggestChallenges: updated });
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('handleImageUpload triggered');
+    const file = event.target.files?.[0];
+    console.log('Selected file:', file);
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Image = e.target?.result as string;
+
+        try {
+          const response = await authFetch('/users/profile-picture', {
+            method: 'POST',
+            body: JSON.stringify({ image: base64Image }),
+          });
+
+          const data = await response.json();
+
+          console.log('Upload response:', data);
+          console.log('Profile picture URL:', data.profile_picture_url);
+
+          if (data.success) {
+            setProfilePicture(data.profile_picture_url);
+
+            // Update parent component's user state
+            if (onProfilePictureUpdate) {
+              onProfilePictureUpdate(data.profile_picture_url);
+            }
+
+            console.log('Profile picture updated:', data.profile_picture_url);
+
+            toast.success('Profile picture updated!');
+          } else {
+            toast.error(data.error || 'Failed to upload image');
+          }
+        } catch (err) {
+          console.error('Upload error:', err);
+          toast.error('Failed to upload image');
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('File read error:', err);
+      toast.error('Failed to read image file');
+      setUploadingImage(false);
+    }
   };
 
   const handleSave = async () => {
@@ -83,8 +158,40 @@ export function ProfilePage({ user, onUpdate, onBack }: Props) {
         {/* User Info Card */}
         <Card className="p-6 mb-8 bg-white">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
-              <UserIcon className="w-8 h-8 text-white" />
+            <div className="relative group">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <div
+                onClick={() => {
+                  console.log('Avatar clicked, opening file picker...');
+                  console.log('File input ref:', fileInputRef.current);
+                  fileInputRef.current?.click();
+                }}
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center cursor-pointer relative overflow-hidden"
+              >
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserIcon className="w-8 h-8 text-white" />
+                )}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <h2 className="text-2xl mb-1">{user.name}</h2>

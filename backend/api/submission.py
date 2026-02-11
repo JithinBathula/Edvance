@@ -93,6 +93,10 @@ def evaluate_submission():
             test_specification=test_specification
         )
 
+        # Define XP reward constant 
+        XP_PER_TASK = 10
+        new_xp = None
+
         try:
             if result.is_correct:
                 update_progress(
@@ -103,6 +107,21 @@ def evaluate_submission():
                     passed=True,
                     feedback={'message': result.feedback}
                 )
+
+                # Award XP for task completion
+                try:
+                    current_user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
+
+                    current_xp = current_user.data.get('xp', 0) if current_user.data else 0
+
+                    new_xp = current_xp + XP_PER_TASK
+
+                    supabase.table('users').update({
+                        'xp': new_xp
+                    }).eq('id', user_id).execute()
+                except Exception as xp_error:
+                    print(f"Warning: Failed to update XP: {xp_error}")
+
 
                 # Adaptive task generation for next task
                 try:
@@ -195,7 +214,9 @@ def evaluate_submission():
         response_data = {
             'success': True,
             'is_correct': result.is_correct,
-            'feedback': result.feedback
+            'feedback': result.feedback,
+            'xp_earned': XP_PER_TASK if result.is_correct else 0,
+            'total_xp': new_xp if new_xp is not None else None
         }
 
         if adapted_next_task:

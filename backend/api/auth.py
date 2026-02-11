@@ -20,6 +20,7 @@ def format_user_response(user: dict) -> dict:
         'createdAt': user.get('created_at'),
         'xp': user.get('xp', 0),
         'completedProjects': [],
+        'profilePictureUrl': user.get('profile_picture_url'),
     }
 
 

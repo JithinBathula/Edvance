@@ -291,11 +291,45 @@ def update_progress(
     raise Exception("Failed to update progress record")
 
 
+def get_user_progress_for_project(user_id: str, project_id: str) -> List[Dict[str, Any]]:
+    """
+    Get user progress records for all tasks in a project.
+    """
+    milestones = get_project_milestones(project_id)
+    if not milestones:
+        return []
+
+    task_ids: List[str] = []
+    for milestone in milestones:
+        tasks = get_milestone_tasks(milestone["id"])
+        task_ids.extend(str(task["id"]) for task in tasks if task.get("id"))
+
+    if not task_ids:
+        return []
+
+    result = supabase.table("user_progress").select("*").eq(
+        "user_id", user_id
+    ).in_(
+        "task_id", task_ids
+    ).execute()
+    return result.data or []
+
+
 def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all projects for a user with basic info for listing.
     """
     result = supabase.table("projects").select("id, title, brief, status, vm_type, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all projects for a user with fields needed by dashboard.
+    """
+    result = supabase.table("projects").select(
+        "id, title, brief, status, vm_type, tech_stack, created_at, updated_at"
+    ).eq("user_id", user_id).order("created_at", desc=True).execute()
     return result.data or []
 
 

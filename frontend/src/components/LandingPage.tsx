@@ -1,17 +1,18 @@
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon, LogOut } from 'lucide-react';
+import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon, LogOut, LayoutDashboard } from 'lucide-react';
 
 type Props = {
   user: User;
   onStartCourse: () => void;
   onStartCustomProject: () => void;
   onOpenProfile: () => void;
+  onOpenDashboard?: () => void;
   onLogout?: () => void;
 };
 
-export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenProfile, onLogout }: Props) {
+export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenProfile, onOpenDashboard, onLogout }: Props) {
   const getThemeIcon = (theme: string) => {
     switch (theme) {
       case 'chatbot':
@@ -48,6 +49,17 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
               <div className="px-3 py-1 rounded-full bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white text-sm">
                 {user.xp} XP
               </div>
+              {onOpenDashboard && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onOpenDashboard}
+                  className="rounded-full"
+                  title="Dashboard"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"

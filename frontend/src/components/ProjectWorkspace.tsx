@@ -25,9 +25,15 @@ import {
   X,
   AlertCircle,
   MessageCircle,
+  CheckCircle2,
+  Zap,
+  ArrowRight,
+  Info,
 } from "lucide-react";
 import { GLOSSARY } from "../utils/glossary";
 import { TechnicalTermHover } from "./TechnicalTermHover";
+import { BACKEND_URL } from '../utils/constants';
+
 
 // Sorted glossary terms by length descending for longest-match-first
 const SORTED_GLOSSARY_TERMS = Object.keys(GLOSSARY).sort(
@@ -380,7 +386,11 @@ export function ProjectWorkspace({
   // Restore completed tasks from localStorage
   const [completedTasks, setCompletedTasks] = useState<string[]>(() => {
     const saved = localStorage.getItem(`edvance_project_${initialProject.id}_completed_tasks`);
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+
+  // Deduplicate when loading from localStorage
+  const parsed = JSON.parse(saved);
+  return Array.from(new Set(parsed));  // ← Removes duplicates!
   });
 
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([
@@ -471,6 +481,29 @@ export function ProjectWorkspace({
 
     fetchProject();
   }, [initialProject.id]);
+  
+  // Hydrate completed tasks from database if localStorage is empty
+  useEffect(() => {
+    const hydrateFromDatabase = async () => {
+      // Only fetch from DB if localStorage is empty
+      if (completedTasks.length === 0) {
+        try {
+          const response = await authFetch(`/progress/projects/${project.id}/completed-tasks/${user.id}`);
+          const data = await response.json();
+          
+          if (data.success && data.completed_tasks?.length > 0) {
+            console.log('✅ Hydrated from DB:', data.completed_tasks);
+            setCompletedTasks(data.completed_tasks);
+          }
+        } catch (error) {
+          console.error('Hydration failed:', error);
+        }
+      }
+    };
+    
+    hydrateFromDatabase();
+  }, [project.id, user.id, completedTasks.length]);
+
 
   // Poll for milestone updates (tasks are generated async)
   useEffect(() => {
@@ -598,7 +631,9 @@ export function ProjectWorkspace({
       }
 
       if (data.is_correct) {
-        const newCompleted = [...completedTasks, safeCurrentTask.id];
+        await saveFiles(projectFiles);
+
+        const newCompleted = Array.from(new Set([...completedTasks, safeCurrentTask.id]));
         setCompletedTasks(newCompleted);
 
         // If next task was adapted, update the project tasks
@@ -700,27 +735,35 @@ export function ProjectWorkspace({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
+    <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
       {/* Header */}
-      <header className="border-b bg-white px-4 py-3 flex items-center justify-between shrink-0 h-16">
+      <header className="border-b border-slate-100 bg-white/80 backdrop-blur-sm px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <button onClick={onBack} className="flex items-center gap-2 text-teal-600 hover:text-teal-700 transition-colors">
             <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="font-semibold">{project.title}</h1>
-            <p className="text-sm text-gray-500">
-              {hasTasks ? `Task ${currentTaskIndex + 1} of ${tasks.length}` : 'Loading tasks...'}
-            </p>
-          </div>
+            <span className="font-medium">Back</span>
+          </button>
+          <div className="h-6 w-px bg-slate-200" />
+          <h1 className="text-xl font-bold text-slate-800">{project.title}</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="w-48">
-            <Progress value={progress} className="h-2" />
+          <div className="flex items-center gap-2 bg-teal-50 px-3 py-1.5 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 text-teal-600" />
+            <span className="text-sm font-semibold text-teal-700">
+              {completedTasks.length}/{tasks.length} Tasks
+            </span>
           </div>
-          <span className="text-sm text-gray-600">
-            {completedTasks.length}/{tasks.length} completed
-          </span>
+          <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-lg">
+            <Zap className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700">{user.xp} XP</span>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold cursor-pointer hover:scale-110 transition-transform overflow-hidden">
+            {user.profilePictureUrl ? (
+              <img src={user.profilePictureUrl} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              user.name?.charAt(0)?.toUpperCase() || 'U'
+            )}
+          </div>
         </div>
       </header>
 
@@ -858,7 +901,7 @@ export function ProjectWorkspace({
           </div>
         </ResizablePanel>
 
-        {!sidebarCollapsed && <ResizableHandle />}
+        <ResizableHandle />
 
         {/* Pane 2: Task Details */}
         <ResizablePanel id="task-details" order={2} defaultSize={isChatOpen ? 25 : 43} minSize={15} maxSize={50}>
@@ -905,28 +948,39 @@ export function ProjectWorkspace({
                       </div>
                     </div>
                   )}
+
+                  {/* Complete & Continue Button */}
+                  <div className="mt-6">
+                    <Button
+                      onClick={handleCompleteTask}
+                      disabled={saving || evaluating}
+                      className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-slate-300 disabled:to-slate-400 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:cursor-not-allowed"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : evaluating ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Evaluating...
+                        </>
+                      ) : completedTasks.includes(safeCurrentTask.id) ? (
+                        <>
+                          <Check className="w-5 h-5" />
+                          Completed
+                        </>
+                      ) : (
+                        <>
+                          Complete & Continue
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
-
-              <Button
-                onClick={handleCompleteTask}
-                disabled={saving || evaluating || !hasTasks}
-                className="w-full shadow-md hover:shadow-lg transition-shadow"
-                style={{ background: 'linear-gradient(to right, #f59e0b, #f97316)' }}
-              >
-                {evaluating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Evaluating...
-                  </>
-                ) : hasTasks && completedTasks.includes(safeCurrentTask.id)
-                  ? "Completed ✓"
-                  : hasTasks && currentTaskIndex < tasks.length - 1
-                    ? "Complete & Continue"
-                    : hasTasks
-                      ? "Complete Project"
-                      : "Waiting for tasks..."}
-              </Button>
             </div>
           </div>
         </ResizablePanel>
@@ -935,7 +989,7 @@ export function ProjectWorkspace({
 
         {/* Pane 3: IDE */}
         <ResizablePanel id="ide" order={3} defaultSize={isChatOpen ? 40 : 42} minSize={20}>
-          <div className="h-full overflow-hidden flex flex-col bg-[#0b1020]">
+          <div className="h-full overflow-hidden flex flex-col bg-white">
             <div className="flex-1 p-3">
               {filesLoading ? (
                 <div className="h-full flex items-center justify-center text-slate-400">

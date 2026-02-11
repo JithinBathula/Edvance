@@ -24,6 +24,10 @@ def require_auth(f):
     """
     @functools.wraps(f)
     def decorated(*args, **kwargs):
+        # Skip auth for OPTIONS requests (CORS preflight)
+        if request.method == 'OPTIONS':
+            return '', 200
+
         auth_header = request.headers.get('Authorization', '')
 
         if not auth_header.startswith('Bearer '):
@@ -37,7 +41,8 @@ def require_auth(f):
                 token,
                 signing_key.key,
                 algorithms=['ES256'],
-                audience='authenticated'
+                audience='authenticated',
+                leeway=30  # Allow 30 seconds of clock drift
             )
         except jwt.ExpiredSignatureError:
             return jsonify({'success': False, 'error': 'Token expired'}), 401
