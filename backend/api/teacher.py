@@ -66,6 +66,36 @@ def _group_by(items, key):
     return groups
 
 
+# ── Teacher Settings ───────────────────────────────────────────────
+
+@teacher_bp.route('/settings', methods=['GET'])
+@require_teacher
+def get_settings():
+    """Return the teacher's settings (stored as JSONB on user row)."""
+    user = g.user
+    settings = user.get('teacher_settings') or {}
+    return jsonify({'success': True, 'settings': settings}), 200
+
+
+@teacher_bp.route('/settings', methods=['PUT'])
+@require_teacher
+def update_settings():
+    """Save teacher settings (default_description, auto_approve_students)."""
+    data = request.json or {}
+    settings = {
+        'default_description': data.get('default_description', ''),
+        'auto_approve_students': bool(data.get('auto_approve_students', False)),
+    }
+
+    try:
+        supabase.table('users').update({
+            'teacher_settings': settings
+        }).eq('id', g.user_id).execute()
+        return jsonify({'success': True, 'settings': settings}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ── Dashboard overview ─────────────────────────────────────────────
 
 @teacher_bp.route('/dashboard', methods=['GET'])

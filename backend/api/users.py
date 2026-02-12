@@ -41,6 +41,55 @@ def update_onboarding():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@users_bp.route('/profile', methods=['PUT'])
+@require_auth
+def update_profile():
+    """Update authenticated user's profile (name only; email is managed by Supabase Auth)."""
+    data = request.json or {}
+    name = data.get('name', '').strip()
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+
+    try:
+        result = supabase.table('users').update({
+            'name': name
+        }).eq('id', g.user_id).execute()
+
+        updated = result.data[0] if result.data else {}
+        return jsonify({
+            'success': True,
+            'user': {
+                'name': updated.get('name'),
+                'email': updated.get('email'),
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@users_bp.route('/account', methods=['DELETE'])
+@require_auth
+def delete_account():
+    """Soft-delete the authenticated user's account."""
+    try:
+        # Anonymize user record
+        supabase.table('users').update({
+            'name': 'Deleted User',
+            'email': None,
+            'onboarding': None,
+        }).eq('id', g.user_id).execute()
+
+        # Deactivate all classrooms owned by this user (teacher case)
+        supabase.table('classrooms').update({
+            'is_active': False
+        }).eq('teacher_id', g.user_id).execute()
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @users_bp.route('/profile-picture', methods=['POST'])
 @require_auth
 def upload_profile_picture():

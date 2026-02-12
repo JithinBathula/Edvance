@@ -222,8 +222,8 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
             Dashboard
           </button>
           <button
-            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
-            disabled
+            onClick={() => navigate('/teacher/settings')}
+            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             <Target className="mr-3 h-5 w-5" />
             Settings

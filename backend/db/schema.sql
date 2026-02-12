@@ -324,6 +324,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student'
     CHECK (role IN ('student', 'teacher'));
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
+-- Teacher settings (classroom defaults, preferences)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_settings JSONB DEFAULT '{}'::jsonb;
+
 -- =============================================================================
 -- CLASSROOMS TABLE
 -- A teacher can create classrooms; students join via a 6-char code.

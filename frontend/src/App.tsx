@@ -19,6 +19,7 @@ import { ProfilePage } from "./components/ProfilePage";
 import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
 import { ClassroomDetail } from "./components/teacher/ClassroomDetail";
 import { StudentDetail } from "./components/teacher/StudentDetail";
+import { TeacherSettings } from "./components/teacher/TeacherSettings";
 import { StudentDashboard } from "./components/StudentDashboard";
 import { BACKEND_URL } from "./utils/constants";
 
@@ -289,6 +290,14 @@ export default function App() {
     navigate("/dashboard");
   };
 
+  const handleTeacherUserUpdate = (fields: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...fields };
+      setUser(updatedUser);
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+    }
+  };
+
   const handleProfilePictureUpdate = (profilePictureUrl: string) => {
     if (user) {
       const updatedUser = { ...user, profilePictureUrl };
@@ -492,6 +501,14 @@ export default function App() {
             element={
               <RequireTeacher>
                 <TeacherDashboard user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/settings"
+            element={
+              <RequireTeacher>
+                <TeacherSettings user={user!} onUserUpdate={handleTeacherUserUpdate} onLogout={handleLogout} />
               </RequireTeacher>
             }
           />
