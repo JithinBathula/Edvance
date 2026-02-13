@@ -8,7 +8,7 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from prompts import requirements_prompts as prompt_bank 
-from pydantic_classes.chat import WebSearchResult, QualityCheckResult, SuggestionResult
+from pydantic_classes.chat import QualityCheckResult, SuggestionResult
 # -----------------------
 
 load_dotenv()
@@ -43,34 +43,18 @@ class RequirementTools:
 
     @staticmethod
     def get_tool_definitions() -> List[Dict[str, Any]]:
-        # Tool definitions remain structurally unchanged
         return [
         {
             "type": "function",
             "function": {
-                "name": "web_search",
-                "description": "Analyze the project idea and identify required Python libraries and complexity.",
+                "name": "quality_check",
+                "description": "Evaluate if the project is feasible on our terminal-only platform and matches the user's skill level.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "project_idea": {"type": "string"}
                     },
                     "required": ["project_idea"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "quality_check",
-                "description": "Evaluate if the project matches the user's skill level.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "project_idea": {"type": "string"},
-                        "libraries": {"type": "string"}
-                    },
-                    "required": ["project_idea", "libraries"]
                 }
             }
         },
@@ -144,7 +128,7 @@ class RequirementTools:
             "type": "function",
             "function": {
                 "name": "suggest_alternative_projects",
-                "description": "Generate new Python project ideas.",
+                "description": "Generate new terminal-based Python project ideas using only standard library.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -161,54 +145,12 @@ class RequirementTools:
 
 
     @staticmethod
-    def web_search(project_idea: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
-        user_skills = user_skills or {}
-        system_prompt = prompt_bank.web_search_system_prompt
-        
-        user_prompt = prompt_bank.web_search_user_prompt.format(
-            projectIdea=project_idea,
-            userSkills=json.dumps(user_skills, indent=2)
-        )
-
-        try:
-            response = RequirementTools.client.chat.completions.create(
-                model="openai/gpt-5.2", 
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.7,
-                response_format={"type": "json_object"}
-            )
-
-            raw_json = json.loads(response.choices[0].message.content)
-            # FIX: Convert ALL keys to snake_case before Pydantic validation
-            standardized_json = RequirementTools._convert_keys_to_snake_case(raw_json)
-            validated_output = WebSearchResult(**standardized_json) 
-            
-            return validated_output.model_dump()
-            
-        except (Exception, ValidationError) as exc:
-            print(f"Web Search Tool Error (Pydantic/API): {exc}")
-            return {
-                "project_title": project_idea,
-                "required_technologies": [], 
-                "complexity_score": 0.0,     
-                "summary": f"Tech stack analysis failed due to error: {exc}", 
-                "status": "failed"
-            }
-
-    @staticmethod
-    def quality_check(project_idea: str, libraries: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
+    def quality_check(project_idea: str, user_skills: Dict[str, Any]) -> Dict[str, Any]:
         user_skills = user_skills or {}
         system_prompt = prompt_bank.quality_check_system_prompt
-        
-        theme = user_skills.get("theme")
-        completed_projects_str = ", ".join(user_skills.get("completedProjects", []) or []) or "None listed"
 
         full_prompt = prompt_bank.quality_check_user_prompt.format(
             projectIdea=project_idea,
-            libraries=str(libraries),
             educationLevel=user_skills.get("educationLevel"),
             schoolExperience=user_skills.get("schoolExperience"),
             pythonLevel=user_skills.get("pythonLevel"),

@@ -2337,6 +2337,25 @@ body {
   color: var(--foreground);
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-border-active {
+  padding: 5px;
+  background: linear-gradient(135deg, #ff8f05, #fcd34d, #fef3c7);
+  background-size: 200% 200%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
 /* ============================================
    IDE Component Styles
    ============================================ */
