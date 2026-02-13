@@ -172,23 +172,9 @@ class RequirementGatheringAgent:
         print(f"Arguments: {json.dumps(tool_args, indent=2)}")
         
         try:
-            if tool_name == "web_search":
-                result = self.requirement_tools.web_search(
-                    project_idea=tool_args.get('project_idea', ''), 
-                    user_skills=user_profile
-                )
-                session["tool_context"]["tech_analysis_history"].append({
-                    "ts": time.time(), "args": tool_args, "result": result}
-                )
-                session["last_updated"] = time.time()
-
-                print(f"Tech analysis history: {result.get('required_technologies',[])}")
-                return result
-            
-            elif tool_name == "quality_check":
+            if tool_name == "quality_check":
                 result = self.requirement_tools.quality_check(
                     project_idea=tool_args.get('project_idea', ''),
-                    libraries=tool_args.get('libraries', ''), 
                     user_skills=user_profile
                 )
                 session["tool_context"]["quality_check_history"].append(
@@ -300,13 +286,13 @@ class RequirementGatheringAgent:
         messages.append({"role": "user", "content": message})
         
         # Optional hint for first-time idea analysis
-        if session.get("project_idea") == message and not session["tool_context"]["tech_analysis_history"]:
+        if session.get("project_idea") == message and not session["tool_context"]["quality_check_history"]:
             messages.append(
                 {
                     "role": "system",
                     "content": (
-                        "[System Note]: New project idea. Call 'web_search' and 'quality_check', "
-                        "then refine requirements via 'update_snapshot'."
+                        "[System Note]: New project idea received. Call 'quality_check' to evaluate "
+                        "feasibility and skill match, then refine requirements via 'update_snapshot'."
                     ),
                 }
             )

@@ -3,7 +3,7 @@ import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Check } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,20 +28,23 @@ type Props = {
 // Helper function to generate technical prompt
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
   console.log("[System] Generating prompt to pass to LLM from user answers:", answers);
-  const { projectType, projectIdea, timeline, mainFeatures, objective } = answers;
+  const { startPath, description, timeline } = answers;
 
-  const formatAnswer = (answer: string | string[]) => {
-    return Array.isArray(answer) ? answer.join(', ') : answer;
-  };
+  const pathLabel = startPath === 'have_idea'
+    ? 'Student has a project idea'
+    : startPath === 'learn_concept'
+    ? 'Student wants to learn a Python concept through a project'
+    : 'Student wants a surprise project suggestion based on their level';
+
+  const descriptionLine = description
+    ? `- **Description:** ${description}`
+    : '- **Description:** (none provided — suggest something suitable)';
 
   const prompt = `
-    This is the scope for the project idea user wants to build:
-    
-    **User Choices:**
-    - **Type:** ${formatAnswer(projectType).toUpperCase()}
-    - **Idea:** ${projectIdea}
-    - **Main Features:** ${mainFeatures}
-    - **Objective:** ${objective}
+    ${pathLabel}
+
+    **Student Choices:**
+    ${descriptionLine}
     - **Timeline:** ${timeline}
     `;
 
@@ -257,7 +260,13 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
   // 4. Helper to proceed to next step
   const proceedToNextStep = (answers: Record<string, string | string[]>, userVisual: string) => {
-    const nextStep = currentStep + 1;
+    let nextStep = currentStep + 1;
+
+    // Skip the "description" question (index 1) if user chose "surprise"
+    if (nextStep === 1 && answers['startPath'] === 'surprise') {
+      nextStep = 2; // jump to timeline
+    }
+
     setCurrentStep(nextStep);
 
     // update chat UI: add user answer
@@ -266,74 +275,31 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     // add next guiding question or proceed to chat llm
     if (nextStep < GUIDING_QUESTIONS.length) {
       setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          id: `q-${nextStep}`, 
-          role: 'assistant', 
-          content: GUIDING_QUESTIONS[nextStep].text 
+        setMessages(prev => [...prev, {
+          id: `q-${nextStep}`,
+          role: 'assistant',
+          content: GUIDING_QUESTIONS[nextStep].text
         }]);
       }, 500);
     } else {
       console.log("[Guiding] Phase Complete! Initiating Chat LLM...");
       const systemPrompt = generateSystemPrompt(answers);
-      handleSendMessage(systemPrompt, { skipUserBubble: true });    
+      handleSendMessage(systemPrompt, { skipUserBubble: true });
     }
   };
 
-  // 5. Handle Guiding Phase Selections
+  // 5. Handle Guiding Phase Selections (all single-select or text input)
   const handleGuidingStep = (value: string, label?: string) => {
     const currentQ = GUIDING_QUESTIONS[currentStep];
 
     console.group(`[Guiding] Step ${currentStep + 1}: ${currentQ.key}`);
-    
-    // Logic for Multi-Select
-    if (currentQ.multiSelect) {
-      const currentAnswers = guidingAnswers[currentQ.key];
-      const answerArray = Array.isArray(currentAnswers) ? currentAnswers : [];
-      
-      let newAnswerArray: string[];
-      
-      // Toggle selection
-      if (answerArray.includes(value)) {
-        newAnswerArray = answerArray.filter(v => v !== value);
-      } else {
-        newAnswerArray = [...answerArray, value];
-      }
-      
-      const newAnswers = { ...guidingAnswers, [currentQ.key]: newAnswerArray };
-      setGuidingAnswers(newAnswers);
-      setInput(''); // Clear input for next question
-      
-      console.log("Updated Multi-Select Answers:", newAnswers);
-      console.groupEnd();
-      return; // Return early, do not auto-advance
-    } 
-    
-    // Logic for Single-Select (Auto-advance)
+
     const newAnswers = { ...guidingAnswers, [currentQ.key]: value };
     setGuidingAnswers(newAnswers);
-    setInput(''); // Clear input for next question
+    setInput('');
 
     proceedToNextStep(newAnswers, label || value);
     console.groupEnd();
-  };
-
-  // 6. Handle continue button for multi-select questions
-  const handleMultiSelectContinue = () => {
-    const currentQ = GUIDING_QUESTIONS[currentStep];
-    const selectedAnswers = guidingAnswers[currentQ.key];
-    
-    if (!selectedAnswers || (Array.isArray(selectedAnswers) && selectedAnswers.length === 0)) {
-      toast.error("Please select at least one option");
-      return;
-    }
-
-    const answerArray = Array.isArray(selectedAnswers) ? selectedAnswers : [selectedAnswers];
-    const labels = currentQ.options
-      ?.filter(opt => answerArray.includes(opt.value))
-      .map(opt => opt.label)
-      .join(', ') || '';
-
-    proceedToNextStep(guidingAnswers, labels);
   };
 
   // 7. Handoff to Planning Phase
@@ -641,69 +607,36 @@ useEffect(() => {
             <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
               <div className="flex justify-between items-center mb-3">
                  <p className="text-sm text-gray-500 font-medium">
-                    {currentQuestion.multiSelect ? "Select one or more options:" 
-                    : currentQuestion.inputType === "text" ? "Type your answer below:" 
-                    : "Select an option:"}
+                    {currentQuestion.options ? "Select an option:" : ""}
                  </p>
               </div>
 
               {currentQuestion.options ? (
-                // Render Buttons
-                <div className="flex flex-col gap-4"> 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {currentQuestion.options.map(opt => {
-                      const isSelected = currentQuestion.multiSelect && 
-                        Array.isArray(guidingAnswers[currentQuestion.key]) &&
-                        (guidingAnswers[currentQuestion.key] as string[]).includes(opt.value);
-                        
-                  return (
-                    <Button 
-                      key={opt.id}  
+                // Render Buttons (all single-select, auto-advance on click)
+                <div className="flex flex-col gap-4">
+                  <div className={cn(
+                    "grid gap-3",
+                    currentQuestion.options.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"
+                  )}>
+                    {currentQuestion.options.map(opt => (
+                    <Button
+                      key={opt.id}
                       variant="user_multi_option"
-                      className={cn(
-                        "group border-4 border-invisible h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 resize-none pointer-events-auto cursor-pointer",
-                        isSelected 
-                          ? "bg-amber-400 shadow-md" 
-                          : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-blue-50 hover:border-4 hover:bg-gray-50"
-                      )}
+                      className="group h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 hover:resize-none pointer-events-auto cursor-pointer border-2 border-gray-200 bg-white hover:border-blue-50 hover:border-4 hover:bg-gray-50"
                       onClick={() => handleGuidingStep(opt.value, opt.label)}
                     >
                       <div className="flex items-center gap-2 justify-center w-full">
-                        {isSelected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
-                        <span className={cn(
-                          "font-semibold", 
-                          isSelected ? "text-white" : "text-gray-800"
-                        )}>
+                        <span className="font-semibold text-gray-800">
                           {opt.label}
                         </span>
                       </div>
-                      
-                      <span className={cn(
-                        "text-xs font-normal px-4", 
-                        isSelected ? "text-white" : "text-gray-500"
-                      )}>
+
+                      <span className="text-xs font-normal px-4 text-gray-500">
                         {opt.desc}
                       </span>
                     </Button>
-                  );
-                })}
-              </div>
-              
-              {currentQuestion.multiSelect && (
-                <div className="flex border justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
-                  <Button 
-                    onClick={handleMultiSelectContinue}
-                        disabled={
-                          !(guidingAnswers[currentQuestion.key] && 
-                            Array.isArray(guidingAnswers[currentQuestion.key]) && 
-                            (guidingAnswers[currentQuestion.key] as string[]).length > 0)
-                        }
-                        className="whitespace-normal bg-white hover:border-blue-50 hover:border-4 hover:bg-gray-50 text-xs text-gray-500 font-normal border px-8 py-2 shadow-md z-10 pointer-events-auto cursor-pointer"
-                      >
-                        Confirm Selection 
-                      </Button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               ) : (
                 // Render Text Input

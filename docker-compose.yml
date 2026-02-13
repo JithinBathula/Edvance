@@ -1,0 +1,21 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_SUPABASE_URL: https://rrwdrovvzdmlqcbnucmd.supabase.co
+        VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd2Ryb3Z2emRtbHFjYm51Y21kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODAxMDAsImV4cCI6MjA4MjQ1NjEwMH0.vVHeOCloHfNUhvIomf6XjTTMdAI-POnnDYDv3ytHQkU
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./backend/.env
