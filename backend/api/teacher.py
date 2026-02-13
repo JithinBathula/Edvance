@@ -80,11 +80,10 @@ def get_settings():
 @teacher_bp.route('/settings', methods=['PUT'])
 @require_teacher
 def update_settings():
-    """Save teacher settings (default_description, auto_approve_students)."""
+    """Save teacher settings (default_description)."""
     data = request.json or {}
     settings = {
         'default_description': data.get('default_description', ''),
-        'auto_approve_students': bool(data.get('auto_approve_students', False)),
     }
 
     try:

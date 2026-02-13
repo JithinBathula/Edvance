@@ -44,7 +44,6 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
 
   // Classroom Defaults tab
   const [defaultDescription, setDefaultDescription] = useState('');
-  const [autoApprove, setAutoApprove] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
@@ -66,7 +65,6 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
       const data = await response.json();
       if (data.success && data.settings) {
         setDefaultDescription(data.settings.default_description || '');
-        setAutoApprove(data.settings.auto_approve_students || false);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -110,7 +108,6 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
         method: 'PUT',
         body: JSON.stringify({
           default_description: defaultDescription,
-          auto_approve_students: autoApprove,
         }),
       });
       const data = await response.json();
@@ -329,19 +326,6 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
                         <p className="mt-1 text-xs text-gray-400">
                           This description will be pre-filled when creating new classrooms.
                         </p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id="auto-approve"
-                          checked={autoApprove}
-                          onChange={(e) => setAutoApprove(e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                        />
-                        <label htmlFor="auto-approve" className="text-sm font-medium text-gray-700">
-                          Auto-approve students when they join a classroom
-                        </label>
                       </div>
 
                       <Button
