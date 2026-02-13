@@ -373,3 +373,57 @@ CREATE OR REPLACE FUNCTION increment_xp(uid UUID, amount INT)
 RETURNS void AS $$
   UPDATE users SET xp = xp + amount WHERE id = uid;
 $$ LANGUAGE sql;
+
+-- =============================================================================
+-- ASSIGNMENTS TABLES
+-- Teachers assign template projects to classrooms; students get cloned copies.
+-- =============================================================================
+
+-- Add source_assignment_id to projects (links cloned student project back to assignment)
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS source_assignment_id UUID;
+-- Add assignment_template to content_type check
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_content_type_check;
+ALTER TABLE projects ADD CONSTRAINT projects_content_type_check
+    CHECK (content_type IN ('custom_project', 'course', 'assignment_template', 'assignment'));
+
+CREATE TABLE IF NOT EXISTS assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    template_project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+    teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    due_date TIMESTAMPTZ,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(template_project_id, classroom_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignments_classroom ON assignments(classroom_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
+
+-- Add FK constraint for source_assignment_id after assignments table exists
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_source_assignment_id_fkey;
+ALTER TABLE projects ADD CONSTRAINT projects_source_assignment_id_fkey
+    FOREIGN KEY (source_assignment_id) REFERENCES assignments(id) ON DELETE SET NULL;
+
+CREATE TRIGGER update_assignments_updated_at
+    BEFORE UPDATE ON assignments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS student_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(assignment_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_assignments_student ON student_assignments(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_assignments_assignment ON student_assignments(assignment_id);

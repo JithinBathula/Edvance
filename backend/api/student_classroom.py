@@ -10,6 +10,8 @@ from db.supabase_client import (
     remove_student_from_classroom,
     get_student_classrooms,
     get_user_by_id,
+    get_assignments_for_classroom,
+    create_student_assignment,
 )
 
 student_classroom_bp = Blueprint('student_classroom', __name__, url_prefix='/api/classrooms')
@@ -29,6 +31,18 @@ def join_classroom():
 
     try:
         add_student_to_classroom(classroom['id'], g.user_id)
+
+        # Auto-create student_assignments for all active assignments in this classroom
+        try:
+            active_assignments = get_assignments_for_classroom(classroom['id'])
+            for assignment in active_assignments:
+                try:
+                    create_student_assignment(assignment['id'], g.user_id)
+                except Exception:
+                    pass  # Skip duplicates
+        except Exception:
+            pass  # Non-critical: assignment sync failure doesn't block join
+
         return jsonify({
             'success': True,
             'classroom': {

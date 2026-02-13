@@ -920,6 +920,156 @@ def update_classroom(classroom_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     raise Exception(f"Failed to update classroom {classroom_id}")
 
 
+# =============================================================================
+# ASSIGNMENT OPERATIONS
+# =============================================================================
+
+def create_assignment(
+    template_project_id: str,
+    classroom_id: str,
+    teacher_id: str,
+    title: str,
+    description: Optional[str] = None,
+    due_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a new assignment linking a template project to a classroom."""
+    data = {
+        "template_project_id": template_project_id,
+        "classroom_id": classroom_id,
+        "teacher_id": teacher_id,
+        "title": title,
+        "description": description,
+        "due_date": due_date,
+    }
+    result = supabase.table("assignments").insert(data).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to create assignment")
+
+
+def get_assignments_for_classroom(classroom_id: str) -> List[Dict[str, Any]]:
+    """Get all active assignments for a classroom."""
+    result = supabase.table("assignments").select("*").eq(
+        "classroom_id", classroom_id
+    ).eq("is_active", True).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_assignment_by_id(assignment_id: str) -> Optional[Dict[str, Any]]:
+    """Get a single assignment by ID."""
+    result = supabase.table("assignments").select("*").eq("id", assignment_id).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def update_assignment(assignment_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update assignment fields (due_date, description, is_active)."""
+    allowed = {k: v for k, v in data.items() if k in ('due_date', 'description', 'is_active')}
+    if not allowed:
+        raise ValueError("No valid fields to update")
+    result = supabase.table("assignments").update(allowed).eq("id", assignment_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update assignment {assignment_id}")
+
+
+def create_student_assignment(assignment_id: str, student_id: str) -> Dict[str, Any]:
+    """Create a student_assignment row with status='not_started'."""
+    data = {
+        "assignment_id": assignment_id,
+        "student_id": student_id,
+        "status": "not_started",
+    }
+    result = supabase.table("student_assignments").upsert(
+        data, on_conflict="assignment_id,student_id"
+    ).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to create student assignment")
+
+
+def get_student_assignments_for_user(student_id: str) -> List[Dict[str, Any]]:
+    """Get all assignments for a student with assignment and classroom details."""
+    result = supabase.table("student_assignments").select(
+        "*, assignments:assignment_id(id, title, description, due_date, is_active, template_project_id, classroom_id, classrooms:classroom_id(id, name))"
+    ).eq("student_id", student_id).execute()
+    rows = result.data or []
+    # Filter to only active assignments
+    return [r for r in rows if r.get("assignments", {}).get("is_active", False)]
+
+
+def get_student_assignments_for_assignment(assignment_id: str) -> List[Dict[str, Any]]:
+    """Get all student assignments for an assignment with user names."""
+    result = supabase.table("student_assignments").select(
+        "*, users:student_id(id, name, email)"
+    ).eq("assignment_id", assignment_id).execute()
+    return result.data or []
+
+
+def update_student_assignment(student_assignment_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update a student_assignment row."""
+    result = supabase.table("student_assignments").update(data).eq(
+        "id", student_assignment_id
+    ).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update student assignment {student_assignment_id}")
+
+
+def clone_project_for_student(
+    template_project_id: str,
+    student_id: str,
+    assignment_id: str,
+) -> Dict[str, Any]:
+    """Clone a template project for a student working on an assignment."""
+    template = get_project_by_id(template_project_id)
+    if not template:
+        raise Exception(f"Template project {template_project_id} not found")
+
+    # Create the new project for the student
+    project_data = {
+        "user_id": student_id,
+        "title": template["title"],
+        "brief": template.get("brief"),
+        "content_type": "assignment",
+        "status": "in_progress",
+        "requirements": template.get("requirements", []),
+        "tech_stack": template.get("tech_stack", []),
+        "experience_level": template.get("experience_level"),
+        "vm_type": template.get("vm_type", "python"),
+        "source_assignment_id": assignment_id,
+    }
+    result = supabase.table("projects").insert(project_data).execute()
+    if not result.data:
+        raise Exception("Failed to clone project")
+    new_project = result.data[0]
+
+    # Clone milestones and tasks
+    milestones = get_project_milestones(template_project_id)
+    for ms in milestones:
+        new_ms = create_milestone(
+            project_id=new_project["id"],
+            position=ms["position"],
+            title=ms["title"],
+            description=ms.get("description", ""),
+        )
+        tasks = get_milestone_tasks(ms["id"])
+        for task in tasks:
+            create_task(
+                milestone_id=new_ms["id"],
+                position=task["position"],
+                task_id_slug=task["task_id_slug"],
+                instruction_theory=task.get("instruction_theory", ""),
+                coding_requirements=task.get("coding_requirements", []),
+                hints=task.get("hints", []),
+                test_specification=task.get("test_specification", {}),
+                starter_code=task.get("starter_code"),
+            )
+
+    return new_project
+
+
 def increment_xp_atomic(user_id: str, amount: int) -> Optional[int]:
     """Atomically increment a user's XP using an RPC call.
     Falls back to read-update if the RPC function doesn't exist."""

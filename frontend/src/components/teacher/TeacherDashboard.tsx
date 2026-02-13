@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Play,
   FolderPlus,
+  FileText,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -220,6 +221,13 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
           <button className="flex w-full items-center rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-600">
             <Activity className="mr-3 h-5 w-5" />
             Dashboard
+          </button>
+          <button
+            onClick={() => navigate('/teacher/create-assignment')}
+            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <FileText className="mr-3 h-5 w-5" />
+            Create Assignment
           </button>
           <button
             onClick={() => navigate('/teacher/settings')}

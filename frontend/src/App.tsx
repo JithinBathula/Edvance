@@ -20,6 +20,8 @@ import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
 import { ClassroomDetail } from "./components/teacher/ClassroomDetail";
 import { StudentDetail } from "./components/teacher/StudentDetail";
 import { TeacherSettings } from "./components/teacher/TeacherSettings";
+import { AssignmentCreate } from "./components/teacher/AssignmentCreate";
+import { AssignmentDetail } from "./components/teacher/AssignmentDetail";
 import { StudentDashboard } from "./components/StudentDashboard";
 import { BACKEND_URL } from "./utils/constants";
 
@@ -525,6 +527,22 @@ export default function App() {
             element={
               <RequireTeacher>
                 <StudentDetail user={user!} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/create-assignment"
+            element={
+              <RequireTeacher>
+                <AssignmentCreate user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:classroomId/assignment/:assignmentId"
+            element={
+              <RequireTeacher>
+                <AssignmentDetail user={user!} />
               </RequireTeacher>
             }
           />

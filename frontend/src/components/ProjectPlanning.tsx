@@ -17,6 +17,7 @@ type Props = {
     };
     onProjectReady: (project: any) => void;
     onBack: () => void;
+    contentType?: string;
 };
 
 type Outline = {
@@ -28,7 +29,7 @@ type Outline = {
 
 type Phase = 'generating-outline' | 'show-outline' | 'generating-curriculum' | 'ready';
 
-export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: Props) {
+export function ProjectPlanning({ user, requirements, onProjectReady, onBack, contentType }: Props) {
     const [phase, setPhase] = useState<Phase>('generating-outline');
     const [outline, setOutline] = useState<Outline | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -91,6 +92,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                     experience_level: experienceLevel,
                     outline: outline,
                     vm_type: vmType,
+                    content_type: contentType || 'custom_project',
+                    first_milestone_only: contentType === 'assignment_template' ? false : undefined,
                 }),
             });
 
