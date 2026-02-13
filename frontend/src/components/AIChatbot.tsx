@@ -30,7 +30,7 @@ type Props = {
 
 const DEFAULT_WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: "Hi! I'm your coding assistant. I can help you understand concepts, debug code, or provide hints. What would you like to know?",
+  content: "Heyyy! I'm Cody, your coding buddy! I'm SO excited to build stuff with you! Whether you're stuck, confused, or just want to chat about your code — I'm right here. Let's goooo! What are you working on?",
 };
 
 export function AIChatbot({
@@ -147,7 +147,7 @@ export function AIChatbot({
     setInput('');
   };
 
-  // Handle prefilled messages from "Ask AI Tutor" button
+  // Handle prefilled messages from "Ask Cody" button
   useEffect(() => {
     if (prefillMessage && !isLoading && prefillMessage !== prefillProcessedRef.current) {
       prefillProcessedRef.current = prefillMessage;
@@ -168,8 +168,8 @@ export function AIChatbot({
             <Sparkles className="w-4 h-4 text-blue-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800 text-sm">AI Tutor</h3>
-            <p className="text-xs text-gray-500">Always here to help</p>
+            <h3 className="font-semibold text-gray-800 text-sm">Cody</h3>
+            <p className="text-xs text-gray-500">Your coding buddy!</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
