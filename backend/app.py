@@ -13,7 +13,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # CORS configuration - restrict origins in production via ALLOWED_ORIGINS env var
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000", "http://localhost:3001").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 
 CORS(app,
      resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
