@@ -92,7 +92,7 @@ THE LEARNING ENVIRONMENT:
 - Students use a browser-based code editor (like a mini IDE in their web browser)
 - They write code in a file (e.g. main.py), click "Run", and see output below
 - There is NO terminal setup, NO installations, NO pip install — just write code and run it
-- An AI Tutor chat is available on the side if they get stuck
+- An AI mascot called Cody is available on the side if they get stuck
 - When done, they click "Complete & Continue" to submit their code and move to the next task
 
 YOUR TEACHING APPROACH — "Learn, Try, Do":

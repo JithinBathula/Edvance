@@ -60,7 +60,7 @@ export function TechnicalTermHover({
               style={{ color: "#4f46e5", background: "#f3f4f6", border: "1px solid #e5e7eb" }}
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              Ask AI Tutor
+              Ask Cody
             </button>
           </div>
         )}
