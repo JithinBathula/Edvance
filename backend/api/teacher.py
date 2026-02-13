@@ -602,6 +602,39 @@ def get_classroom_analytics(classroom_id: str):
     }), 200
 
 
+# ── Template Project Task Editing ─────────────────────────────────
+
+@teacher_bp.route('/projects/<project_id>/tasks', methods=['PUT'])
+@require_teacher
+def update_project_tasks(project_id: str):
+    """Batch-update tasks for a template project owned by this teacher."""
+    project = supabase.table('projects').select('user_id').eq('id', project_id).execute()
+    if not project.data or project.data[0]['user_id'] != g.user_id:
+        return jsonify({'success': False, 'error': 'Project not found'}), 404
+
+    tasks = (request.json or {}).get('tasks', [])
+    if not tasks:
+        return jsonify({'success': False, 'error': 'No tasks provided'}), 400
+
+    try:
+        for t in tasks:
+            task_id = t.get('id')
+            if not task_id:
+                continue
+            update = {}
+            if 'instruction_theory' in t:
+                update['instruction_theory'] = t['instruction_theory']
+            if 'coding_requirements' in t:
+                update['coding_requirements'] = t['coding_requirements']
+            if 'hints' in t:
+                update['hints'] = t['hints']
+            if update:
+                supabase.table('tasks').update(update).eq('id', task_id).execute()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ── Student Progress Detail ───────────────────────────────────────
 
 @teacher_bp.route('/classrooms/<classroom_id>/students/<student_id>/progress', methods=['GET'])

@@ -112,6 +112,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                         id: task.id || `${mIdx}-${tIdx}`,
                         title: `${milestone.subheading_title}: ${task.task_id}`,
                         description: task.instruction_theory,
+                        codingRequirements: task.coding_requirements || [],
                         hints: task.hints,
                         starterCode: '# Write your code here\n',
                         testSpec: task.test_specification,

@@ -15,9 +15,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '../ui/dialog';
-import { ArrowLeft, CheckCircle, Loader2, BookOpen, ChevronDown, Lightbulb, ClipboardCheck, Code } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { ArrowLeft, CheckCircle, Loader2, BookOpen, ChevronDown, Lightbulb, Code, Pencil, Save, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AssignmentCreateProps {
@@ -49,6 +47,11 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
   const [description, setDescription] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+
+  // Editable tasks state
+  const [editedTasks, setEditedTasks] = useState<any[]>([]);
+  const [savingTasks, setSavingTasks] = useState(false);
+  const [hasEdits, setHasEdits] = useState(false);
 
   useEffect(() => {
     fetchClassrooms();
@@ -84,8 +87,110 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
 
   const handleProjectReady = (project: any) => {
     setTemplateProject(project);
+    setEditedTasks(JSON.parse(JSON.stringify(project.tasks || [])));
+    setHasEdits(false);
     setPhase('assign');
-    setAssignDialogOpen(true);
+  };
+
+  const updateTask = (taskIdx: number, field: string, value: any) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      next[taskIdx] = { ...next[taskIdx], [field]: value };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const updateCodingReq = (taskIdx: number, reqIdx: number, value: string) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      const reqs = [...(next[taskIdx].codingRequirements || [])];
+      reqs[reqIdx] = value;
+      next[taskIdx] = { ...next[taskIdx], codingRequirements: reqs };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const addCodingReq = (taskIdx: number) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      const reqs = [...(next[taskIdx].codingRequirements || []), ''];
+      next[taskIdx] = { ...next[taskIdx], codingRequirements: reqs };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const removeCodingReq = (taskIdx: number, reqIdx: number) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      const reqs = [...(next[taskIdx].codingRequirements || [])];
+      reqs.splice(reqIdx, 1);
+      next[taskIdx] = { ...next[taskIdx], codingRequirements: reqs };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const updateHint = (taskIdx: number, hintIdx: number, value: string) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      const hints = [...(next[taskIdx].hints || [])];
+      hints[hintIdx] = value;
+      next[taskIdx] = { ...next[taskIdx], hints };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const addHint = (taskIdx: number) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      next[taskIdx] = { ...next[taskIdx], hints: [...(next[taskIdx].hints || []), ''] };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const removeHint = (taskIdx: number, hintIdx: number) => {
+    setEditedTasks((prev) => {
+      const next = [...prev];
+      const hints = [...(next[taskIdx].hints || [])];
+      hints.splice(hintIdx, 1);
+      next[taskIdx] = { ...next[taskIdx], hints };
+      return next;
+    });
+    setHasEdits(true);
+  };
+
+  const handleSaveTasks = async () => {
+    if (!templateProject?.id) return;
+    setSavingTasks(true);
+    try {
+      const payload = editedTasks.map((t) => ({
+        id: t.id,
+        instruction_theory: t.description,
+        coding_requirements: t.codingRequirements || [],
+        hints: t.hints || [],
+      }));
+      const response = await authFetch(`/teacher/projects/${templateProject.id}/tasks`, {
+        method: 'PUT',
+        body: JSON.stringify({ tasks: payload }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Tasks saved');
+        setHasEdits(false);
+      } else {
+        toast.error(data.error || 'Failed to save tasks');
+      }
+    } catch (err) {
+      console.error('Error saving tasks:', err);
+      toast.error('Failed to save tasks');
+    } finally {
+      setSavingTasks(false);
+    }
   };
 
   const handleAssign = async () => {
@@ -100,6 +205,20 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
 
     setAssigning(true);
     try {
+      // Save any pending task edits first
+      if (hasEdits) {
+        const savePayload = editedTasks.map((t) => ({
+          id: t.id,
+          instruction_theory: t.description,
+          coding_requirements: t.codingRequirements || [],
+          hints: t.hints || [],
+        }));
+        await authFetch(`/teacher/projects/${templateProject.id}/tasks`, {
+          method: 'PUT',
+          body: JSON.stringify({ tasks: savePayload }),
+        });
+      }
+
       const response = await authFetch('/assignments/', {
         method: 'POST',
         body: JSON.stringify({
@@ -152,12 +271,14 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
 
   // Phase 3: Review project + Assign
   // Group tasks by milestone (title format is "Milestone: task_slug")
-  const tasksByMilestone: Record<string, any[]> = {};
-  for (const task of templateProject?.tasks || []) {
+  // Use editedTasks so edits are reflected
+  const tasksByMilestone: Record<string, { task: any; globalIdx: number }[]> = {};
+  for (let i = 0; i < editedTasks.length; i++) {
+    const task = editedTasks[i];
     const [milestone] = (task.title as string).split(': ', 1);
     const key = milestone || 'Tasks';
     if (!tasksByMilestone[key]) tasksByMilestone[key] = [];
-    tasksByMilestone[key].push(task);
+    tasksByMilestone[key].push({ task, globalIdx: i });
   }
 
   return (
@@ -168,14 +289,33 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
             <Button variant="ghost" size="icon" onClick={() => setPhase('planning')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-semibold">Review Project</h1>
+            <div>
+              <h1 className="text-xl font-semibold">Review & Edit Project</h1>
+              <p className="text-xs text-gray-500">Edit tasks before assigning to a classroom</p>
+            </div>
           </div>
-          <Button
-            onClick={() => setAssignDialogOpen(true)}
-            className="bg-teal-600 hover:bg-teal-700"
-          >
-            Assign to Classroom
-          </Button>
+          <div className="flex items-center gap-2">
+            {hasEdits && (
+              <Button
+                variant="outline"
+                onClick={handleSaveTasks}
+                disabled={savingTasks}
+                className="border-teal-300 text-teal-700 hover:bg-teal-50"
+              >
+                {savingTasks ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                ) : (
+                  <><Save className="h-4 w-4 mr-2" />Save Changes</>
+                )}
+              </Button>
+            )}
+            <Button
+              onClick={() => setAssignDialogOpen(true)}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              Assign to Classroom
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -191,13 +331,16 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
               <p className="text-gray-600 text-sm">{templateProject?.brief}</p>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-3">
-            {templateProject?.tasks?.length || 0} tasks across {Object.keys(tasksByMilestone).length} milestones
-          </p>
+          <div className="flex items-center gap-2 mt-3">
+            <Pencil className="w-3.5 h-3.5 text-gray-400" />
+            <p className="text-sm text-gray-500">
+              {editedTasks.length} tasks across {Object.keys(tasksByMilestone).length} milestones — click any task to edit
+            </p>
+          </div>
         </Card>
 
         {/* Milestones + tasks */}
-        {Object.entries(tasksByMilestone).map(([milestone, tasks], mIdx) => (
+        {Object.entries(tasksByMilestone).map(([milestone, entries], mIdx) => (
           <Card key={mIdx} className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold">
@@ -206,11 +349,11 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
               <h3 className="text-lg font-semibold">{milestone}</h3>
             </div>
             <div className="space-y-2 ml-11">
-              {tasks.map((task: any, tIdx: number) => {
+              {entries.map(({ task, globalIdx }, tIdx) => {
                 const taskName = (task.title as string).includes(': ')
                   ? (task.title as string).split(': ').slice(1).join(': ')
                   : task.title;
-                const codingReqs: string[] = task.testSpec?.coding_requirements || task.codingRequirements || [];
+                const codingReqs: string[] = task.codingRequirements || task.testSpec?.coding_requirements || [];
                 return (
                   <details key={tIdx} className="border rounded-lg bg-white group shadow-sm">
                     <summary className="flex items-center gap-3 p-4 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-gray-50 rounded-lg transition-colors">
@@ -219,80 +362,101 @@ export function AssignmentCreate({ user, onLogout }: AssignmentCreateProps) {
                         {tIdx + 1}
                       </div>
                       <span className="font-medium text-sm text-gray-900">{taskName}</span>
+                      <Pencil className="w-3.5 h-3.5 text-gray-300 ml-auto" />
                     </summary>
                     <div className="px-5 pb-5 space-y-4 border-t pt-4 mx-1">
-                      {/* Instructions */}
+                      {/* Instructions (editable) */}
                       <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-4">
                         <div className="flex items-center gap-2 mb-2">
                           <BookOpen className="w-4 h-4 text-teal-600" />
                           <h5 className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Instructions</h5>
                         </div>
-                        <div className="prose prose-sm max-w-none text-gray-700 [&_p]:mb-2 [&_ul]:ml-4 [&_ol]:ml-4 [&_li]:mb-1 [&_code]:bg-teal-100 [&_code]:px-1 [&_code]:rounded [&_code]:text-teal-800 [&_pre]:bg-gray-900 [&_pre]:text-gray-100 [&_pre]:rounded-md [&_pre]:p-3">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description || ''}</ReactMarkdown>
-                        </div>
+                        <textarea
+                          value={task.description || ''}
+                          onChange={(e) => updateTask(globalIdx, 'description', e.target.value)}
+                          rows={6}
+                          className="w-full rounded-md border border-teal-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-y font-mono"
+                          placeholder="Task instructions (supports Markdown)..."
+                        />
                       </div>
 
-                      {/* Coding Requirements */}
-                      {codingReqs.length > 0 && (
-                        <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4">
-                          <div className="flex items-center gap-2 mb-2">
+                      {/* Coding Requirements (editable) */}
+                      <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
                             <Code className="w-4 h-4 text-blue-600" />
                             <h5 className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Coding Requirements</h5>
                           </div>
-                          <ul className="space-y-1.5">
-                            {codingReqs.map((req: string, i: number) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                                {req}
-                              </li>
-                            ))}
-                          </ul>
+                          <button
+                            onClick={() => addCodingReq(globalIdx)}
+                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add
+                          </button>
                         </div>
-                      )}
+                        <div className="space-y-2">
+                          {codingReqs.map((req: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                              <input
+                                type="text"
+                                value={req}
+                                onChange={(e) => updateCodingReq(globalIdx, i, e.target.value)}
+                                className="flex-1 rounded border border-blue-200 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                              />
+                              <button
+                                onClick={() => removeCodingReq(globalIdx, i)}
+                                className="text-gray-400 hover:text-red-500"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                          {codingReqs.length === 0 && (
+                            <p className="text-xs text-gray-400 italic">No coding requirements. Click "Add" to create one.</p>
+                          )}
+                        </div>
+                      </div>
 
-                      {/* Hints */}
-                      {task.hints?.length > 0 && (
-                        <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-4">
-                          <div className="flex items-center gap-2 mb-2">
+                      {/* Hints (editable) */}
+                      <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
                             <Lightbulb className="w-4 h-4 text-amber-600" />
                             <h5 className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Hints</h5>
                           </div>
-                          <div className="space-y-2">
-                            {task.hints.map((hint: string, i: number) => (
-                              <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                                <span className="bg-amber-200 text-amber-800 text-xs font-bold rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">
-                                  {i + 1}
-                                </span>
-                                <span>{hint}</span>
-                              </div>
-                            ))}
-                          </div>
+                          <button
+                            onClick={() => addHint(globalIdx)}
+                            className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add
+                          </button>
                         </div>
-                      )}
-
-                      {/* Grading / Test Specification */}
-                      {task.testSpec && Object.keys(task.testSpec).length > 0 && (
-                        <div className="rounded-lg border border-purple-100 bg-purple-50/50 p-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <ClipboardCheck className="w-4 h-4 text-purple-600" />
-                            <h5 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Grading Criteria</h5>
-                          </div>
-                          {task.testSpec.criteria ? (
-                            <ul className="space-y-1.5">
-                              {(Array.isArray(task.testSpec.criteria) ? task.testSpec.criteria : [task.testSpec.criteria]).map((c: string, i: number) => (
-                                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
-                                  {c}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <pre className="text-xs text-gray-700 bg-white rounded-md p-3 border border-purple-100 overflow-x-auto font-mono">
-                              {JSON.stringify(task.testSpec, null, 2)}
-                            </pre>
+                        <div className="space-y-2">
+                          {(task.hints || []).map((hint: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="bg-amber-200 text-amber-800 text-xs font-bold rounded px-1.5 py-0.5 flex-shrink-0">
+                                {i + 1}
+                              </span>
+                              <input
+                                type="text"
+                                value={hint}
+                                onChange={(e) => updateHint(globalIdx, i, e.target.value)}
+                                className="flex-1 rounded border border-amber-200 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                              />
+                              <button
+                                onClick={() => removeHint(globalIdx, i)}
+                                className="text-gray-400 hover:text-red-500"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                          {(!task.hints || task.hints.length === 0) && (
+                            <p className="text-xs text-gray-400 italic">No hints. Click "Add" to create one.</p>
                           )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </details>
                 );
