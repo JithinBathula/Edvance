@@ -13,7 +13,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # CORS configuration - restrict origins in production via ALLOWED_ORIGINS env var
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000", "http://localhost:3001").split(",")
 
 CORS(app,
      resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
@@ -36,7 +36,7 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('CLIENT_PORT', 8000))
+    port = int(os.getenv('CLIENT_PORT', 8001))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'  # Default: off
     print(f"Starting Edvance Backend on port {port}")
     print(f"Debug mode: {debug}")

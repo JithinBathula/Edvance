@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "../App";
 import { authFetch } from "../utils/authFetch";
 import { EditorIDE } from "./EditorIDE";
@@ -29,6 +29,7 @@ import {
   Zap,
   ArrowRight,
   Info,
+  Lock,
 } from "lucide-react";
 import { GLOSSARY } from "../utils/glossary";
 import { TechnicalTermHover } from "./TechnicalTermHover";
@@ -420,6 +421,23 @@ export function ProjectWorkspace({
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+
+  const triggerConfetti = useCallback(() => {
+    import('canvas-confetti').then((confetti) => {
+      const count = 200;
+      const defaults = { origin: { y: 0.7 }, zIndex: 9999 };
+      function fire(particleRatio: number, opts: any) {
+        confetti.default({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
+      }
+      fire(0.25, { spread: 26, startVelocity: 55 });
+      fire(0.2, { spread: 60 });
+      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+      fire(0.1, { spread: 120, startVelocity: 45 });
+    });
+  }, []);
 
   const tasks: Task[] = project.tasks || [];
   const currentTask = tasks[currentTaskIndex];
@@ -432,6 +450,19 @@ export function ProjectWorkspace({
     starterCode: '# Write your code here\n',
   };
   const progress = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
+
+  // Determine the first uncompleted task index — users can only access completed tasks or this one
+  const firstUncompletedIndex = tasks.findIndex((t) => !completedTasks.includes(t.id));
+  const isTaskAccessible = (taskIndex: number) => {
+    if (taskIndex < 0) return false;
+    // Task is completed — always accessible
+    if (completedTasks.includes(tasks[taskIndex]?.id)) return true;
+    // Task is the first uncompleted one — accessible
+    if (taskIndex === firstUncompletedIndex) return true;
+    // All tasks completed (firstUncompletedIndex === -1) — all accessible
+    if (firstUncompletedIndex === -1) return true;
+    return false;
+  };
 
   const buildProjectSignature = (milestones: any[] = []) =>
     JSON.stringify(
@@ -662,14 +693,9 @@ export function ProjectWorkspace({
           console.log('✅ Next task updated with adapted content');
         }
 
-        toast.success(data.feedback || 'Great job! Task completed.');
-
-        if (currentTaskIndex < tasks.length - 1) {
-          setCurrentTaskIndex(currentTaskIndex + 1);
-          setShowHints(false);
-        } else {
-          await handleProjectComplete();
-        }
+        setSuccessFeedback(data.feedback || 'Great job! Task completed.');
+        setShowSuccessModal(true);
+        triggerConfetti();
       } else {
         setEvaluationFeedback(data.feedback);
         setShowFeedbackModal(true);
@@ -679,6 +705,17 @@ export function ProjectWorkspace({
       toast.error('Failed to evaluate submission. Please try again.');
     } finally {
       setEvaluating(false);
+    }
+  };
+
+  const handleSuccessNext = () => {
+    setShowSuccessModal(false);
+    setSuccessFeedback(null);
+    if (currentTaskIndex < tasks.length - 1) {
+      setCurrentTaskIndex(currentTaskIndex + 1);
+      setShowHints(false);
+    } else {
+      handleProjectComplete();
     }
   };
 
@@ -826,24 +863,31 @@ export function ProjectWorkspace({
                             ) : (
                               milestoneTasks.map((task: any, tIdx: number) => {
                                 const idx = tasks.findIndex((t) => t.id === task.id);
+                                const accessible = isTaskAccessible(idx);
                                 return (
                                   <button
                                     key={task.id}
+                                    disabled={!accessible}
                                     onClick={() => {
-                                      if (idx >= 0) {
+                                      if (idx >= 0 && accessible) {
                                         setCurrentTaskIndex(idx);
                                         setShowHints(false);
                                       }
                                     }}
-                                    className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                                     style={idx === currentTaskIndex
                                       ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
                                       : completedTasks.includes(task.id)
                                         ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                        : { color: '#374151', borderLeft: '3px solid transparent' }
+                                        : !accessible
+                                          ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
+                                          : { color: '#374151', borderLeft: '3px solid transparent' }
                                     }
                                   >
-                                    <span className="text-xs font-medium">• {mIdx + 1}.{tIdx + 1}</span>
+                                    <span className="text-xs font-medium flex items-center gap-1.5">
+                                      {!accessible && <Lock className="w-3 h-3" />}
+                                      • {mIdx + 1}.{tIdx + 1}
+                                    </span>
                                   </button>
                                 );
                               })
@@ -873,22 +917,31 @@ export function ProjectWorkspace({
                         {group.tasks.map((task) => {
                           const idx = task.originalIdx;
                           const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';
+                          const accessible = isTaskAccessible(idx);
                           return (
                             <button
                               key={task.id}
+                              disabled={!accessible}
                               onClick={() => {
-                                setCurrentTaskIndex(idx);
-                                setShowHints(false);
+                                if (accessible) {
+                                  setCurrentTaskIndex(idx);
+                                  setShowHints(false);
+                                }
                               }}
-                              className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                              className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                               style={idx === currentTaskIndex
                                 ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
                                 : completedTasks.includes(task.id)
                                   ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                  : { color: '#374151', borderLeft: '3px solid transparent' }
+                                  : !accessible
+                                    ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
+                                    : { color: '#374151', borderLeft: '3px solid transparent' }
                               }
                             >
-                              <span className="text-xs font-medium">• {majorNum}.{subNum}</span>
+                              <span className="text-xs font-medium flex items-center gap-1.5">
+                                {!accessible && <Lock className="w-3 h-3" />}
+                                • {majorNum}.{subNum}
+                              </span>
                             </button>
                           );
                         })}
@@ -1101,6 +1154,40 @@ export function ProjectWorkspace({
                 className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800"
               >
                 Try Again
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="bg-white rounded-xl shadow-2xl overflow-hidden" style={{ maxWidth: '560px', width: '100%' }}>
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5 border-b border-emerald-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Task Complete!</h3>
+                  <p className="text-sm text-emerald-600 font-medium">Great work on this one</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-gray-700 text-[15px] leading-relaxed">{successFeedback}</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <Button
+                onClick={handleSuccessNext}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              >
+                {currentTaskIndex < tasks.length - 1 ? (
+                  <>Next Task <ArrowRight className="w-4 h-4 ml-2" /></>
+                ) : (
+                  <>Finish Project <Trophy className="w-4 h-4 ml-2" /></>
+                )}
               </Button>
             </div>
           </Card>
