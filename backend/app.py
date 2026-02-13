@@ -36,7 +36,7 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('CLIENT_PORT', 8001))
+    port = int(os.getenv('CLIENT_PORT', 8000))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'  # Default: off
     print(f"Starting Edvance Backend on port {port}")
     print(f"Debug mode: {debug}")
