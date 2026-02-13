@@ -22,7 +22,6 @@ import {
   PanelLeftClose,
   PanelLeft,
   Loader2,
-  Lock,
   X,
   AlertCircle,
   MessageCircle,
@@ -480,15 +479,6 @@ export function ProjectWorkspace({
   };
   const progress = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
 
-  // A task is unlocked if all previous tasks have been completed
-  const isTaskUnlocked = (taskIndex: number): boolean => {
-    if (taskIndex <= 0) return true; // First task is always unlocked
-    for (let i = 0; i < taskIndex; i++) {
-      if (!completedTasks.includes(tasks[i]?.id)) return false;
-    }
-    return true;
-  };
-
   const buildProjectSignature = (milestones: any[] = []) =>
     JSON.stringify(
       milestones.map((milestone) => ({
@@ -849,33 +839,24 @@ export function ProjectWorkspace({
                             ) : (
                               milestoneTasks.map((task: any, tIdx: number) => {
                                 const idx = tasks.findIndex((t) => t.id === task.id);
-                                const unlocked = idx >= 0 && isTaskUnlocked(idx);
-                                const isCompleted = completedTasks.includes(task.id);
-                                const isCurrent = idx === currentTaskIndex;
                                 return (
                                   <button
                                     key={task.id}
-                                    disabled={!unlocked && !isCurrent}
                                     onClick={() => {
-                                      if (idx >= 0 && (unlocked || isCurrent)) {
+                                      if (idx >= 0) {
                                         setCurrentTaskIndex(idx);
                                         setShowHints(false);
                                       }
                                     }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2 transition-all duration-200 ml-2 ${unlocked || isCurrent ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed'}`}
-                                    style={isCurrent
+                                    className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                                    style={idx === currentTaskIndex
                                       ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
-                                      : isCompleted
+                                      : completedTasks.includes(task.id)
                                         ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                        : !unlocked
-                                          ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
-                                          : { color: '#111827', borderLeft: '3px solid transparent' }
+                                        : { color: '#374151', borderLeft: '3px solid transparent' }
                                     }
                                   >
-                                    {!unlocked && !isCurrent && !isCompleted
-                                      ? <><Lock className="w-3 h-3 text-gray-400 shrink-0" /><span className="text-xs text-gray-400">{mIdx + 1}.{tIdx + 1}</span></>
-                                      : <span className="text-xs font-medium">• {mIdx + 1}.{tIdx + 1}</span>
-                                    }
+                                    <span className="text-xs font-medium">• {mIdx + 1}.{tIdx + 1}</span>
                                   </button>
                                 );
                               })
@@ -905,33 +886,22 @@ export function ProjectWorkspace({
                         {group.tasks.map((task) => {
                           const idx = task.originalIdx;
                           const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';
-                          const unlocked = isTaskUnlocked(idx);
-                          const isCompleted = completedTasks.includes(task.id);
-                          const isCurrent = idx === currentTaskIndex;
                           return (
                             <button
                               key={task.id}
-                              disabled={!unlocked && !isCurrent}
                               onClick={() => {
-                                if (unlocked || isCurrent) {
-                                  setCurrentTaskIndex(idx);
-                                  setShowHints(false);
-                                }
+                                setCurrentTaskIndex(idx);
+                                setShowHints(false);
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2 transition-all duration-200 ml-2 ${unlocked || isCurrent ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed'}`}
-                              style={isCurrent
+                              className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                              style={idx === currentTaskIndex
                                 ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
-                                : isCompleted
+                                : completedTasks.includes(task.id)
                                   ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                  : !unlocked
-                                    ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
-                                    : { color: '#111827', borderLeft: '3px solid transparent' }
+                                  : { color: '#374151', borderLeft: '3px solid transparent' }
                               }
                             >
-                              {!unlocked && !isCurrent && !isCompleted
-                                ? <><Lock className="w-3 h-3 text-gray-400 shrink-0" /><span className="text-xs text-gray-400">{majorNum}.{subNum}</span></>
-                                : <span className="text-xs font-medium">• {majorNum}.{subNum}</span>
-                              }
+                              <span className="text-xs font-medium">• {majorNum}.{subNum}</span>
                             </button>
                           );
                         })}
