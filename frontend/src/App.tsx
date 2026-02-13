@@ -10,7 +10,6 @@ import { SignupScreen } from "./components/SignupScreen";
 import { AuthCallback } from "./components/AuthCallback";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { LandingPage } from "./components/LandingPage";
-import { CoursePage } from "./components/CoursePage";
 import { ProjectList } from "./components/ProjectList";
 import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
@@ -397,20 +396,11 @@ export default function App() {
               <RequireUser>
                 <LandingPage
                   user={user!}
-                  onStartCourse={() => navigate("/course")}
                   onStartCustomProject={() => navigate("/projects")}
                   onOpenProfile={() => navigate("/profile")}
                   onOpenDashboard={() => navigate("/student-dashboard")}
                   onLogout={handleLogout}
                 />
-              </RequireUser>
-            }
-          />
-          <Route
-            path="/course"
-            element={
-              <RequireUser>
-                <CoursePage user={user!} onBack={handleBackToLanding} />
               </RequireUser>
             }
           />

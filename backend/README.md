@@ -56,7 +56,7 @@ backend/
 ├── app.py                  # Flask app, blueprint registration, CORS
 ├── requirements.txt        # Python dependencies
 │
-├── api/                    # Route handlers (11 blueprints)
+├── api/                    # Route handlers (10 blueprints)
 │   ├── auth.py             #   signup, login, logout, me
 │   ├── chat.py             #   requirement gathering (SSE streaming)
 │   ├── planning.py         #   outline + curriculum generation
@@ -65,7 +65,6 @@ backend/
 │   ├── assistant.py        #   AI tutoring
 │   ├── workspace.py        #   file load/save (cloud storage)
 │   ├── sandbox.py          #   CodeSandbox session management
-│   ├── courses.py          #   pre-built course content
 │   ├── users.py            #   onboarding
 │   └── health.py           #   health check
 │
@@ -83,8 +82,7 @@ backend/
 │
 ├── db/                     # Database
 │   ├── supabase_client.py  #   50+ helper functions for all DB operations
-│   ├── schema.sql          #   PostgreSQL schema (14 tables)
-│   └── seed_courses.sql    #   Course seed data
+│   ├── schema.sql          #   PostgreSQL schema
 │
 ├── schemas/                # JSON schemas for LLM structured output
 │   ├── planning.py

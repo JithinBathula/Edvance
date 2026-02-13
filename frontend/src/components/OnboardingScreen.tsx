@@ -146,7 +146,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                     <GraduationCap className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold mb-1">Student</h3>
-                  <p className="text-sm text-gray-500">Learn to code through projects and courses</p>
+                  <p className="text-sm text-gray-500">Learn to code through guided projects</p>
                 </button>
 
                 <button
