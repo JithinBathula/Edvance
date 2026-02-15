@@ -122,7 +122,7 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [activeTab, setActiveTab] = useState('students');
+  const [activeTab, setActiveTab] = useState('analytics');
   const [regenerating, setRegenerating] = useState(false);
 
   // Sorting & filtering state
@@ -502,9 +502,9 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="assignments">Assignments</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           {/* Students Tab */}
@@ -801,31 +801,6 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Most Popular VM</CardTitle>
-                      <Activity className="h-4 w-4 text-teal-600" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {analytics.project_stats.most_popular_vm || 'N/A'}
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1">Preferred environment</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Need Help</CardTitle>
-                      <AlertCircle className="h-4 w-4 text-amber-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {analytics.students_needing_help.length}
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1">Students needing attention</p>
-                    </CardContent>
-                  </Card>
                 </div>
 
                 {/* Charts Row 1 */}
