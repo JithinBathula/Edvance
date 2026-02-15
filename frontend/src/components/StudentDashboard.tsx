@@ -28,7 +28,7 @@ import {
     TrendingUp,
     Code2,
     Home,
-    LayoutDashboard,
+
     BookOpen,
     Calendar,
     Award,
@@ -184,7 +184,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeNav, setActiveNav] = useState('Dashboard');
+    const [activeNav, setActiveNav] = useState('Home');
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
 
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
@@ -287,7 +287,6 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
     const navItems = [
         { icon: Home, label: 'Home', action: onBack },
-        { icon: LayoutDashboard, label: 'Dashboard' },
         { icon: BookOpen, label: 'Projects', action: () => navigate('/projects') },
         { icon: Calendar, label: 'Schedule' },
         { icon: Award, label: 'Achievements' },
@@ -342,7 +341,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 transition={{ delay: 0.1 + i * 0.05 }}
                                 whileHover={{ x: 4 }}
                                 whileTap={{ scale: 0.97 }}
-                                onClick={() => { setActiveNav(item.label); if (item.action) item.action(); }}
+                                onClick={() => { if (isActive) return; setActiveNav(item.label); if (item.action) item.action(); }}
                                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left border-none cursor-pointer ${isActive
                                     ? 'bg-teal-500/15 text-teal-300'
                                     : 'bg-transparent text-white/40 hover:text-white/70 hover:bg-white/5'
