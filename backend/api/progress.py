@@ -48,6 +48,10 @@ def get_project_full(project_id: str):
 
         milestones_raw = get_project_milestones(project_id)
 
+        # Fetch user progress for feedback
+        progress_records = get_user_progress_for_project(g.user_id, project_id)
+        progress_by_task = {p['task_id']: p for p in progress_records}
+
         # Build milestones with tasks + flat task list
         tasks = []
         milestones = []
@@ -55,6 +59,7 @@ def get_project_full(project_id: str):
             milestone_tasks = get_milestone_tasks(milestone['id'])
             formatted_tasks = []
             for task in milestone_tasks:
+                prog = progress_by_task.get(task['id'])
                 task_obj = {
                     'id': task['id'],
                     'title': f"{milestone['title']}: {task['task_id_slug']}",
@@ -62,6 +67,7 @@ def get_project_full(project_id: str):
                     'hints': task.get('hints', []),
                     'starterCode': task.get('starter_code') or '# Write your code here\n',
                     'testSpec': task.get('test_specification', {}),
+                    'feedback': prog.get('feedback') if prog else None,
                 }
                 tasks.append(task_obj)
                 formatted_tasks.append(task_obj)

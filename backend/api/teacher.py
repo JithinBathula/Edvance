@@ -31,6 +31,8 @@ from db.supabase_client import (
     get_chat_message_counts_for_student,
     update_classroom,
     remove_student_from_classroom,
+    get_assignments_for_classroom,
+    get_student_assignments_for_assignment,
     supabase,
 )
 
@@ -455,6 +457,7 @@ def get_classroom_analytics(classroom_id: str):
     students_needing_help = []
     total_started = 0
     total_completed_projects = 0
+    total_tasks_completed = 0
     vm_counts = {}
     all_task_times = []
 
@@ -470,6 +473,8 @@ def get_classroom_analytics(classroom_id: str):
         progress = progress_by_user.get(uid, [])
         completed = [p for p in progress if p.get('status') == 'completed']
         in_progress_tasks = [p for p in progress if p.get('status') == 'in_progress']
+
+        total_tasks_completed += len(completed)
 
         # True total from project structure
         student_projects = projects_by_user.get(uid, [])
@@ -587,6 +592,71 @@ def get_classroom_analytics(classroom_id: str):
     avg_time = round(sum(all_task_times) / len(all_task_times), 1) if all_task_times else 0
     most_popular_vm = max(vm_counts, key=vm_counts.get) if vm_counts else 'python'
 
+    # ── Active students in last 7 days ──
+    seven_days_ago = (now - timedelta(days=7)).isoformat()[:10]
+    active_students_7d_set = set()
+    for day, entry in daily_activity.items():
+        if day >= seven_days_ago:
+            active_students_7d_set.update(entry['active_students'])
+    active_students_7d = len(active_students_7d_set)
+
+    # ── Assignment analytics ──
+    assignment_analytics = []
+    assignments = get_assignments_for_classroom(classroom_id)
+    for a in assignments:
+        rows = get_student_assignments_for_assignment(a['id'])
+        completed_count = 0
+        in_progress_count = 0
+        not_started_count = 0
+        on_time_count = 0
+        completion_hours = []
+
+        for r in rows:
+            status = r.get('status', 'not_started')
+            if status == 'completed':
+                completed_count += 1
+                # On-time check
+                if a.get('due_date') and r.get('completed_at'):
+                    if r['completed_at'] <= a['due_date']:
+                        on_time_count += 1
+                # Avg completion time
+                start_dt = _parse_datetime(r.get('started_at'))
+                end_dt = _parse_datetime(r.get('completed_at'))
+                if start_dt and end_dt:
+                    hours = (end_dt - start_dt).total_seconds() / 3600
+                    if 0 < hours < 500:
+                        completion_hours.append(hours)
+            elif status == 'in_progress':
+                in_progress_count += 1
+            else:
+                not_started_count += 1
+
+        assignment_analytics.append({
+            'id': a['id'],
+            'title': a['title'],
+            'due_date': a.get('due_date'),
+            'total': len(rows),
+            'completed': completed_count,
+            'in_progress': in_progress_count,
+            'not_started': not_started_count,
+            'avg_completion_hours': round(sum(completion_hours) / len(completion_hours), 1) if completion_hours else None,
+            'on_time_count': on_time_count,
+        })
+
+    # ── AI usage ──
+    ai_usage_data = get_bulk_chat_message_counts(student_ids, all_project_ids)
+    total_questions = 0
+    total_responses = 0
+    for uid_counts in ai_usage_data.values():
+        total_questions += uid_counts.get('user', 0)
+        total_responses += uid_counts.get('assistant', 0)
+    num_students = len(student_ids) or 1
+    ai_usage = {
+        'total_questions': total_questions,
+        'total_responses': total_responses,
+        'avg_per_student': round(total_questions / num_students, 1),
+    }
+
     return jsonify({
         'success': True,
         'progress_distribution': buckets,
@@ -599,6 +669,10 @@ def get_classroom_analytics(classroom_id: str):
             'most_popular_vm': most_popular_vm,
         },
         'students_needing_help': students_needing_help,
+        'total_tasks_completed': total_tasks_completed,
+        'active_students_7d': active_students_7d,
+        'assignment_analytics': assignment_analytics,
+        'ai_usage': ai_usage,
     }), 200
 
 
@@ -631,6 +705,43 @@ def update_project_tasks(project_id: str):
             if update:
                 supabase.table('tasks').update(update).eq('id', task_id).execute()
         return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ── Teacher Feedback on Student Submissions ──────────────────────
+
+@teacher_bp.route('/feedback', methods=['POST'])
+@require_teacher
+def submit_teacher_feedback():
+    """Save teacher feedback on a student's task submission."""
+    data = request.json or {}
+    student_id = data.get('student_id')
+    task_id = data.get('task_id')
+    feedback_text = (data.get('feedback') or '').strip()
+
+    if not student_id or not task_id or not feedback_text:
+        return jsonify({'success': False, 'error': 'student_id, task_id, and feedback are required'}), 400
+
+    try:
+        # Fetch existing progress record
+        progress = supabase.table('user_progress').select('feedback').eq(
+            'user_id', student_id
+        ).eq('task_id', task_id).execute()
+
+        if not progress.data:
+            return jsonify({'success': False, 'error': 'No progress record found for this student/task'}), 404
+
+        existing_feedback = progress.data[0].get('feedback') or {}
+        existing_feedback['teacher_feedback'] = feedback_text
+        existing_feedback['teacher_feedback_at'] = datetime.utcnow().isoformat()
+        existing_feedback['teacher_name'] = g.user.get('name', 'Teacher')
+
+        supabase.table('user_progress').update({
+            'feedback': existing_feedback,
+        }).eq('user_id', student_id).eq('task_id', task_id).execute()
+
+        return jsonify({'success': True, 'feedback': existing_feedback}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -699,6 +810,7 @@ def get_student_progress(classroom_id: str, student_id: str):
                     tasks_completed += 1
 
                 task_details.append({
+                    'id': t['id'],
                     'title': t.get('task_id_slug', ''),
                     'status': status,
                     'passed': prog.get('passed', False) if prog else False,

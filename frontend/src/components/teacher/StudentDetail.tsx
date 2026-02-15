@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { authFetch } from '../../utils/authFetch';
@@ -21,6 +21,8 @@ import {
   GraduationCap,
   MessageSquare,
   TrendingUp,
+  Send,
+  Loader2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -32,12 +34,16 @@ import {
 } from 'recharts';
 
 interface Task {
+  id: string;
   title: string;
   status: 'not_started' | 'in_progress' | 'completed';
   passed?: boolean;
   submitted_code?: string;
   feedback?: {
-    summary?: string;
+    message?: string;
+    teacher_feedback?: string;
+    teacher_feedback_at?: string;
+    teacher_name?: string;
     [key: string]: any;
   };
   started_at?: string;
@@ -207,10 +213,14 @@ function ComparisonBar({
 export function StudentDetail({ user }: StudentDetailProps) {
   const { classroomId, studentId } = useParams<{ classroomId: string; studentId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const focusProjectId = searchParams.get('project');
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
+  const [savingFeedback, setSavingFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -238,6 +248,13 @@ export function StudentDetail({ user }: StudentDetailProps) {
     fetchStudentData();
   }, [classroomId, studentId]);
 
+  // Auto-expand project if linked from assignment page
+  useEffect(() => {
+    if (focusProjectId && studentData) {
+      setExpandedProjects(new Set([focusProjectId]));
+    }
+  }, [focusProjectId, studentData]);
+
   const toggleProjectExpanded = (projectId: string) => {
     setExpandedProjects((prev) => {
       const newSet = new Set(prev);
@@ -260,6 +277,48 @@ export function StudentDetail({ user }: StudentDetailProps) {
       }
       return newSet;
     });
+  };
+
+  const handleSaveFeedback = async (task: Task) => {
+    const text = feedbackText[task.id]?.trim();
+    if (!text || !studentId) return;
+
+    setSavingFeedback(task.id);
+    try {
+      const response = await authFetch('/teacher/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          task_id: task.id,
+          feedback: text,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Update local state so UI reflects immediately
+        setStudentData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            projects: prev.projects.map((p) => ({
+              ...p,
+              milestones: p.milestones.map((m) => ({
+                ...m,
+                tasks: m.tasks.map((t) =>
+                  t.id === task.id ? { ...t, feedback: data.feedback } : t
+                ),
+              })),
+            })),
+          };
+        });
+        setFeedbackText((prev) => ({ ...prev, [task.id]: '' }));
+      }
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+    } finally {
+      setSavingFeedback(null);
+    }
   };
 
   if (loading) {
@@ -453,9 +512,9 @@ export function StudentDetail({ user }: StudentDetailProps) {
                                                 )}
                                               </p>
                                             )}
-                                            {task.feedback?.summary && (
+                                            {task.feedback?.message && (
                                               <p className="text-sm text-gray-700 mt-2 italic">
-                                                Feedback: {task.feedback.summary}
+                                                AI Feedback: {task.feedback.message}
                                               </p>
                                             )}
                                           </div>
@@ -481,6 +540,52 @@ export function StudentDetail({ user }: StudentDetailProps) {
                                             >
                                               {task.submitted_code}
                                             </SyntaxHighlighter>
+                                          </div>
+                                        )}
+
+                                        {/* Existing teacher feedback */}
+                                        {task.feedback?.teacher_feedback && (
+                                          <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-1">
+                                              <GraduationCap className="h-4 w-4 text-blue-600" />
+                                              <span className="text-sm font-medium text-blue-800">
+                                                {task.feedback.teacher_name || 'Teacher'} Feedback
+                                              </span>
+                                              {task.feedback.teacher_feedback_at && (
+                                                <span className="text-xs text-blue-500">
+                                                  {new Date(task.feedback.teacher_feedback_at).toLocaleDateString()}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="text-sm text-blue-900">{task.feedback.teacher_feedback}</p>
+                                          </div>
+                                        )}
+
+                                        {/* Teacher feedback form */}
+                                        {task.submitted_code && (
+                                          <div className="mt-3">
+                                            <textarea
+                                              value={feedbackText[task.id] || ''}
+                                              onChange={(e) =>
+                                                setFeedbackText((prev) => ({ ...prev, [task.id]: e.target.value }))
+                                              }
+                                              placeholder="Write feedback for this student..."
+                                              className="w-full border border-gray-300 rounded-lg p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                              rows={2}
+                                            />
+                                            <Button
+                                              size="sm"
+                                              onClick={() => handleSaveFeedback(task)}
+                                              disabled={!feedbackText[task.id]?.trim() || savingFeedback === task.id}
+                                              className="mt-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                            >
+                                              {savingFeedback === task.id ? (
+                                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                              ) : (
+                                                <Send className="h-4 w-4 mr-1" />
+                                              )}
+                                              {task.feedback?.teacher_feedback ? 'Update Feedback' : 'Send Feedback'}
+                                            </Button>
                                           </div>
                                         )}
                                       </div>
