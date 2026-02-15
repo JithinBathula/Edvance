@@ -1,6 +1,7 @@
 .venv/
 .pnpm-store/
 
+edvance-backend.pem
 
 # Logs
 logs
