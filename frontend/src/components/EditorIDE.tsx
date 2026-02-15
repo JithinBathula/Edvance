@@ -89,6 +89,23 @@ const isAllowedFile = (filename: string, mode: 'python' | 'web') => {
 const filterFilesByMode = (files: ProjectFile[], mode: 'python' | 'web') =>
   files.filter((file) => isAllowedFile(file.name, mode));
 
+const FILE_CHANGE_DEBOUNCE_MS = 120;
+
+const areFilesEqual = (a: ProjectFile[], b: ProjectFile[]) => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i].name !== b[i].name ||
+      a[i].content !== b[i].content ||
+      a[i].language !== b[i].language
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 // Monaco language from file extension
 const monacoLanguage = (filename: string): string => {
   const lower = filename.toLowerCase();
@@ -148,7 +165,9 @@ export function EditorIDE({
   const [webPanel, setWebPanel] = useState<'preview' | 'console'>('preview');
   const inputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filesChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingFilesRef = useRef<ProjectFile[] | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -161,12 +180,12 @@ export function EditorIDE({
 
   // Sync files from parent when they change
   useEffect(() => {
-    setLocalFiles(files);
+    setLocalFiles((prev) => (areFilesEqual(prev, files) ? prev : files));
     if (!files.some((f) => f.name === activeFile) && files.length > 0) {
       setActiveFile(files[0].name);
       setOpenFiles([files[0].name]);
     }
-  }, [files]);
+  }, [files, activeFile]);
 
   // Initialize xterm when output panel opens
   useEffect(() => {
@@ -323,15 +342,59 @@ export function EditorIDE({
   // Debounced srcdoc update for iframe
   const [debouncedSrcdoc, setDebouncedSrcdoc] = useState(srcdoc);
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
+    if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+    previewDebounceRef.current = setTimeout(() => {
       setDebouncedSrcdoc(srcdoc);
       setWebConsole([]);
     }, 300);
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     };
   }, [srcdoc]);
+
+  const emitFilesChangeDebounced = useCallback(
+    (nextFiles: ProjectFile[]) => {
+      pendingFilesRef.current = nextFiles;
+      if (filesChangeDebounceRef.current) clearTimeout(filesChangeDebounceRef.current);
+      filesChangeDebounceRef.current = setTimeout(() => {
+        const latest = pendingFilesRef.current;
+        pendingFilesRef.current = null;
+        filesChangeDebounceRef.current = null;
+        if (latest) onFilesChange(latest);
+      }, FILE_CHANGE_DEBOUNCE_MS);
+    },
+    [onFilesChange]
+  );
+
+  const emitFilesChangeImmediate = useCallback(
+    (nextFiles: ProjectFile[]) => {
+      if (filesChangeDebounceRef.current) {
+        clearTimeout(filesChangeDebounceRef.current);
+        filesChangeDebounceRef.current = null;
+      }
+      pendingFilesRef.current = null;
+      onFilesChange(nextFiles);
+    },
+    [onFilesChange]
+  );
+
+  const flushPendingFileChanges = useCallback(() => {
+    if (filesChangeDebounceRef.current) {
+      clearTimeout(filesChangeDebounceRef.current);
+      filesChangeDebounceRef.current = null;
+    }
+    if (pendingFilesRef.current) {
+      const latest = pendingFilesRef.current;
+      pendingFilesRef.current = null;
+      onFilesChange(latest);
+    }
+  }, [onFilesChange]);
+
+  useEffect(() => {
+    return () => {
+      if (filesChangeDebounceRef.current) clearTimeout(filesChangeDebounceRef.current);
+    };
+  }, []);
 
   const currentFile = localFiles.find((f) => f.name === activeFile);
 
@@ -344,11 +407,15 @@ export function EditorIDE({
             ? { ...f, content: value, language: detectLanguage(f.name) }
             : f
         );
-        onFilesChange(updated);
+        if (mode === 'python') {
+          emitFilesChangeDebounced(updated);
+        } else {
+          onFilesChange(updated);
+        }
         return updated;
       });
     },
-    [activeFile, onFilesChange]
+    [activeFile, mode, onFilesChange, emitFilesChangeDebounced]
   );
 
   const handleMonacoMount = useCallback((_editor: any, monaco: Monaco) => {
@@ -430,6 +497,7 @@ export function EditorIDE({
     }
 
     setLocalFiles(updatedFiles);
+    emitFilesChangeImmediate(updatedFiles);
     setNewFileName('');
     setShowNewFile(false);
     openFileInEditor(fileName);
@@ -437,6 +505,7 @@ export function EditorIDE({
 
   const handleSave = async () => {
     if (!onSave) return;
+    flushPendingFileChanges();
     setIsSaving(true);
     try {
       await onSave(localFiles);
@@ -449,6 +518,7 @@ export function EditorIDE({
 
   const handleRun = async () => {
     if (mode !== 'python') return;
+    flushPendingFileChanges();
 
     // Save before running
     if (onSave) {
@@ -471,7 +541,7 @@ export function EditorIDE({
     if (filteredFiles.length <= 1) return; // Don't delete the last file
     const updated = localFiles.filter((f) => f.name !== name);
     setLocalFiles(updated);
-    onFilesChange(updated);
+    emitFilesChangeImmediate(updated);
     setOpenFiles((prev) => prev.filter((f) => f !== name));
     if (activeFile === name) {
       const remaining = updated.filter((f) => isAllowedFile(f.name, mode));
@@ -493,7 +563,7 @@ export function EditorIDE({
       f.name === oldName ? { ...f, name: newName, language: detectLanguage(newName) } : f
     );
     setLocalFiles(updated);
-    onFilesChange(updated);
+    emitFilesChangeImmediate(updated);
     setOpenFiles((prev) => prev.map((f) => (f === oldName ? newName : f)));
     if (activeFile === oldName) setActiveFile(newName);
     setRenamingFile(null);
