@@ -9,6 +9,7 @@ from datetime import datetime
 from api.middleware import require_auth
 from db.supabase_client import (
     update_user_onboarding as db_update_onboarding,
+    update_user_role,
     supabase
 )
 
@@ -22,16 +23,69 @@ def update_onboarding():
     data = request.json
 
     onboarding_data = data.get('onboardingData')
+    role = data.get('role')
 
     if not onboarding_data:
         return jsonify({'success': False, 'error': 'Missing onboarding data'}), 400
 
     try:
+        if role in ('student', 'teacher'):
+            update_user_role(user_id=g.user_id, role=role)
+
         db_update_onboarding(user_id=g.user_id, onboarding_data=onboarding_data)
         return jsonify({
             'success': True,
             'message': f"Onboarding data saved for user {g.user_id}"
         }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@users_bp.route('/profile', methods=['PUT'])
+@require_auth
+def update_profile():
+    """Update authenticated user's profile (name only; email is managed by Supabase Auth)."""
+    data = request.json or {}
+    name = data.get('name', '').strip()
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+
+    try:
+        result = supabase.table('users').update({
+            'name': name
+        }).eq('id', g.user_id).execute()
+
+        updated = result.data[0] if result.data else {}
+        return jsonify({
+            'success': True,
+            'user': {
+                'name': updated.get('name'),
+                'email': updated.get('email'),
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@users_bp.route('/account', methods=['DELETE'])
+@require_auth
+def delete_account():
+    """Soft-delete the authenticated user's account."""
+    try:
+        # Anonymize user record
+        supabase.table('users').update({
+            'name': 'Deleted User',
+            'email': None,
+            'onboarding': None,
+        }).eq('id', g.user_id).execute()
+
+        # Deactivate all classrooms owned by this user (teacher case)
+        supabase.table('classrooms').update({
+            'is_active': False
+        }).eq('teacher_id', g.user_id).execute()
+
+        return jsonify({'success': True}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

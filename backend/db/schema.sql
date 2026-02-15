@@ -49,14 +49,14 @@ CREATE TRIGGER on_auth_user_created
 
 -- =============================================================================
 -- PROJECTS TABLE
--- Stores both Custom Projects and future Course content
+-- Stores Custom Projects and Assignments
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     brief TEXT,
-    content_type TEXT NOT NULL DEFAULT 'custom_project' CHECK (content_type IN ('custom_project', 'course')),
+    content_type TEXT NOT NULL DEFAULT 'custom_project',
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'in_progress', 'completed')),
     requirements JSONB DEFAULT '[]'::jsonb,
     tech_stack JSONB DEFAULT '[]'::jsonb,
@@ -200,95 +200,6 @@ CREATE TRIGGER update_user_progress_updated_at
 --     FOR ALL USING (auth.uid() = user_id);
 
 -- =============================================================================
--- COURSES TABLE
--- Stores course metadata (e.g., Python Fundamentals)
--- =============================================================================
-CREATE TABLE IF NOT EXISTS courses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL,
-    description TEXT,
-    theme TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_courses_theme ON courses(theme);
-
--- =============================================================================
--- COURSE_LESSONS TABLE
--- Individual lessons within a course
--- =============================================================================
-CREATE TABLE IF NOT EXISTS course_lessons (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    content TEXT,
-    challenge_description TEXT,
-    starter_code TEXT,
-    hints TEXT[] DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_course_lessons_course_id ON course_lessons(course_id);
-CREATE INDEX IF NOT EXISTS idx_course_lessons_position ON course_lessons(course_id, position);
-
--- =============================================================================
--- COURSE_LESSON_TASKS TABLE
--- Practice tasks within a lesson
--- =============================================================================
-CREATE TABLE IF NOT EXISTS course_lesson_tasks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    lesson_id UUID NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    task_description TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_course_lesson_tasks_lesson_id ON course_lesson_tasks(lesson_id);
-
--- =============================================================================
--- COURSE_LESSON_HIGHLIGHTS TABLE
--- Teaching highlights/tips for each lesson
--- =============================================================================
-CREATE TABLE IF NOT EXISTS course_lesson_highlights (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    lesson_id UUID NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    heading TEXT NOT NULL,
-    detail TEXT,
-    icon_name TEXT DEFAULT 'BookOpen',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_course_lesson_highlights_lesson_id ON course_lesson_highlights(lesson_id);
-
--- =============================================================================
--- USER_COURSE_PROGRESS TABLE
--- Tracks user progress through courses
--- =============================================================================
-CREATE TABLE IF NOT EXISTS user_course_progress (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    completed_lessons TEXT[] DEFAULT '{}',
-    current_lesson_id UUID REFERENCES course_lessons(id),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    UNIQUE(user_id, course_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_course_progress_user_id ON user_course_progress(user_id);
-
--- Trigger for user_course_progress updated_at
-CREATE TRIGGER update_user_course_progress_updated_at
-    BEFORE UPDATE ON user_course_progress
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- =============================================================================
 -- REPO_FILES TABLE
 -- File metadata for cloud storage (actual files stored in Supabase Storage)
 -- =============================================================================
@@ -314,3 +225,116 @@ CREATE TRIGGER update_repo_files_updated_at
     BEFORE UPDATE ON repo_files
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- TEACHER/CLASSROOM TABLES
+-- =============================================================================
+
+-- Add role column to users table (defaults to 'student' for existing users)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student'
+    CHECK (role IN ('student', 'teacher'));
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- Teacher settings (classroom defaults, preferences)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_settings JSONB DEFAULT '{}'::jsonb;
+
+-- =============================================================================
+-- CLASSROOMS TABLE
+-- A teacher can create classrooms; students join via a 6-char code.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS classrooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    join_code TEXT NOT NULL UNIQUE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_classrooms_teacher_id ON classrooms(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_classrooms_join_code ON classrooms(join_code);
+
+CREATE TRIGGER update_classrooms_updated_at
+    BEFORE UPDATE ON classrooms
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- CLASSROOM_MEMBERS TABLE
+-- Junction table linking students to classrooms.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS classroom_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(classroom_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_classroom_members_classroom ON classroom_members(classroom_id);
+CREATE INDEX IF NOT EXISTS idx_classroom_members_student ON classroom_members(student_id);
+
+-- =============================================================================
+-- ATOMIC XP INCREMENT FUNCTION
+-- Used by submission endpoint to avoid race conditions on concurrent XP updates.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION increment_xp(uid UUID, amount INT)
+RETURNS void AS $$
+  UPDATE users SET xp = xp + amount WHERE id = uid;
+$$ LANGUAGE sql;
+
+-- =============================================================================
+-- ASSIGNMENTS TABLES
+-- Teachers assign template projects to classrooms; students get cloned copies.
+-- =============================================================================
+
+-- Add source_assignment_id to projects (links cloned student project back to assignment)
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS source_assignment_id UUID;
+-- Add assignment_template to content_type check
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_content_type_check;
+ALTER TABLE projects ADD CONSTRAINT projects_content_type_check
+    CHECK (content_type IN ('custom_project', 'assignment_template', 'assignment'));
+
+CREATE TABLE IF NOT EXISTS assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    template_project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+    teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    due_date TIMESTAMPTZ,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(template_project_id, classroom_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignments_classroom ON assignments(classroom_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
+
+-- Add FK constraint for source_assignment_id after assignments table exists
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_source_assignment_id_fkey;
+ALTER TABLE projects ADD CONSTRAINT projects_source_assignment_id_fkey
+    FOREIGN KEY (source_assignment_id) REFERENCES assignments(id) ON DELETE SET NULL;
+
+CREATE TRIGGER update_assignments_updated_at
+    BEFORE UPDATE ON assignments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS student_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(assignment_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_assignments_student ON student_assignments(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_assignments_assignment ON student_assignments(assignment_id);

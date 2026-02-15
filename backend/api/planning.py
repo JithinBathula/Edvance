@@ -66,6 +66,7 @@ def generate_curriculum():
     experience_level = user_profile.get("pythonLevel", "level-1")
     outline_payload = payload.get("outline")
     vm_type = payload.get("vm_type")
+    content_type = payload.get("content_type", "custom_project")
     first_milestone_only = payload.get("first_milestone_only", True)
 
     if (
@@ -114,6 +115,7 @@ def generate_curriculum():
                 tech_stack=stack_list,
                 experience_level=experience_level,
                 vm_type=vm_type,
+                content_type=content_type,
             )
             result["project_id"] = project["id"]
             result["outline"] = outline_payload
