@@ -2,10 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  GraduationCap,
-  Activity,
-  Target,
-  LogOut,
   ArrowLeft,
   Save,
   Trash2,
@@ -13,7 +9,6 @@ import {
   User as UserIcon,
   Settings2,
   Shield,
-  FileText,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -29,6 +24,7 @@ import {
 import { authFetch } from '../../utils/authFetch';
 import { supabase } from '../../utils/supabase/client';
 import { User } from '../../App';
+import { TeacherLayout } from './TeacherLayout';
 
 interface TeacherSettingsProps {
   user: User;
@@ -174,47 +170,7 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar — same layout as TeacherDashboard */}
-      <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-        <div className="flex h-16 items-center border-b border-gray-200 px-6">
-          <GraduationCap className="mr-2 h-6 w-6 text-teal-600" />
-          <span className="bg-gradient-to-r from-teal-600 to-amber-500 bg-clip-text text-xl font-bold text-transparent">
-            Edvance
-          </span>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          <button
-            onClick={() => navigate('/teacher/dashboard')}
-            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <Activity className="mr-3 h-5 w-5" />
-            Dashboard
-          </button>
-          <button
-            onClick={() => navigate('/teacher/create-assignment')}
-            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <FileText className="mr-3 h-5 w-5" />
-            Create Assignment
-          </button>
-          <button className="flex w-full items-center rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-600">
-            <Target className="mr-3 h-5 w-5" />
-            Settings
-          </button>
-        </nav>
-
-        <div className="border-t border-gray-200 p-4">
-          <Button variant="outline" className="w-full justify-start" onClick={onLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="ml-64 flex-1 overflow-auto">
+    <TeacherLayout onLogout={onLogout}>
         <div className="mx-auto max-w-3xl p-8">
           {/* Header */}
           <div className="mb-8 flex items-center gap-4">
@@ -421,7 +377,6 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
             </TabsContent>
           </Tabs>
         </div>
-      </main>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -451,6 +406,6 @@ export function TeacherSettings({ user, onUserUpdate, onLogout }: TeacherSetting
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </TeacherLayout>
   );
 }
