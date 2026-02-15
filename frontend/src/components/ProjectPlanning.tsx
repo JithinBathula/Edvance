@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { User } from '../App';
 import { BACKEND_URL } from '../utils/constants';
 import { authFetch } from '../utils/authFetch';
@@ -6,6 +6,8 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Progress } from './ui/progress';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles, BookOpen } from 'lucide-react';
+import { MilestonePlannerList } from './MilestonePath';
+import { cn } from './ui/utils';
 
 type UserProfile = {
     educationLevel: string;
@@ -25,6 +27,7 @@ type Props = {
     };
     onProjectReady: (project: any) => void;
     onBack: () => void;
+    contentType?: string;
 };
 
 type Outline = {
@@ -36,10 +39,19 @@ type Outline = {
 
 type Phase = 'generating-outline' | 'show-outline' | 'generating-curriculum' | 'ready';
 
-export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: Props) {
+export function ProjectPlanning({ user, requirements, onProjectReady, onBack, contentType }: Props) {
     const [phase, setPhase] = useState<Phase>('generating-outline');
     const [outline, setOutline] = useState<Outline | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [activeStep, setActiveStep] = useState(0);
+
+    useEffect(() => {
+    // reset when outline changes
+    setActiveStep(0);
+    }, [outline]);
+
+    const count = outline?.milestones?.length ?? 0;
+    const allDone = count > 0 && activeStep === count - 1; // reached last step
 
     // Generate outline on mount or use provided one
     useEffect(() => {
@@ -104,6 +116,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                     user_profile: userProfile,
                     outline: outline,
                     vm_type: vmType,
+                    content_type: contentType || 'custom_project',
+                    first_milestone_only: contentType === 'assignment_template' ? false : undefined,
                 }),
             });
 
@@ -122,6 +136,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                         id: task.id || `${mIdx}-${tIdx}`,
                         title: `${milestone.subheading_title}: ${task.task_id}`,
                         description: task.instruction_theory,
+                        codingRequirements: task.coding_requirements || [],
                         hints: task.hints,
                         starterCode: '# Write your code here\n',
                         testSpec: task.test_specification,
@@ -149,7 +164,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
                     <p className="text-gray-600 mb-6">
                         Analyzing your requirements and designing the perfect learning path...
                     </p>
-                    <Progress value={33} className="h-2" />
+                    <Progress value={66} className="h-2" />
                 </Card>
             </div>
         );
@@ -174,78 +189,77 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack }: 
     }
 
     // Show outline for user review
-    if (phase === 'show-outline' && outline) {
+    if (phase === "show-outline" && outline) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50">
-                <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-                    <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="icon" onClick={onBack}>
-                                <ArrowLeft className="w-5 h-5" />
-                            </Button>
-                            <h1 className="text-xl">Project Outline</h1>
-                        </div>
-                    </div>
-                </header>
-
-                <div className="max-w-4xl mx-auto px-4 py-8">
-                    {error && (
-                        <Card className="p-4 mb-6 bg-red-50 border-red-200">
-                            <p className="text-red-600">{error}</p>
-                            <Button onClick={generateOutline} variant="outline" className="mt-2">
-                                Retry
-                            </Button>
-                        </Card>
-                    )}
-
-                    <Card className="p-8 bg-white mb-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
-                                <Sparkles className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h2 className="text-2xl">{outline.project_title}</h2>
-                                <p className="text-gray-600">{outline.project_brief}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                                <BookOpen className="w-5 h-5 text-[#ffa200]" />
-                                Learning Milestones
-                            </h3>
-
-                            {outline.milestones.map((milestone, idx) => (
-                                <div key={idx} className="flex gap-4 p-4 rounded-lg border bg-gray-50">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center flex-shrink-0">
-                                        <span className="text-white text-sm font-bold">{idx + 1}</span>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold">{milestone.subheading_title}</h4>
-                                        <p className="text-gray-600 text-sm">{milestone.description}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-
-                    <div className="flex justify-between">
-                        <Button variant="outline" onClick={onBack}>
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Back
-                        </Button>
-                        <Button
-                            onClick={generateCurriculum}
-                            className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
-                        >
-                            Generate Full Curriculum
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                    </div>
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50">
+            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={onBack}>
+                    <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <h1 className="text-xl">Project Outline</h1>
                 </div>
             </div>
+            </header>
+
+            <div className="max-w-4xl mx-auto px-4 py-8">
+            {error && (
+                <Card className="p-4 mb-6 bg-red-50 border-red-200">
+                <p className="text-red-600">{error}</p>
+                <Button onClick={generateOutline} variant="outline" className="mt-2">
+                    Retry
+                </Button>
+                </Card>
+            )}
+
+            <Card className="p-12 bg-white mb-6">
+                <div className="mb-6">
+                    <div className="flex items-center gap-3">
+                    <h2 className="text-2xl-strong">{outline.project_title}</h2>
+
+                    <Sparkles className="w-10 h-20 text-cyan-700 fill-current" />
+                </div>
+                    <p className="text-gray-600 mt-1">{outline.project_brief}</p>
+                </div>
+
+                <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-[#ffa200]" />
+                    Learning Milestones
+                </h3>
+
+                <MilestonePlannerList
+                    milestones={outline.milestones}
+                    active={activeStep}
+                    onActiveChange={setActiveStep}
+                    />            
+                </div>
+            </Card>
+
+            <div className="flex justify-between">
+                <Button variant="outline" className={cn( "pointer-events-auto cursor-pointer")} onClick={onBack}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+                </Button>
+
+                <Button
+                    onClick={generateCurriculum}
+                    disabled={!allDone}
+                    className={cn(
+                        "bg-cyan-700 hover:bg-cyan-800 cursor-pointer pointer-events-auto",
+                        !allDone && "opacity-50 cursor-not-allowed hover:from-cyan-700 hover:to-cyan-300"
+                    )}
+                    >
+                    Generate Full Curriculum
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+
+            </div>
+            </div>
+        </div>
         );
     }
 
     return null;
-}
+    }

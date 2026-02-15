@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "../App";
 import { authFetch } from "../utils/authFetch";
 import { EditorIDE } from "./EditorIDE";
@@ -25,9 +25,16 @@ import {
   X,
   AlertCircle,
   MessageCircle,
+  CheckCircle2,
+  Zap,
+  ArrowRight,
+  Info,
+  Lock,
 } from "lucide-react";
 import { GLOSSARY } from "../utils/glossary";
 import { TechnicalTermHover } from "./TechnicalTermHover";
+import { BACKEND_URL } from '../utils/constants';
+
 
 // Sorted glossary terms by length descending for longest-match-first
 const SORTED_GLOSSARY_TERMS = Object.keys(GLOSSARY).sort(
@@ -502,7 +509,11 @@ export function ProjectWorkspace({
   // Restore completed tasks from localStorage
   const [completedTasks, setCompletedTasks] = useState<string[]>(() => {
     const saved = localStorage.getItem(`edvance_project_${initialProject.id}_completed_tasks`);
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+
+  // Deduplicate when loading from localStorage
+  const parsed = JSON.parse(saved);
+  return Array.from(new Set(parsed));  // ← Removes duplicates!
   });
 
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([
@@ -588,6 +599,23 @@ export function ProjectWorkspace({
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+
+  const triggerConfetti = useCallback(() => {
+    import('canvas-confetti').then((confetti) => {
+      const count = 200;
+      const defaults = { origin: { y: 0.7 }, zIndex: 9999 };
+      function fire(particleRatio: number, opts: any) {
+        confetti.default({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
+      }
+      fire(0.25, { spread: 26, startVelocity: 55 });
+      fire(0.2, { spread: 60 });
+      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+      fire(0.1, { spread: 120, startVelocity: 45 });
+    });
+  }, []);
 
   const tasks: Task[] = project.tasks || [];
   const currentTask = tasks[currentTaskIndex];
@@ -600,6 +628,19 @@ export function ProjectWorkspace({
     starterCode: '# Write your code here\n',
   };
   const progress = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
+
+  // Determine the first uncompleted task index — users can only access completed tasks or this one
+  const firstUncompletedIndex = tasks.findIndex((t) => !completedTasks.includes(t.id));
+  const isTaskAccessible = (taskIndex: number) => {
+    if (taskIndex < 0) return false;
+    // Task is completed — always accessible
+    if (completedTasks.includes(tasks[taskIndex]?.id)) return true;
+    // Task is the first uncompleted one — accessible
+    if (taskIndex === firstUncompletedIndex) return true;
+    // All tasks completed (firstUncompletedIndex === -1) — all accessible
+    if (firstUncompletedIndex === -1) return true;
+    return false;
+  };
 
   const buildProjectSignature = (milestones: any[] = []) =>
     JSON.stringify(
@@ -649,6 +690,29 @@ export function ProjectWorkspace({
 
     fetchProject();
   }, [initialProject.id]);
+  
+  // Hydrate completed tasks from database if localStorage is empty
+  useEffect(() => {
+    const hydrateFromDatabase = async () => {
+      // Only fetch from DB if localStorage is empty
+      if (completedTasks.length === 0) {
+        try {
+          const response = await authFetch(`/progress/projects/${project.id}/completed-tasks/${user.id}`);
+          const data = await response.json();
+          
+          if (data.success && data.completed_tasks?.length > 0) {
+            console.log('✅ Hydrated from DB:', data.completed_tasks);
+            setCompletedTasks(data.completed_tasks);
+          }
+        } catch (error) {
+          console.error('Hydration failed:', error);
+        }
+      }
+    };
+    
+    hydrateFromDatabase();
+  }, [project.id, user.id, completedTasks.length]);
+
 
   // Poll for milestone updates (tasks are generated async)
   useEffect(() => {
@@ -776,7 +840,9 @@ export function ProjectWorkspace({
       }
 
       if (data.is_correct) {
-        const newCompleted = [...completedTasks, safeCurrentTask.id];
+        await saveFiles(projectFiles);
+
+        const newCompleted = Array.from(new Set([...completedTasks, safeCurrentTask.id]));
         setCompletedTasks(newCompleted);
 
         // If next task was adapted, update the project tasks
@@ -805,14 +871,9 @@ export function ProjectWorkspace({
           console.log('✅ Next task updated with adapted content');
         }
 
-        toast.success(data.feedback || 'Great job! Task completed.');
-
-        if (currentTaskIndex < tasks.length - 1) {
-          setCurrentTaskIndex(currentTaskIndex + 1);
-          setShowHints(false);
-        } else {
-          await handleProjectComplete();
-        }
+        setSuccessFeedback(data.feedback || 'Great job! Task completed.');
+        setShowSuccessModal(true);
+        triggerConfetti();
       } else {
         setEvaluationFeedback(data.feedback);
         setShowFeedbackModal(true);
@@ -822,6 +883,17 @@ export function ProjectWorkspace({
       toast.error('Failed to evaluate submission. Please try again.');
     } finally {
       setEvaluating(false);
+    }
+  };
+
+  const handleSuccessNext = () => {
+    setShowSuccessModal(false);
+    setSuccessFeedback(null);
+    if (currentTaskIndex < tasks.length - 1) {
+      setCurrentTaskIndex(currentTaskIndex + 1);
+      setShowHints(false);
+    } else {
+      handleProjectComplete();
     }
   };
 
@@ -878,27 +950,35 @@ export function ProjectWorkspace({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
+    <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
       {/* Header */}
-      <header className="border-b bg-white px-4 py-3 flex items-center justify-between shrink-0 h-16">
+      <header className="border-b border-slate-100 bg-white/80 backdrop-blur-sm px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <button onClick={onBack} className="flex items-center gap-2 text-teal-600 hover:text-teal-700 transition-colors">
             <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="font-semibold">{project.title}</h1>
-            <p className="text-sm text-gray-500">
-              {hasTasks ? `Task ${currentTaskIndex + 1} of ${tasks.length}` : 'Loading tasks...'}
-            </p>
-          </div>
+            <span className="font-medium">Back</span>
+          </button>
+          <div className="h-6 w-px bg-slate-200" />
+          <h1 className="text-xl font-bold text-slate-800">{project.title}</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="w-48">
-            <Progress value={progress} className="h-2" />
+          <div className="flex items-center gap-2 bg-teal-50 px-3 py-1.5 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 text-teal-600" />
+            <span className="text-sm font-semibold text-teal-700">
+              {completedTasks.length}/{tasks.length} Tasks
+            </span>
           </div>
-          <span className="text-sm text-gray-600">
-            {completedTasks.length}/{tasks.length} completed
-          </span>
+          <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-lg">
+            <Zap className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700">{user.xp} XP</span>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold cursor-pointer hover:scale-110 transition-transform overflow-hidden">
+            {user.profilePictureUrl ? (
+              <img src={user.profilePictureUrl} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              user.name?.charAt(0)?.toUpperCase() || 'U'
+            )}
+          </div>
         </div>
       </header>
 
@@ -961,24 +1041,31 @@ export function ProjectWorkspace({
                             ) : (
                               milestoneTasks.map((task: any, tIdx: number) => {
                                 const idx = tasks.findIndex((t) => t.id === task.id);
+                                const accessible = isTaskAccessible(idx);
                                 return (
                                   <button
                                     key={task.id}
+                                    disabled={!accessible}
                                     onClick={() => {
-                                      if (idx >= 0) {
+                                      if (idx >= 0 && accessible) {
                                         setCurrentTaskIndex(idx);
                                         setShowHints(false);
                                       }
                                     }}
-                                    className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                                     style={idx === currentTaskIndex
                                       ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
                                       : completedTasks.includes(task.id)
                                         ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                        : { color: '#374151', borderLeft: '3px solid transparent' }
+                                        : !accessible
+                                          ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
+                                          : { color: '#374151', borderLeft: '3px solid transparent' }
                                     }
                                   >
-                                    <span className="text-xs font-medium">• {mIdx + 1}.{tIdx + 1}</span>
+                                    <span className="text-xs font-medium flex items-center gap-1.5">
+                                      {!accessible && <Lock className="w-3 h-3" />}
+                                      • {mIdx + 1}.{tIdx + 1}
+                                    </span>
                                   </button>
                                 );
                               })
@@ -1008,22 +1095,31 @@ export function ProjectWorkspace({
                         {group.tasks.map((task) => {
                           const idx = task.originalIdx;
                           const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';
+                          const accessible = isTaskAccessible(idx);
                           return (
                             <button
                               key={task.id}
+                              disabled={!accessible}
                               onClick={() => {
-                                setCurrentTaskIndex(idx);
-                                setShowHints(false);
+                                if (accessible) {
+                                  setCurrentTaskIndex(idx);
+                                  setShowHints(false);
+                                }
                               }}
-                              className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-gray-50"
+                              className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                               style={idx === currentTaskIndex
                                 ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
                                 : completedTasks.includes(task.id)
                                   ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                  : { color: '#374151', borderLeft: '3px solid transparent' }
+                                  : !accessible
+                                    ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
+                                    : { color: '#374151', borderLeft: '3px solid transparent' }
                               }
                             >
-                              <span className="text-xs font-medium">• {majorNum}.{subNum}</span>
+                              <span className="text-xs font-medium flex items-center gap-1.5">
+                                {!accessible && <Lock className="w-3 h-3" />}
+                                • {majorNum}.{subNum}
+                              </span>
                             </button>
                           );
                         })}
@@ -1036,7 +1132,7 @@ export function ProjectWorkspace({
           </div>
         </ResizablePanel>
 
-        {!sidebarCollapsed && <ResizableHandle />}
+        <ResizableHandle />
 
         {/* Pane 2: Task Details */}
         <ResizablePanel id="task-details" order={2} defaultSize={isChatOpen ? 25 : 43} minSize={15} maxSize={50}>
@@ -1100,28 +1196,39 @@ export function ProjectWorkspace({
                       </div>
                     </div>
                   )}
+
+                  {/* Complete & Continue Button */}
+                  <div className="mt-6">
+                    <Button
+                      onClick={handleCompleteTask}
+                      disabled={saving || evaluating}
+                      className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-slate-300 disabled:to-slate-400 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:cursor-not-allowed"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : evaluating ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Evaluating...
+                        </>
+                      ) : completedTasks.includes(safeCurrentTask.id) ? (
+                        <>
+                          <Check className="w-5 h-5" />
+                          Completed
+                        </>
+                      ) : (
+                        <>
+                          Complete & Continue
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
-
-              <Button
-                onClick={handleCompleteTask}
-                disabled={saving || evaluating || !hasTasks}
-                className="w-full shadow-md hover:shadow-lg transition-shadow"
-                style={{ background: 'linear-gradient(to right, #f59e0b, #f97316)' }}
-              >
-                {evaluating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Evaluating...
-                  </>
-                ) : hasTasks && completedTasks.includes(safeCurrentTask.id)
-                  ? "Completed ✓"
-                  : hasTasks && currentTaskIndex < tasks.length - 1
-                    ? "Complete & Continue"
-                    : hasTasks
-                      ? "Complete Project"
-                      : "Waiting for tasks..."}
-              </Button>
             </div>
           </div>
         </ResizablePanel>
@@ -1130,7 +1237,7 @@ export function ProjectWorkspace({
 
         {/* Pane 3: IDE */}
         <ResizablePanel id="ide" order={3} defaultSize={isChatOpen ? 40 : 42} minSize={20}>
-          <div className="h-full overflow-hidden flex flex-col bg-[#0b1020]">
+          <div className="h-full overflow-hidden flex flex-col bg-white">
             <div className="flex-1 p-3">
               {filesLoading ? (
                 <div className="h-full flex items-center justify-center text-slate-400">
@@ -1242,6 +1349,40 @@ export function ProjectWorkspace({
                 className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800"
               >
                 Try Again
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="bg-white rounded-xl shadow-2xl overflow-hidden" style={{ maxWidth: '560px', width: '100%' }}>
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5 border-b border-emerald-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Task Complete!</h3>
+                  <p className="text-sm text-emerald-600 font-medium">Great work on this one</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-gray-700 text-[15px] leading-relaxed">{successFeedback}</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <Button
+                onClick={handleSuccessNext}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              >
+                {currentTaskIndex < tasks.length - 1 ? (
+                  <>Next Task <ArrowRight className="w-4 h-4 ml-2" /></>
+                ) : (
+                  <>Finish Project <Trophy className="w-4 h-4 ml-2" /></>
+                )}
               </Button>
             </div>
           </Card>

@@ -17,25 +17,25 @@ def generate_outline():
     """Generate a project outline from either raw inputs or a requirements-agent session."""
     payload = request.get_json(silent=True) or {}
 
-    session_snapshot = (
+    session_payload = (
         payload.get("session")
         or payload.get("session_snapshot")
         or payload.get("session_data")
     )
     user_profile = payload.get("user_profile") or {}
-    # Backwards compatibility: if no user_profile, build one from experience_level
-    if not user_profile and payload.get("experience_level"):
-        user_profile = {"pythonLevel": payload["experience_level"]}
+    # Backwards compatibility: if no user_profile, build one from pythonLevel
+    if not user_profile and payload.get("pythonLevel"):
+        user_profile = {"pythonLevel": payload["pythonLevel"]}
 
     try:
-        if session_snapshot is None:
+        if session_payload is None:
             return (
                 jsonify({"error": "session data is required to generate an outline"}),
                 400,
             )
 
         outline = planner.generate_outline(
-            session_snapshot=session_snapshot,
+            session_snapshot=session_payload,
             user_profile=user_profile,
         )
         return jsonify(outline.model_dump())
@@ -61,11 +61,12 @@ def generate_curriculum():
     requirements = payload.get("requirements")
     user_profile = payload.get("user_profile") or {}
     # Backwards compatibility
-    if not user_profile and payload.get("experience_level"):
-        user_profile = {"pythonLevel": payload["experience_level"]}
+    if not user_profile and payload.get("pythonLevel"):
+        user_profile = {"pythonLevel": payload["pythonLevel"]}
     experience_level = user_profile.get("pythonLevel", "level-1")
     outline_payload = payload.get("outline")
     vm_type = payload.get("vm_type")
+    content_type = payload.get("content_type", "custom_project")
     first_milestone_only = payload.get("first_milestone_only", True)
 
     if (
@@ -114,6 +115,7 @@ def generate_curriculum():
                 tech_stack=stack_list,
                 experience_level=experience_level,
                 vm_type=vm_type,
+                content_type=content_type,
             )
             result["project_id"] = project["id"]
             result["outline"] = outline_payload

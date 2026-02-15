@@ -1,29 +1,18 @@
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Code2, Sparkles, Rocket, BookOpen, User as UserIcon, LogOut } from 'lucide-react';
+import { Code2, Sparkles, Rocket, User as UserIcon, LogOut, Users, LayoutDashboard  } from 'lucide-react';
+import { JoinClassroom } from './student/JoinClassroom';
 
 type Props = {
   user: User;
-  onStartCourse: () => void;
   onStartCustomProject: () => void;
   onOpenProfile: () => void;
+  onOpenDashboard?: () => void;
   onLogout?: () => void;
 };
 
-export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenProfile, onLogout }: Props) {
-  const getThemeIcon = (theme: string) => {
-    switch (theme) {
-      case 'chatbot':
-        return '🤖';
-      case 'gaming':
-        return '🎮';
-      case 'finance':
-        return '💰';
-      default:
-        return '✨';
-    }
-  };
+export function LandingPage({ user, onStartCustomProject, onOpenProfile, onOpenDashboard, onLogout }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-orange-50">
@@ -48,6 +37,24 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
               <div className="px-3 py-1 rounded-full bg-gradient-to-r from-[#ffa200] to-[#ff8800] text-white text-sm">
                 {user.xp} XP
               </div>
+              <JoinClassroom
+                trigger={
+                  <Button variant="ghost" size="icon" className="rounded-full" title="Join Classroom">
+                    <Users className="w-5 h-5" />
+                  </Button>
+                }
+              />
+              {onOpenDashboard && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onOpenDashboard}
+                  className="rounded-full"
+                  title="Dashboard"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -91,45 +98,8 @@ export function LandingPage({ user, onStartCourse, onStartCustomProject, onOpenP
 
 
 
-        {/* Main CTAs */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {/* Python Fundamentals Course */}
-          <Card className="p-8 border-2 border-gray-200 hover:border-[#7622e5] transition-all hover:shadow-xl cursor-pointer group bg-white">
-            <div className="flex flex-col h-full">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <BookOpen className="w-7 h-7 text-white" />
-              </div>
-
-              <h3 className="text-2xl mb-3">Python Fundamentals Course</h3>
-              <p className="text-gray-600 mb-6 flex-1">
-                Master the basics through structured lessons. Each challenge builds toward a complete {user.onboarding?.theme || 'project'} - see your code come to life!
-              </p>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <div className="w-2 h-2 rounded-full bg-[#ffa200]"></div>
-                  <span>3 comprehensive lessons</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <div className="w-2 h-2 rounded-full bg-[#ffa200]"></div>
-                  <span>Mini challenges that build into a real app</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <div className="w-2 h-2 rounded-full bg-[#ffa200]"></div>
-                  <span>Themed to your interests</span>
-                </div>
-              </div>
-
-              <Button
-                onClick={onStartCourse}
-                className="w-full bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
-              >
-                Start Learning
-              </Button>
-            </div>
-          </Card>
-
-          {/* Custom Project */}
+        {/* Main CTA */}
+        <div className="max-w-xl mx-auto">
           <Card className="p-8 border-2 border-gray-200 hover:border-[#ffa200] transition-all hover:shadow-xl cursor-pointer group bg-white">
             <div className="flex flex-col h-full">
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

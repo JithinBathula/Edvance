@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, g
 
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase
+from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks
 from services.git_repo import read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
@@ -93,6 +93,10 @@ def evaluate_submission():
             test_specification=test_specification
         )
 
+        # Define XP reward constant 
+        XP_PER_TASK = 10
+        new_xp = None
+
         try:
             if result.is_correct:
                 update_progress(
@@ -103,6 +107,47 @@ def evaluate_submission():
                     passed=True,
                     feedback={'message': result.feedback}
                 )
+
+                # Award XP for task completion (atomic increment)
+                try:
+                    new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
+                except Exception as xp_error:
+                    print(f"Warning: Failed to update XP: {xp_error}")
+
+                # Check if this completes an assignment
+                try:
+                    if task_project and task_project.get("source_assignment_id"):
+                        # Check if all tasks in the project are completed
+                        all_milestones = get_project_milestones(task_project_id)
+                        all_task_ids = []
+                        for ms in all_milestones:
+                            tasks_in_ms = get_milestone_tasks(ms["id"])
+                            all_task_ids.extend(t["id"] for t in tasks_in_ms)
+
+                        if all_task_ids:
+                            progress_result = supabase.table("user_progress").select("task_id, status").eq(
+                                "user_id", user_id
+                            ).in_("task_id", all_task_ids).eq("status", "completed").execute()
+                            completed_ids = {p["task_id"] for p in (progress_result.data or [])}
+
+                            if len(completed_ids) >= len(all_task_ids):
+                                # All tasks completed — mark student_assignment as completed
+                                sa_result = supabase.table("student_assignments").select("id").eq(
+                                    "assignment_id", task_project["source_assignment_id"]
+                                ).eq("student_id", user_id).execute()
+                                if sa_result.data:
+                                    from datetime import datetime
+                                    supabase.table("student_assignments").update({
+                                        "status": "completed",
+                                        "completed_at": datetime.utcnow().isoformat(),
+                                    }).eq("id", sa_result.data[0]["id"]).execute()
+
+                                    # Also mark the project as completed
+                                    supabase.table("projects").update({
+                                        "status": "completed"
+                                    }).eq("id", task_project_id).execute()
+                except Exception:
+                    pass  # Non-critical: assignment status update failure
 
                 # Adaptive task generation for next task
                 try:
@@ -195,7 +240,9 @@ def evaluate_submission():
         response_data = {
             'success': True,
             'is_correct': result.is_correct,
-            'feedback': result.feedback
+            'feedback': result.feedback,
+            'xp_earned': XP_PER_TASK if result.is_correct else 0,
+            'total_xp': new_xp if new_xp is not None else None
         }
 
         if adapted_next_task:

@@ -3,9 +3,11 @@ Supabase Client for Edvance Backend
 Provides helper functions for database operations.
 """
 import os
+import string
+import random
 import hashlib
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -291,6 +293,30 @@ def update_progress(
     raise Exception("Failed to update progress record")
 
 
+def get_user_progress_for_project(user_id: str, project_id: str) -> List[Dict[str, Any]]:
+    """
+    Get user progress records for all tasks in a project.
+    """
+    milestones = get_project_milestones(project_id)
+    if not milestones:
+        return []
+
+    task_ids: List[str] = []
+    for milestone in milestones:
+        tasks = get_milestone_tasks(milestone["id"])
+        task_ids.extend(str(task["id"]) for task in tasks if task.get("id"))
+
+    if not task_ids:
+        return []
+
+    result = supabase.table("user_progress").select("*").eq(
+        "user_id", user_id
+    ).in_(
+        "task_id", task_ids
+    ).execute()
+    return result.data or []
+
+
 def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all projects for a user with basic info for listing.
@@ -299,88 +325,14 @@ def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     return result.data or []
 
 
-# =============================================================================
-# COURSE OPERATIONS
-# =============================================================================
-
-def get_course_by_theme(theme: str) -> Optional[Dict[str, Any]]:
+def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
     """
-    Get a course by theme with all lessons, tasks, and highlights.
+    Get all projects for a user with fields needed by dashboard.
     """
-    # Get the course
-    result = supabase.table("courses").select("*").eq("theme", theme).limit(1).execute()
-    
-    if not result.data:
-        return None
-    
-    course = result.data[0]
-    
-    # Get lessons for the course
-    lessons_result = supabase.table("course_lessons").select("*").eq("course_id", course["id"]).order("position").execute()
-    lessons = lessons_result.data or []
-    
-    # Get tasks and highlights for each lesson
-    for lesson in lessons:
-        # Get tasks
-        tasks_result = supabase.table("course_lesson_tasks").select("*").eq("lesson_id", lesson["id"]).order("position").execute()
-        lesson["tasks"] = tasks_result.data or []
-        
-        # Get highlights
-        highlights_result = supabase.table("course_lesson_highlights").select("*").eq("lesson_id", lesson["id"]).order("position").execute()
-        lesson["highlights"] = highlights_result.data or []
-    
-    course["lessons"] = lessons
-    return course
-
-
-def get_user_course_progress(user_id: str, course_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Get user's progress in a course.
-    """
-    result = supabase.table("user_course_progress").select("*").eq("user_id", user_id).eq("course_id", course_id).execute()
-    
-    if result.data:
-        return result.data[0]
-    return None
-
-
-def update_user_course_progress(
-    user_id: str,
-    course_id: str,
-    completed_lessons: List[str],
-    current_lesson_id: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Update or create user's course progress.
-    """
-    # Check if progress exists
-    existing = get_user_course_progress(user_id, course_id)
-
-
-    if existing:
-        # Update existing
-        update_data = {
-            "completed_lessons": completed_lessons
-        }
-        if current_lesson_id:
-            update_data["current_lesson_id"] = current_lesson_id
-
-
-        result = supabase.table("user_course_progress").update(update_data).eq("user_id", user_id).eq("course_id", course_id).execute()
-    else:
-        # Create new
-        progress_data = {
-            "user_id": user_id,
-            "course_id": course_id,
-            "completed_lessons": completed_lessons,
-            "current_lesson_id": current_lesson_id
-        }
-        result = supabase.table("user_course_progress").insert(progress_data).execute()
-
-
-    if result.data:
-        return result.data[0]
-    raise Exception("Failed to update course progress")
+    result = supabase.table("projects").select(
+        "id, title, brief, status, vm_type, tech_stack, created_at, updated_at"
+    ).eq("user_id", user_id).order("created_at", desc=True).execute()
+    return result.data or []
 
 
 # =============================================================================
@@ -573,3 +525,481 @@ def update_project_storage_type(project_id: str, storage_type: str) -> Dict[str,
     if result.data:
         return result.data[0]
     raise Exception(f"Failed to update storage type for project {project_id}")
+
+
+# =============================================================================
+# ROLE & CLASSROOM OPERATIONS
+# =============================================================================
+
+def _generate_join_code(length: int = 6) -> str:
+    """Generate a random alphanumeric uppercase join code."""
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(chars, k=length))
+
+
+def update_user_role(user_id: str, role: str) -> Dict[str, Any]:
+    """Update a user's role ('student' or 'teacher')."""
+    if role not in ('student', 'teacher'):
+        raise ValueError(f"Invalid role: {role}")
+    result = supabase.table("users").update({"role": role}).eq("id", user_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update role for user {user_id}")
+
+
+def create_classroom(teacher_id: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
+    """Create a new classroom with a unique join code."""
+    # Try up to 5 times to generate a unique code
+    for _ in range(5):
+        code = _generate_join_code()
+        try:
+            data = {
+                "teacher_id": teacher_id,
+                "name": name,
+                "description": description,
+                "join_code": code,
+            }
+            result = supabase.table("classrooms").insert(data).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            continue
+    raise Exception("Failed to create classroom after multiple attempts")
+
+
+def get_teacher_classrooms(teacher_id: str) -> List[Dict[str, Any]]:
+    """List all active classrooms for a teacher."""
+    result = supabase.table("classrooms").select("*").eq(
+        "teacher_id", teacher_id
+    ).eq("is_active", True).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_classroom_by_id(classroom_id: str) -> Optional[Dict[str, Any]]:
+    """Get a single classroom by ID."""
+    result = supabase.table("classrooms").select("*").eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def get_classroom_by_join_code(code: str) -> Optional[Dict[str, Any]]:
+    """Look up an active classroom by its join code."""
+    result = supabase.table("classrooms").select("*").eq(
+        "join_code", code.upper()
+    ).eq("is_active", True).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def add_student_to_classroom(classroom_id: str, student_id: str) -> Dict[str, Any]:
+    """Add a student to a classroom (upsert to handle duplicates)."""
+    data = {"classroom_id": classroom_id, "student_id": student_id}
+    result = supabase.table("classroom_members").upsert(
+        data, on_conflict="classroom_id,student_id"
+    ).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to add student to classroom")
+
+
+def remove_student_from_classroom(classroom_id: str, student_id: str) -> bool:
+    """Remove a student from a classroom."""
+    supabase.table("classroom_members").delete().eq(
+        "classroom_id", classroom_id
+    ).eq("student_id", student_id).execute()
+    return True
+
+
+def get_classroom_students(classroom_id: str) -> List[Dict[str, Any]]:
+    """Get all students in a classroom with their user info."""
+    result = supabase.table("classroom_members").select(
+        "*, users:student_id(id, name, email, xp, onboarding, created_at)"
+    ).eq("classroom_id", classroom_id).execute()
+    return result.data or []
+
+
+def get_classroom_student_count(classroom_id: str) -> int:
+    """Get student count for a classroom."""
+    result = supabase.table("classroom_members").select(
+        "id", count="exact"
+    ).eq("classroom_id", classroom_id).execute()
+    return result.count or 0
+
+
+def get_student_classrooms(student_id: str) -> List[Dict[str, Any]]:
+    """Get all classrooms a student belongs to."""
+    result = supabase.table("classroom_members").select(
+        "*, classrooms:classroom_id(id, name, description, join_code, teacher_id, created_at)"
+    ).eq("student_id", student_id).execute()
+    return result.data or []
+
+
+def deactivate_classroom(classroom_id: str) -> Dict[str, Any]:
+    """Soft-delete a classroom by setting is_active=false."""
+    result = supabase.table("classrooms").update(
+        {"is_active": False}
+    ).eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to deactivate classroom {classroom_id}")
+
+
+def regenerate_classroom_join_code(classroom_id: str) -> Dict[str, Any]:
+    """Generate and set a new join code for a classroom."""
+    new_code = _generate_join_code()
+    result = supabase.table("classrooms").update(
+        {"join_code": new_code}
+    ).eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to regenerate join code for classroom {classroom_id}")
+
+
+def get_student_progress_for_projects(user_id: str) -> List[Dict[str, Any]]:
+    """Get all progress records for a student across all their projects."""
+    result = supabase.table("user_progress").select(
+        "*, tasks:task_id(id, task_id_slug, instruction_theory, milestone_id)"
+    ).eq("user_id", user_id).execute()
+    return result.data or []
+
+
+def get_student_projects(user_id: str) -> List[Dict[str, Any]]:
+    """Get all projects for a student with milestone and task counts."""
+    projects = supabase.table("projects").select("*").eq(
+        "user_id", user_id
+    ).order("created_at", desc=True).execute()
+    return projects.data or []
+
+
+def get_project_full_detail(project_id: str) -> Optional[Dict[str, Any]]:
+    """Get project with milestones and tasks nested."""
+    project = get_project_by_id(project_id)
+    if not project:
+        return None
+
+    milestones = get_project_milestones(project_id)
+    for ms in milestones:
+        ms['tasks'] = get_milestone_tasks(ms['id'])
+
+    project['milestones'] = milestones
+    return project
+
+
+def get_students_recent_activity(student_ids: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recent task completions from a list of students."""
+    if not student_ids:
+        return []
+    result = supabase.table("user_progress").select(
+        "*, users:user_id(name), tasks:task_id(task_id_slug, milestone_id)"
+    ).in_("user_id", student_ids).eq(
+        "status", "completed"
+    ).order("completed_at", desc=True).limit(limit).execute()
+    return result.data or []
+
+
+def get_students_recent_activity_all(student_ids: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recent activity including task starts and completions."""
+    if not student_ids:
+        return []
+    result = supabase.table("user_progress").select(
+        "*, users:user_id(name), tasks:task_id(task_id_slug, milestone_id)"
+    ).in_("user_id", student_ids).in_(
+        "status", ["in_progress", "completed"]
+    ).order("completed_at", desc=True).limit(limit * 3).execute()
+    return result.data or []
+
+
+def get_students_recent_projects(student_ids: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recently created projects from a list of students."""
+    if not student_ids:
+        return []
+    result = supabase.table("projects").select(
+        "id, title, user_id, created_at, users:user_id(name)"
+    ).in_("user_id", student_ids).order(
+        "created_at", desc=True
+    ).limit(limit).execute()
+    return result.data or []
+
+
+# =============================================================================
+# BULK QUERY OPERATIONS (for teacher dashboard performance)
+# =============================================================================
+
+def get_bulk_student_progress(student_ids: List[str]) -> List[Dict[str, Any]]:
+    """Get all progress records for multiple students in a single query."""
+    if not student_ids:
+        return []
+    result = supabase.table("user_progress").select(
+        "*, tasks:task_id(id, task_id_slug, milestone_id)"
+    ).in_("user_id", student_ids).execute()
+    return result.data or []
+
+
+def get_bulk_student_projects(student_ids: List[str]) -> List[Dict[str, Any]]:
+    """Get all projects for multiple students in a single query."""
+    if not student_ids:
+        return []
+    result = supabase.table("projects").select("*").in_(
+        "user_id", student_ids
+    ).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_total_tasks_for_projects(project_ids: List[str]) -> Dict[str, int]:
+    """
+    Get the true total task count for each project by joining
+    projects → milestones → tasks.  Returns {project_id: task_count}.
+    """
+    if not project_ids:
+        return {}
+    milestones_result = supabase.table("milestones").select(
+        "id, project_id"
+    ).in_("project_id", project_ids).execute()
+    milestones = milestones_result.data or []
+    if not milestones:
+        return {}
+
+    milestone_to_project = {m['id']: m['project_id'] for m in milestones}
+    milestone_ids = list(milestone_to_project.keys())
+
+    tasks_result = supabase.table("tasks").select(
+        "id, milestone_id"
+    ).in_("milestone_id", milestone_ids).execute()
+    tasks = tasks_result.data or []
+
+    counts: Dict[str, int] = {}
+    for t in tasks:
+        pid = milestone_to_project.get(t['milestone_id'])
+        if pid:
+            counts[pid] = counts.get(pid, 0) + 1
+    return counts
+
+
+def get_bulk_chat_message_counts(student_ids: List[str], project_ids: List[str]) -> Dict[str, Dict[str, int]]:
+    """
+    Get chat message counts grouped by user_id and role.
+    Returns {user_id: {'user': N, 'assistant': N}}.
+    """
+    if not student_ids or not project_ids:
+        return {}
+    result = supabase.table("chat_messages").select(
+        "user_id, project_id, role"
+    ).in_("user_id", student_ids).in_(
+        "project_id", project_ids
+    ).execute()
+    messages = result.data or []
+
+    counts: Dict[str, Dict[str, int]] = {}
+    for m in messages:
+        uid = m['user_id']
+        role = m.get('role', 'user')
+        if uid not in counts:
+            counts[uid] = {'user': 0, 'assistant': 0}
+        counts[uid][role] = counts[uid].get(role, 0) + 1
+    return counts
+
+
+def get_chat_message_counts_for_student(user_id: str, project_ids: List[str]) -> Dict[str, Dict[str, int]]:
+    """
+    Get chat message counts per project for a single student, split by role.
+    Returns {project_id: {'user': N, 'assistant': N}}.
+    """
+    if not project_ids:
+        return {}
+    result = supabase.table("chat_messages").select(
+        "project_id, role"
+    ).eq("user_id", user_id).in_(
+        "project_id", project_ids
+    ).execute()
+    messages = result.data or []
+
+    counts: Dict[str, Dict[str, int]] = {}
+    for m in messages:
+        pid = m['project_id']
+        role = m.get('role', 'user')
+        if pid not in counts:
+            counts[pid] = {'user': 0, 'assistant': 0}
+        counts[pid][role] = counts[pid].get(role, 0) + 1
+    return counts
+
+
+def update_classroom(classroom_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update classroom name and/or description."""
+    allowed = {k: v for k, v in data.items() if k in ('name', 'description')}
+    if not allowed:
+        raise ValueError("No valid fields to update")
+    result = supabase.table("classrooms").update(allowed).eq("id", classroom_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update classroom {classroom_id}")
+
+
+# =============================================================================
+# ASSIGNMENT OPERATIONS
+# =============================================================================
+
+def create_assignment(
+    template_project_id: str,
+    classroom_id: str,
+    teacher_id: str,
+    title: str,
+    description: Optional[str] = None,
+    due_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a new assignment linking a template project to a classroom."""
+    data = {
+        "template_project_id": template_project_id,
+        "classroom_id": classroom_id,
+        "teacher_id": teacher_id,
+        "title": title,
+        "description": description,
+        "due_date": due_date,
+    }
+    result = supabase.table("assignments").insert(data).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to create assignment")
+
+
+def get_assignments_for_classroom(classroom_id: str) -> List[Dict[str, Any]]:
+    """Get all active assignments for a classroom."""
+    result = supabase.table("assignments").select("*").eq(
+        "classroom_id", classroom_id
+    ).eq("is_active", True).order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def get_assignment_by_id(assignment_id: str) -> Optional[Dict[str, Any]]:
+    """Get a single assignment by ID."""
+    result = supabase.table("assignments").select("*").eq("id", assignment_id).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def update_assignment(assignment_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update assignment fields (due_date, description, is_active)."""
+    allowed = {k: v for k, v in data.items() if k in ('due_date', 'description', 'is_active')}
+    if not allowed:
+        raise ValueError("No valid fields to update")
+    result = supabase.table("assignments").update(allowed).eq("id", assignment_id).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update assignment {assignment_id}")
+
+
+def create_student_assignment(assignment_id: str, student_id: str) -> Dict[str, Any]:
+    """Create a student_assignment row with status='not_started'."""
+    data = {
+        "assignment_id": assignment_id,
+        "student_id": student_id,
+        "status": "not_started",
+    }
+    result = supabase.table("student_assignments").upsert(
+        data, on_conflict="assignment_id,student_id"
+    ).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to create student assignment")
+
+
+def get_student_assignments_for_user(student_id: str) -> List[Dict[str, Any]]:
+    """Get all assignments for a student with assignment and classroom details."""
+    result = supabase.table("student_assignments").select(
+        "*, assignments:assignment_id(id, title, description, due_date, is_active, template_project_id, classroom_id, classrooms:classroom_id(id, name))"
+    ).eq("student_id", student_id).execute()
+    rows = result.data or []
+    # Filter to only active assignments
+    return [r for r in rows if r.get("assignments", {}).get("is_active", False)]
+
+
+def get_student_assignments_for_assignment(assignment_id: str) -> List[Dict[str, Any]]:
+    """Get all student assignments for an assignment with user names."""
+    result = supabase.table("student_assignments").select(
+        "*, users:student_id(id, name, email)"
+    ).eq("assignment_id", assignment_id).execute()
+    return result.data or []
+
+
+def update_student_assignment(student_assignment_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update a student_assignment row."""
+    result = supabase.table("student_assignments").update(data).eq(
+        "id", student_assignment_id
+    ).execute()
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update student assignment {student_assignment_id}")
+
+
+def clone_project_for_student(
+    template_project_id: str,
+    student_id: str,
+    assignment_id: str,
+) -> Dict[str, Any]:
+    """Clone a template project for a student working on an assignment."""
+    template = get_project_by_id(template_project_id)
+    if not template:
+        raise Exception(f"Template project {template_project_id} not found")
+
+    # Create the new project for the student
+    project_data = {
+        "user_id": student_id,
+        "title": template["title"],
+        "brief": template.get("brief"),
+        "content_type": "assignment",
+        "status": "in_progress",
+        "requirements": template.get("requirements", []),
+        "tech_stack": template.get("tech_stack", []),
+        "experience_level": template.get("experience_level"),
+        "vm_type": template.get("vm_type", "python"),
+        "source_assignment_id": assignment_id,
+    }
+    result = supabase.table("projects").insert(project_data).execute()
+    if not result.data:
+        raise Exception("Failed to clone project")
+    new_project = result.data[0]
+
+    # Clone milestones and tasks
+    milestones = get_project_milestones(template_project_id)
+    for ms in milestones:
+        new_ms = create_milestone(
+            project_id=new_project["id"],
+            position=ms["position"],
+            title=ms["title"],
+            description=ms.get("description", ""),
+        )
+        tasks = get_milestone_tasks(ms["id"])
+        for task in tasks:
+            create_task(
+                milestone_id=new_ms["id"],
+                position=task["position"],
+                task_id_slug=task["task_id_slug"],
+                instruction_theory=task.get("instruction_theory", ""),
+                coding_requirements=task.get("coding_requirements", []),
+                hints=task.get("hints", []),
+                test_specification=task.get("test_specification", {}),
+                starter_code=task.get("starter_code"),
+            )
+
+    return new_project
+
+
+def increment_xp_atomic(user_id: str, amount: int) -> Optional[int]:
+    """Atomically increment a user's XP using an RPC call.
+    Falls back to read-update if the RPC function doesn't exist."""
+    try:
+        result = supabase.rpc('increment_xp', {'uid': user_id, 'amount': amount}).execute()
+        if result.data is not None:
+            return result.data
+        # RPC returned void — read back the new value
+        user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
+        return user.data.get('xp', 0) if user.data else 0
+    except Exception:
+        # Fallback: non-atomic but functional if RPC not set up yet
+        user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
+        current_xp = user.data.get('xp', 0) if user.data else 0
+        new_xp = current_xp + amount
+        supabase.table('users').update({'xp': new_xp}).eq('id', user_id).execute()
+        return new_xp
