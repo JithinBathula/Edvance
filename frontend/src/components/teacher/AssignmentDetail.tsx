@@ -213,7 +213,11 @@ export function AssignmentDetail({ user }: AssignmentDetailProps) {
                   </TableRow>
                 ) : (
                   students.map((student) => (
-                    <TableRow key={student.id}>
+                    <TableRow
+                      key={student.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => navigate(`/teacher/classroom/${classroomId}/student/${student.student_id}${student.project_id ? `?project=${student.project_id}` : ''}`)}
+                    >
                       <TableCell>
                         <div>
                           <p className="font-medium">{student.student_name}</p>

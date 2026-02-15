@@ -635,6 +635,43 @@ def update_project_tasks(project_id: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ── Teacher Feedback on Student Submissions ──────────────────────
+
+@teacher_bp.route('/feedback', methods=['POST'])
+@require_teacher
+def submit_teacher_feedback():
+    """Save teacher feedback on a student's task submission."""
+    data = request.json or {}
+    student_id = data.get('student_id')
+    task_id = data.get('task_id')
+    feedback_text = (data.get('feedback') or '').strip()
+
+    if not student_id or not task_id or not feedback_text:
+        return jsonify({'success': False, 'error': 'student_id, task_id, and feedback are required'}), 400
+
+    try:
+        # Fetch existing progress record
+        progress = supabase.table('user_progress').select('feedback').eq(
+            'user_id', student_id
+        ).eq('task_id', task_id).execute()
+
+        if not progress.data:
+            return jsonify({'success': False, 'error': 'No progress record found for this student/task'}), 404
+
+        existing_feedback = progress.data[0].get('feedback') or {}
+        existing_feedback['teacher_feedback'] = feedback_text
+        existing_feedback['teacher_feedback_at'] = datetime.utcnow().isoformat()
+        existing_feedback['teacher_name'] = g.user.get('name', 'Teacher')
+
+        supabase.table('user_progress').update({
+            'feedback': existing_feedback,
+        }).eq('user_id', student_id).eq('task_id', task_id).execute()
+
+        return jsonify({'success': True, 'feedback': existing_feedback}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ── Student Progress Detail ───────────────────────────────────────
 
 @teacher_bp.route('/classrooms/<classroom_id>/students/<student_id>/progress', methods=['GET'])
@@ -699,6 +736,7 @@ def get_student_progress(classroom_id: str, student_id: str):
                     tasks_completed += 1
 
                 task_details.append({
+                    'id': t['id'],
                     'title': t.get('task_id_slug', ''),
                     'status': status,
                     'passed': prog.get('passed', False) if prog else False,
