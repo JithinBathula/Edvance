@@ -85,6 +85,7 @@ type Props = {
     user: User;
     onBack: () => void;
     onSelectProject: (project: any) => void;
+    onLogout: () => void;
 };
 
 const chartConfig = {
@@ -178,7 +179,7 @@ function ProgressRing({ percent, size = 110, stroke = 10 }: { percent: number; s
 
 /* ───────────── Main Component ───────────── */
 
-export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
+export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Props) {
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -369,14 +370,15 @@ export function StudentDashboard({ user, onBack, onSelectProject }: Props) {
 
                 <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
                     {[
-                        { icon: HelpCircle, label: 'Help' },
-                        { icon: Settings, label: 'Settings' },
-                        { icon: LogOut, label: 'Log Out' },
+                        { icon: HelpCircle, label: 'Help', onClick: undefined as (() => void) | undefined },
+                        { icon: Settings, label: 'Settings', onClick: undefined as (() => void) | undefined },
+                        { icon: LogOut, label: 'Log Out', onClick: onLogout },
                     ].map(item => (
                         <motion.button
                             key={item.label}
                             whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.97 }}
+                            onClick={item.onClick}
                             className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/35 hover:text-white/60 hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer"
                         >
                             <item.icon className="w-4 h-4" />

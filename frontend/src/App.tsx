@@ -471,6 +471,7 @@ export default function App() {
                   user={user!}
                   onBack={handleBackToLanding}
                   onSelectProject={handleProjectReady}
+                  onLogout={handleLogout}
                 />
               </RequireUser>
             }
