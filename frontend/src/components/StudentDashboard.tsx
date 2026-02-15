@@ -41,6 +41,7 @@ import {
     Clock,
     ArrowRight,
     ListFilter,
+    Plus,
 } from 'lucide-react';
 
 /* ───────────── Types ───────────── */
@@ -559,6 +560,35 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     transition={{ duration: 0.2 }}
                                     className="flex flex-col gap-3"
                                 >
+                                    {/* Create Project Card */}
+                                    <motion.div
+                                        variants={listItem} initial="hidden" animate="visible" custom={0}
+                                        whileHover={{ scale: 1.01, y: -2 }}
+                                        whileTap={{ scale: 0.99 }}
+                                        onClick={() => navigate('/custom-project')}
+                                        className="cursor-pointer"
+                                    >
+                                        <Card className="p-4 border-slate-100 hover:shadow-md transition-shadow border-dashed">
+                                            <div className="flex items-center gap-4">
+                                                <div
+                                                    className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-teal-50"
+                                                >
+                                                    <Plus className="w-6 h-6 text-teal-500" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-base text-slate-800 leading-snug">Create New Project</h3>
+                                                    <p className="text-sm text-slate-400 mt-1 leading-relaxed">Start a new coding project from scratch</p>
+                                                </div>
+                                                <motion.div
+                                                    className="shrink-0 self-center text-slate-300"
+                                                    whileHover={{ x: 4 }}
+                                                >
+                                                    <ChevronRight className="w-5 h-5" />
+                                                </motion.div>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+
                                     {filteredProjects.length > 0 ? filteredProjects.map((project, i) => {
                                         const color = PROJECT_COLORS[i % PROJECT_COLORS.length];
                                         const emoji = PROJECT_EMOJIS[i % PROJECT_EMOJIS.length];
