@@ -209,7 +209,7 @@ export default function App() {
     } else if (userData.role === 'teacher') {
       navigate("/teacher/dashboard");
     } else {
-      navigate("/dashboard");
+      navigate("/student-dashboard");
     }
   };
 
@@ -246,10 +246,10 @@ export default function App() {
       if (updatedUser.role === 'teacher') {
         navigate("/teacher/dashboard");
       } else {
-        navigate("/dashboard");
+        navigate("/student-dashboard");
       }
     } else {
-      navigate("/dashboard");
+      navigate("/student-dashboard");
     }
   };
 
@@ -279,7 +279,7 @@ export default function App() {
     setProjectRequirements(null);
     localStorage.removeItem('edvance_current_project');
     localStorage.removeItem('edvance_project_requirements');
-    navigate("/dashboard");
+    navigate("/student-dashboard");
   };
 
   const handleProfileUpdate = (onboardingData: OnboardingData) => {
@@ -288,7 +288,7 @@ export default function App() {
       setUser(updatedUser);
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
-    navigate("/dashboard");
+    navigate("/student-dashboard");
   };
 
   const handleTeacherUserUpdate = (fields: Partial<User>) => {
@@ -334,7 +334,7 @@ export default function App() {
       );
     }
     if (!user) return <Navigate to="/" replace />;
-    if (user.role !== 'teacher') return <Navigate to="/dashboard" replace />;
+    if (user.role !== 'teacher') return <Navigate to="/student-dashboard" replace />;
     return <>{children}</>;
   };
 
@@ -361,7 +361,7 @@ export default function App() {
                 <Navigate to={
                   !user.onboarding ? "/onboarding"
                     : user.role === 'teacher' ? "/teacher/dashboard"
-                    : "/dashboard"
+                    : "/student-dashboard"
                 } replace />
               ) : (
                 <LoginScreen onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />
@@ -458,7 +458,7 @@ export default function App() {
                     onComplete={handleBackToLanding}
                   />
                 ) : (
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to="/student-dashboard" replace />
                 )}
               </RequireUser>
             }
