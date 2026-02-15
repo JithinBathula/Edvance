@@ -50,6 +50,24 @@ export interface Analytics {
     stuck_on_task: string;
     reason?: string;
   }>;
+  assignment_analytics: Array<{
+    id: string;
+    title: string;
+    due_date: string | null;
+    total: number;
+    completed: number;
+    in_progress: number;
+    not_started: number;
+    avg_completion_hours: number | null;
+    on_time_count: number;
+  }>;
+  ai_usage: {
+    total_questions: number;
+    total_responses: number;
+    avg_per_student: number;
+  };
+  total_tasks_completed: number;
+  active_students_7d: number;
 }
 
 export type SortColumn = 'name' | 'xp' | 'completion_rate' | 'last_active' | 'tasks_completed';
