@@ -66,7 +66,12 @@ def require_auth(f):
                     type(exc).__name__,
                 )
                 return jsonify({'success': False, 'error': 'Upstream service temporarily unavailable'}), 503
-            raise
+            logger.exception(
+                "auth_user_lookup_failed endpoint=%s error_type=%s",
+                request.path,
+                type(exc).__name__,
+            )
+            return jsonify({'success': False, 'error': 'Authentication lookup failed'}), 503
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 401
 

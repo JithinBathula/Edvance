@@ -155,12 +155,12 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
     // Loading screen for outline generation
     if (phase === 'generating-outline') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
-                <Card className="max-w-lg w-full p-12 text-center bg-white">
-                    <div className="w-16 h-16 bg-gradient-to-br from-[#7622e5] to-[#b480f8] rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="flex-1 min-h-0 flex items-center justify-center p-4">
+                <Card className="max-w-lg w-full p-12 text-center bg-white border-slate-100">
+                    <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Loader2 className="w-8 h-8 text-white animate-spin" />
                     </div>
-                    <h2 className="text-2xl mb-4">Creating Your Project Outline</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-4">Creating Your Project Outline</h2>
                     <p className="text-gray-600 mb-6">
                         Analyzing your requirements and designing the perfect learning path...
                     </p>
@@ -173,12 +173,12 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
     // Loading screen for curriculum generation
     if (phase === 'generating-curriculum') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
-                <Card className="max-w-lg w-full p-12 text-center bg-white">
-                    <div className="w-16 h-16 bg-gradient-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="flex-1 min-h-0 flex items-center justify-center p-4">
+                <Card className="max-w-lg w-full p-12 text-center bg-white border-slate-100">
+                    <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Loader2 className="w-8 h-8 text-white animate-spin" />
                     </div>
-                    <h2 className="text-2xl mb-4">Building Your Curriculum</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-4">Building Your Curriculum</h2>
                     <p className="text-gray-600 mb-6">
                         Creating detailed tasks, hints, and tests for each milestone...
                     </p>
@@ -191,19 +191,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
     // Show outline for user review
     if (phase === "show-outline" && outline) {
         return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50">
-            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-            <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={onBack}>
-                    <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <h1 className="text-xl">Project Outline</h1>
-                </div>
-            </div>
-            </header>
-
-            <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+            <div className="max-w-4xl mx-auto px-6 py-6">
             {error && (
                 <Card className="p-4 mb-6 bg-red-50 border-red-200">
                 <p className="text-red-600">{error}</p>
@@ -213,19 +202,18 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                 </Card>
             )}
 
-            <Card className="p-12 bg-white mb-6">
+            <Card className="p-8 bg-white border-slate-100 mb-6">
                 <div className="mb-6">
-                    <div className="flex items-center gap-3">
-                    <h2 className="text-2xl-strong">{outline.project_title}</h2>
-
-                    <Sparkles className="w-10 h-20 text-cyan-700 fill-current" />
-                </div>
-                    <p className="text-gray-600 mt-1">{outline.project_brief}</p>
+                    <div className="flex items-center gap-2.5">
+                        <h2 className="text-2xl font-bold text-slate-800">{outline.project_title}</h2>
+                        <Sparkles className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <p className="text-slate-500 mt-2 leading-relaxed">{outline.project_brief}</p>
                 </div>
 
                 <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-[#ffa200]" />
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-slate-700">
+                    <BookOpen className="w-5 h-5 text-teal-600" />
                     Learning Milestones
                 </h3>
 
@@ -233,12 +221,12 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                     milestones={outline.milestones}
                     active={activeStep}
                     onActiveChange={setActiveStep}
-                    />            
+                    />
                 </div>
             </Card>
 
             <div className="flex justify-between">
-                <Button variant="outline" className={cn( "pointer-events-auto cursor-pointer")} onClick={onBack}>
+                <Button variant="outline" className="cursor-pointer" onClick={onBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
                 </Button>
@@ -247,8 +235,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                     onClick={generateCurriculum}
                     disabled={!allDone}
                     className={cn(
-                        "bg-cyan-700 hover:bg-cyan-800 cursor-pointer pointer-events-auto",
-                        !allDone && "opacity-50 cursor-not-allowed hover:from-cyan-700 hover:to-cyan-300"
+                        "bg-teal-600 hover:bg-teal-700 cursor-pointer",
+                        !allDone && "opacity-50 cursor-not-allowed"
                     )}
                     >
                     Generate Full Curriculum

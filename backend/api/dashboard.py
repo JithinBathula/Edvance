@@ -9,6 +9,7 @@ import logging
 from db.supabase_client import (
     get_user_by_id,
     get_user_projects,
+    get_assignments_with_classrooms,
     get_milestones_for_projects,
     get_tasks_for_milestones,
     get_user_progress_for_task_ids,
@@ -109,6 +110,17 @@ def get_dashboard(user_id: str):
             }), 200
 
         project_ids = [p['id'] for p in projects]
+        source_assignment_ids = [p.get('source_assignment_id') for p in projects if p.get('source_assignment_id')]
+
+        assignment_classroom_name: dict[str, str] = {}
+        if source_assignment_ids:
+            assignment_rows = get_assignments_with_classrooms(source_assignment_ids)
+            for row in assignment_rows:
+                classroom = row.get('classrooms') or {}
+                if isinstance(classroom, dict) and classroom.get('name'):
+                    assignment_classroom_name[row['id']] = classroom['name']
+                elif isinstance(classroom, list) and classroom and isinstance(classroom[0], dict) and classroom[0].get('name'):
+                    assignment_classroom_name[row['id']] = classroom[0]['name']
 
         # Query 3: Bulk fetch ALL milestones for all projects
         all_milestones = get_milestones_for_projects(project_ids)
@@ -180,6 +192,8 @@ def get_dashboard(user_id: str):
                 'updated_at': project.get('updated_at'),
                 'estimated_hours': max(1, total // 2),
                 'xp_reward': total * 10,
+                'source_assignment_id': project.get('source_assignment_id'),
+                'classroom_name': assignment_classroom_name.get(project.get('source_assignment_id', '')),
             }
 
             if project['status'] == 'completed':

@@ -116,6 +116,15 @@ def evaluate_submission():
 
         try:
             if result.is_correct:
+                # Check if task was already completed (prevent double XP)
+                already_completed = False
+                try:
+                    existing = supabase.table("user_progress").select("status").eq(
+                        "user_id", user_id).eq("task_id", task_id).maybe_single().execute()
+                    already_completed = existing.data and existing.data.get("status") == "completed"
+                except Exception:
+                    pass
+
                 update_progress(
                     user_id=user_id,
                     task_id=task_id,
@@ -125,11 +134,12 @@ def evaluate_submission():
                     feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
 
-                # Award XP for task completion (atomic increment)
-                try:
-                    new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
-                except Exception as xp_error:
-                    print(f"Warning: Failed to update XP: {xp_error}")
+                # Award XP only on first completion
+                if not already_completed:
+                    try:
+                        new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
+                    except Exception as xp_error:
+                        print(f"Warning: Failed to update XP: {xp_error}")
 
                 # Check if this completes an assignment
                 try:
