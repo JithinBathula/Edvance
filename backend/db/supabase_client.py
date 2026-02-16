@@ -321,7 +321,7 @@ def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all projects for a user with basic info for listing.
     """
-    result = supabase.table("projects").select("id, title, brief, status, vm_type, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    result = supabase.table("projects").select("id, title, brief, status, vm_type, created_at, updated_at").eq("user_id", user_id).neq("content_type", "assignment").order("created_at", desc=True).execute()
     return result.data or []
 
 

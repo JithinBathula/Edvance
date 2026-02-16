@@ -36,9 +36,10 @@ type Props = {
     onSelectProject: (project: any) => void;
     onCreateNew: () => void;
     onBack: () => void;
+    embedded?: boolean;
 };
 
-export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Props) {
+export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedded }: Props) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingProject, setLoadingProject] = useState<string | null>(null);
@@ -177,21 +178,10 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
         return 'text-gray-500';
     };
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50">
-            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={onBack}>
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <h1 className="text-xl font-semibold">Projects</h1>
-                    </div>
-                </div>
-            </header>
-
+    const content = (
+        <>
             {/* Tabs */}
-            <div className="max-w-6xl mx-auto px-4 pt-6">
+            <div className={embedded ? "" : "max-w-6xl mx-auto px-4 pt-6"}>
                 <div className="flex gap-1 bg-white rounded-lg p-1 w-fit border">
                     <button
                         onClick={() => setActiveTab('my')}
@@ -225,7 +215,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 py-6">
+            <div className={embedded ? "py-4" : "max-w-6xl mx-auto px-4 py-6"}>
                 {activeTab === 'my' ? (
                     /* My Projects Tab */
                     <>
@@ -373,6 +363,24 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack }: Prop
                     </>
                 )}
             </div>
+        </>
+    );
+
+    if (embedded) return content;
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50">
+            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" size="icon" onClick={onBack}>
+                            <ArrowLeft className="w-5 h-5" />
+                        </Button>
+                        <h1 className="text-xl font-semibold">Projects</h1>
+                    </div>
+                </div>
+            </header>
+            {content}
         </div>
     );
 }

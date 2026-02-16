@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../App';
 import { BACKEND_URL } from '../utils/constants';
+import { StudentClassesPanel } from './student/StudentClassesPanel';
+import { ProjectList } from './ProjectList';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import {
@@ -28,12 +30,10 @@ import {
     TrendingUp,
     Code2,
     Home,
+    Users,
 
     BookOpen,
-    Calendar,
-    Award,
     Settings,
-    HelpCircle,
     LogOut,
     Bell,
     Zap,
@@ -287,10 +287,9 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     ];
 
     const navItems = [
-        { icon: Home, label: 'Home', action: onBack },
-        { icon: BookOpen, label: 'Projects', action: () => navigate('/projects') },
-        { icon: Calendar, label: 'Schedule' },
-        { icon: Award, label: 'Achievements' },
+        { icon: Home, label: 'Home' },
+        { icon: Users, label: 'Classes' },
+        { icon: BookOpen, label: 'Projects' },
     ];
 
     const filterTabs = [
@@ -357,20 +356,8 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                 <div className="flex-1" />
 
-                {/* Motivation */}
-                <div className="bg-white/5 rounded-xl p-4 text-center mb-5 border border-white/5">
-                    <div className="text-3xl mb-1.5">🎯</div>
-                    <div className="text-white text-xs font-semibold mb-0.5">Keep going!</div>
-                    <div className="text-white/35 text-xs leading-relaxed">
-                        {stats.completed_projects > 0
-                            ? `You've completed ${stats.completed_projects} project${stats.completed_projects > 1 ? 's' : ''}!`
-                            : 'Complete a project to earn your first XP'}
-                    </div>
-                </div>
-
                 <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
                     {[
-                        { icon: HelpCircle, label: 'Help', onClick: undefined as (() => void) | undefined },
                         { icon: Settings, label: 'Settings', onClick: undefined as (() => void) | undefined },
                         { icon: LogOut, label: 'Log Out', onClick: onLogout },
                     ].map(item => (
@@ -437,7 +424,22 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                 {/* ── 3-Column Grid ── */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
-                    <div className="grid grid-cols-12 gap-4 px-6 py-5 max-w-7xl mx-auto">
+                    {activeNav === 'Classes' ? (
+                        <div className="px-6 py-5 max-w-7xl mx-auto">
+                            <StudentClassesPanel user={user} onSelectProject={onSelectProject} />
+                        </div>
+                    ) : activeNav === 'Projects' ? (
+                        <div className="px-6 py-5 max-w-7xl mx-auto">
+                            <ProjectList
+                                user={user}
+                                onSelectProject={onSelectProject}
+                                onCreateNew={() => navigate('/custom-project')}
+                                onBack={() => setActiveNav('Home')}
+                                embedded
+                            />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-12 gap-4 px-6 py-5 max-w-7xl mx-auto">
 
                         {/* ══════ LEFT COLUMN (3 cols) ══════ */}
                         <div className="col-span-3 flex flex-col gap-4">
@@ -848,7 +850,8 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 </Card>
                             </motion.div>
                         </div>
-                    </div>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
