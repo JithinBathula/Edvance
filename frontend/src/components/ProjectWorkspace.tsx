@@ -231,6 +231,147 @@ function withGlossary(
   });
 }
 
+// Shared markdown components for task content rendering
+const markdownComponents = (matchedTerms: Set<string>, onAskTutor?: (term: string) => void) => ({
+  h1: ({ children }: any) => (
+    <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }: any) => (
+    <h2 className="text-lg font-bold text-gray-800 mt-6 mb-2 first:mt-0 leading-snug">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2 first:mt-0 leading-snug">
+      {children}
+    </h3>
+  ),
+  p: ({ children }: any) => (
+    <p className="text-gray-600 text-[15px] leading-relaxed mb-3 last:mb-0">
+      {withGlossary(children, matchedTerms, onAskTutor)}
+    </p>
+  ),
+  strong: ({ children }: any) => (
+    <strong className="font-semibold text-gray-900">{children}</strong>
+  ),
+  em: ({ children }: any) => <em className="italic">{children}</em>,
+  code: ({ children }: any) => (
+    <code className="inline-code">{children}</code>
+  ),
+  pre: ({ children }: any) => (
+    <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
+      {children}
+    </pre>
+  ),
+  ul: ({ children }: any) => (
+    <ul className="list-disc ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }: any) => (
+    <ol className="list-decimal ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+      {children}
+    </ol>
+  ),
+  li: ({ children }: any) => (
+    <li className="leading-relaxed">
+      {withGlossary(children, matchedTerms, onAskTutor)}
+    </li>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-4 border-orange-300 bg-orange-50/50 pl-4 py-2 my-3 rounded-r">
+      {children}
+    </blockquote>
+  ),
+  a: ({ href, children }: any) => (
+    <a
+      href={href}
+      className="text-blue-600 underline"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {children}
+    </a>
+  ),
+  hr: () => <hr className="my-4 border-gray-200" />,
+});
+
+// Split task description into parts (Part A, Part B, Part C) for collapsible rendering
+function splitIntoParts(text: string): { intro: string; parts: { label: string; title: string; content: string; icon: string }[] } {
+  const partRegex = /\*\*Part\s+([A-C]):\s*(.+?)\*\*/g;
+  const matches = [...text.matchAll(partRegex)];
+
+  if (matches.length === 0) {
+    return { intro: text, parts: [] };
+  }
+
+  const intro = text.slice(0, matches[0].index).trim();
+  const icons: Record<string, string> = { A: '', B: '', C: '' };
+  const parts = matches.map((match, i) => {
+    const startAfterHeader = match.index! + match[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : text.length;
+    return {
+      label: `Part ${match[1]}`,
+      title: match[2].trim(),
+      content: text.slice(startAfterHeader, end).trim(),
+      icon: icons[match[1]] || '',
+    };
+  });
+
+  return { intro, parts };
+}
+
+// Collapsible section component for task parts
+function CollapsiblePart({
+  label,
+  title,
+  icon,
+  content,
+  isOpen,
+  onToggle,
+  matchedTerms,
+  onAskTutor,
+}: {
+  label: string;
+  title: string;
+  icon: string;
+  content: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  matchedTerms: Set<string>;
+  onAskTutor?: (term: string) => void;
+}) {
+  const components = markdownComponents(matchedTerms, onAskTutor);
+
+  return (
+    <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+      >
+        <span className="text-base">{icon}</span>
+        <span className="font-semibold text-gray-800 text-[15px] flex-1">
+          {label}: {title}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
+        />
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+          <div className="task-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+              {content}
+            </ReactMarkdown>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Component to format task description with full markdown rendering,
 // code highlighting, glossary terms, and structured Learn → Try → Do content
 function FormattedDescription({
@@ -241,13 +382,31 @@ function FormattedDescription({
   onAskTutor?: (term: string) => void;
 }) {
   const matchedTermsRef = useRef(new Set<string>());
+  const { intro, parts } = splitIntoParts(text);
 
-  // Reset matched terms when text changes
+  // Track which parts are open; reset when text changes (new task)
+  const [openParts, setOpenParts] = useState<Set<number>>(() => new Set([0]));
+
+  // Reset matched terms and collapse state when text changes (new task)
   useEffect(() => {
     matchedTermsRef.current = new Set<string>();
+    setOpenParts(new Set([0]));
   }, [text]);
 
   const matchedTerms = matchedTermsRef.current;
+  const components = markdownComponents(matchedTerms, onAskTutor);
+
+  const togglePart = (index: number) => {
+    setOpenParts(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
 
   return (
     <>
@@ -273,78 +432,41 @@ function FormattedDescription({
           font-size: inherit !important;
         }
       `}</style>
-      <div className="task-content">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            h1: ({ children }) => (
-              <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
-                {children}
-              </h1>
-            ),
-            h2: ({ children }) => (
-              <h2 className="text-lg font-bold text-gray-800 mt-6 mb-2 first:mt-0 leading-snug">
-                {children}
-              </h2>
-            ),
-            h3: ({ children }) => (
-              <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2 first:mt-0 leading-snug">
-                {children}
-              </h3>
-            ),
-            p: ({ children }) => (
-              <p className="text-gray-600 text-[15px] leading-relaxed mb-3 last:mb-0">
-                {withGlossary(children, matchedTerms, onAskTutor)}
-              </p>
-            ),
-            strong: ({ children }) => (
-              <strong className="font-semibold text-gray-900">{children}</strong>
-            ),
-            em: ({ children }) => <em className="italic">{children}</em>,
-            code: ({ children }: any) => (
-              <code className="inline-code">{children}</code>
-            ),
-            pre: ({ children }) => (
-              <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
-                {children}
-              </pre>
-            ),
-            ul: ({ children }) => (
-              <ul className="list-disc ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
-                {children}
-              </ul>
-            ),
-            ol: ({ children }) => (
-              <ol className="list-decimal ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
-                {children}
-              </ol>
-            ),
-            li: ({ children }) => (
-              <li className="leading-relaxed">
-                {withGlossary(children, matchedTerms, onAskTutor)}
-              </li>
-            ),
-            blockquote: ({ children }) => (
-              <blockquote className="border-l-4 border-orange-300 bg-orange-50/50 pl-4 py-2 my-3 rounded-r">
-                {children}
-              </blockquote>
-            ),
-            a: ({ href, children }) => (
-              <a
-                href={href}
-                className="text-blue-600 underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {children}
-              </a>
-            ),
-            hr: () => <hr className="my-4 border-gray-200" />,
-          }}
-        >
-          {text}
-        </ReactMarkdown>
-      </div>
+
+      {/* Render intro content (before any parts) */}
+      {intro && (
+        <div className="task-content mb-4">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+            {intro}
+          </ReactMarkdown>
+        </div>
+      )}
+
+      {/* Render collapsible parts */}
+      {parts.length > 0 ? (
+        <div className="space-y-0">
+          {parts.map((part, index) => (
+            <CollapsiblePart
+              key={`${part.label}-${index}`}
+              label={part.label}
+              title={part.title}
+              icon={part.icon}
+              content={part.content}
+              isOpen={openParts.has(index)}
+              onToggle={() => togglePart(index)}
+              matchedTerms={matchedTerms}
+              onAskTutor={onAskTutor}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Fallback: no parts detected, render as plain markdown */
+        <div className="task-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+            {text}
+          </ReactMarkdown>
+        </div>
+      )}
     </>
   );
 }
