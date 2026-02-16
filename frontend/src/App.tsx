@@ -14,7 +14,6 @@ import { ProjectList } from "./components/ProjectList";
 import { CustomProjectChat } from "./components/CustomProjectChat";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
-import { ProfilePage } from "./components/ProfilePage";
 import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
 import { ClassroomDetail } from "./components/teacher/ClassroomDetail";
 import { StudentDetail } from "./components/teacher/StudentDetail";
@@ -22,7 +21,6 @@ import { TeacherSettings } from "./components/teacher/TeacherSettings";
 import { AssignmentCreate } from "./components/teacher/AssignmentCreate";
 import { AssignmentDetail } from "./components/teacher/AssignmentDetail";
 import { StudentDashboard } from "./components/StudentDashboard";
-import { BACKEND_URL } from "./utils/constants";
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -288,7 +286,6 @@ export default function App() {
       setUser(updatedUser);
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
-    navigate("/student-dashboard");
   };
 
   const handleTeacherUserUpdate = (fields: Partial<User>) => {
@@ -397,7 +394,6 @@ export default function App() {
                 <LandingPage
                   user={user!}
                   onStartCustomProject={() => navigate("/projects")}
-                  onOpenProfile={() => navigate("/profile")}
                   onOpenDashboard={() => navigate("/student-dashboard")}
                   onLogout={handleLogout}
                 />
@@ -472,19 +468,8 @@ export default function App() {
                   onBack={handleBackToLanding}
                   onSelectProject={handleProjectReady}
                   onLogout={handleLogout}
-                />
-              </RequireUser>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <RequireUser>
-                <ProfilePage
-                  user={user!}
-                  onUpdate={handleProfileUpdate}
                   onProfilePictureUpdate={handleProfilePictureUpdate}
-                  onBack={handleBackToLanding}
+                  onProfileUpdate={handleProfileUpdate}
                 />
               </RequireUser>
             }

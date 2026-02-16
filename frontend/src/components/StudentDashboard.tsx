@@ -27,7 +27,6 @@ import {
     FolderOpen,
     Sparkles,
     Loader2,
-    CheckCircle2,
     TrendingUp,
     Code2,
     Home,
@@ -40,7 +39,6 @@ import {
     Zap,
     ChevronRight,
     Clock,
-    ArrowRight,
     ListFilter,
     Plus,
 } from 'lucide-react';
@@ -71,6 +69,8 @@ type ProjectInfo = {
     completed_at?: string;
     xp_earned?: number;
     skills?: string[];
+    source_assignment_id?: string | null;
+    classroom_name?: string | null;
 };
 
 type XPHistoryItem = { date: string; xp: number };
@@ -88,6 +88,8 @@ type Props = {
     onBack: () => void;
     onSelectProject: (project: any) => void;
     onLogout: () => void;
+    onProfilePictureUpdate?: (url: string) => void;
+    onProfileUpdate?: (data: import('../App').OnboardingData) => void;
 };
 
 type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
@@ -183,7 +185,7 @@ function ProgressRing({ percent, size = 110, stroke = 10 }: { percent: number; s
 
 /* ───────────── Main Component ───────────── */
 
-export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Props) {
+export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onProfilePictureUpdate, onProfileUpdate }: Props) {
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -198,6 +200,9 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
     const [classesKey, setClassesKey] = useState(0);
     const [projectsKey, setProjectsKey] = useState(0);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const notificationsRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         if (activeNav === 'Classes') setClassesKey(k => k + 1);
@@ -206,6 +211,29 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
             setVisitedTabs(prev => (prev[activeNav] ? prev : { ...prev, [activeNav]: true }));
         }
     }, [activeNav]);
+
+    useEffect(() => {
+        const onClickOutside = (event: MouseEvent) => {
+            if (!notificationsRef.current) return;
+            if (!notificationsRef.current.contains(event.target as Node)) {
+                setNotificationsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (!data) return;
+        const count =
+            Math.min(data.in_progress_projects.length, 2) +
+            (data.stats.current_streak > 0 ? 1 : 0);
+        setUnreadCount(count);
+    }, [data?.in_progress_projects.length, data?.stats.current_streak]);
+
+    useEffect(() => {
+        if (notificationsOpen && unreadCount > 0) setUnreadCount(0);
+    }, [notificationsOpen, unreadCount]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -269,7 +297,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     /* ── Loading ── */
     if (loading) {
         return (
-            <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
+            <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #cffafe, #f0fdfa, #fef3c7)' }}>
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
                     <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
                     <p className="text-slate-600 text-base">Loading...</p>
@@ -281,7 +309,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     /* ── Error ── */
     if (error || !data) {
         return (
-            <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
+            <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #cffafe, #f0fdfa, #fef3c7)' }}>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
                     <p className="text-red-600 mb-4 text-base">{error || 'Something went wrong'}</p>
                     <Button onClick={() => fetchDashboard()}>Try Again</Button>
@@ -329,7 +357,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     ];
 
     return (
-        <div className="flex h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
+        <div className="flex h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom right, #cffafe, #f0fdfa, #fef3c7)' }}>
             <style>{`
                 .gradient-text {
                     background: linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b);
@@ -435,11 +463,54 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 {stats.total_xp} XP
                             </div>
                         </div>
-                        <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate('/profile')}
-                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-base bg-gradient-to-br from-teal-500 to-teal-600 cursor-pointer overflow-hidden"
+                        <div className="relative" ref={notificationsRef}>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setNotificationsOpen(prev => !prev)}
+                                className="relative w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:text-teal-600 hover:border-teal-200 transition-colors cursor-pointer"
+                            >
+                                <Bell className="w-5 h-5" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
+                                )}
+                            </motion.button>
+
+                            <AnimatePresence>
+                                {notificationsOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        transition={{ duration: 0.18 }}
+                                        className="absolute right-0 top-12 w-80 rounded-xl border border-slate-200 bg-white shadow-xl z-30 overflow-hidden"
+                                    >
+                                        <div className="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between">
+                                            <span className="font-semibold text-sm text-slate-800">Notifications</span>
+                                            <span className="text-xs text-slate-400">{notifications.length}</span>
+                                        </div>
+                                        <div className="max-h-80 overflow-y-auto">
+                                            {notifications.length > 0 ? notifications.map((n, i) => (
+                                                <div key={i} className="px-3 py-2.5 border-b last:border-b-0 border-slate-100 hover:bg-slate-50 transition-colors">
+                                                    <div className="flex items-start gap-2.5">
+                                                        <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: n.color }} />
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-slate-800 leading-snug">{n.title}</p>
+                                                            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.message}</p>
+                                                            <p className="text-[11px] text-slate-400 mt-1">{n.time}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="px-3 py-6 text-center text-sm text-slate-400">No new notifications</div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                        <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-base bg-gradient-to-br from-teal-500 to-teal-600 overflow-hidden"
                             style={{ boxShadow: '0 0 12px rgba(13, 148, 136, 0.3)' }}
                         >
                             {user.profilePictureUrl ? (
@@ -451,7 +522,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                             ) : (
                                 user.name?.charAt(0)?.toUpperCase() || 'U'
                             )}
-                        </motion.div>
+                        </div>
                     </div>
                 </motion.div>
 
@@ -482,7 +553,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                     {/* Settings */}
                     {activeNav === 'Settings' && (
                         <div className="px-6 py-5 max-w-7xl mx-auto">
-                            <StudentSettingsPanel user={user} onLogout={onLogout} />
+                            <StudentSettingsPanel user={user} onLogout={onLogout} onProfilePictureUpdate={onProfilePictureUpdate} onProfileUpdate={onProfileUpdate} />
                         </div>
                     )}
 
@@ -649,6 +720,9 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                         const color = PROJECT_COLORS[i % PROJECT_COLORS.length];
                                         const emoji = PROJECT_EMOJIS[i % PROJECT_EMOJIS.length];
                                         const isCompleted = project.completed_at != null;
+                                        const sourceLabel = project.classroom_name
+                                            ? `Class: ${project.classroom_name}`
+                                            : 'Personal Project';
 
                                         return (
                                             <motion.div
@@ -674,7 +748,15 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                             <div className="flex items-start justify-between gap-3">
                                                                 <div className="min-w-0">
                                                                     <h3 className="font-semibold text-base text-slate-800 leading-snug">{project.title}</h3>
-                                                                    <p className="text-sm text-slate-400 mt-1 leading-relaxed line-clamp-2">{project.brief}</p>
+                                                                    <span
+                                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold mt-2 ${project.classroom_name
+                                                                            ? 'bg-teal-100 text-teal-700'
+                                                                            : 'bg-slate-100 text-slate-600'
+                                                                            }`}
+                                                                    >
+                                                                        {sourceLabel}
+                                                                    </span>
+                                                                    <p className="text-sm text-slate-400 mt-2 leading-relaxed line-clamp-2">{project.brief}</p>
                                                                 </div>
                                                                 <span
                                                                     className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
@@ -685,37 +767,24 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                             </div>
 
                                                             {/* Progress */}
-                                                            <div className="flex items-center gap-3 mt-3">
-                                                                <div className="flex-1">
-                                                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                                        <motion.div
-                                                                            className="h-full rounded-full"
-                                                                            style={{ backgroundColor: isCompleted ? '#10b981' : color }}
-                                                                            initial={{ width: 0 }}
-                                                                            animate={{ width: `${isCompleted ? 100 : project.progress}%` }}
-                                                                            transition={{ duration: 0.8, delay: 0.2 + i * 0.1, ease: 'easeOut' }}
-                                                                        />
-                                                                    </div>
+                                                            <div className="mt-3">
+                                                                <div className="flex items-center justify-between text-xs mb-1.5">
+                                                                    <span className="font-medium text-slate-500">Progress</span>
+                                                                    <span className="text-sm font-semibold text-slate-600 shrink-0 tabular-nums">
+                                                                        {isCompleted ? `${project.tasks_total}/${project.tasks_total} tasks` : `${project.tasks_completed}/${project.tasks_total} tasks`}
+                                                                    </span>
                                                                 </div>
-                                                                <span className="text-sm font-semibold text-slate-500 shrink-0 tabular-nums">
-                                                                    {isCompleted ? (
-                                                                        <span className="text-emerald-500 flex items-center gap-1">
-                                                                            <CheckCircle2 className="w-4 h-4" /> Done
-                                                                        </span>
-                                                                    ) : (
-                                                                        `${project.tasks_completed}/${project.tasks_total}`
-                                                                    )}
-                                                                </span>
+                                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <motion.div
+                                                                        className="h-full rounded-full"
+                                                                        style={{ backgroundColor: isCompleted ? '#10b981' : color }}
+                                                                        initial={{ width: 0 }}
+                                                                        animate={{ width: `${isCompleted ? 100 : project.progress}%` }}
+                                                                        transition={{ duration: 0.8, delay: 0.2 + i * 0.1, ease: 'easeOut' }}
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         </div>
-
-                                                        {/* Arrow */}
-                                                        <motion.div
-                                                            className="shrink-0 self-center text-slate-300"
-                                                            whileHover={{ x: 4 }}
-                                                        >
-                                                            <ChevronRight className="w-5 h-5" />
-                                                        </motion.div>
                                                     </div>
                                                 </Card>
                                             </motion.div>
@@ -751,11 +820,8 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                         <motion.div
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={() => navigate('/profile')}
                                             transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
-                                            className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-2xl font-bold text-white cursor-pointer overflow-hidden shrink-0"
+                                            className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-2xl font-bold text-white overflow-hidden shrink-0"
                                             style={{ boxShadow: '0 0 20px rgba(13, 148, 136, 0.25)' }}
                                         >
                                             {user.profilePictureUrl ? (
@@ -869,37 +935,6 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                 <Bar dataKey="xp" fill="url(#xpGrad)" radius={[3, 3, 0, 0]} />
                                             </BarChart>
                                         </ChartContainer>
-                                    </div>
-                                </Card>
-                            </motion.div>
-
-                            {/* Notifications */}
-                            <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
-                                <Card className="p-4 border-slate-100">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <Bell className="w-4 h-4 text-teal-600" />
-                                            <span className="font-bold text-base text-slate-800">Notifications</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {notifications.length > 0 ? notifications.map((n, i) => (
-                                            <motion.div
-                                                key={i}
-                                                variants={listItem} initial="hidden" animate="visible" custom={i}
-                                                whileHover={{ x: 3 }}
-                                                className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                                            >
-                                                <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ backgroundColor: n.color }} />
-                                                <div className="min-w-0 flex-1">
-                                                    <h4 className="font-semibold text-sm text-slate-800 leading-snug">{n.title}</h4>
-                                                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{n.message}</p>
-                                                    <span className="text-xs text-slate-300 mt-1 block">{n.time}</span>
-                                                </div>
-                                            </motion.div>
-                                        )) : (
-                                            <p className="text-sm text-slate-400 py-4 text-center">No new notifications</p>
-                                        )}
                                     </div>
                                 </Card>
                             </motion.div>

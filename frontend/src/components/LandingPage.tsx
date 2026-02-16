@@ -1,18 +1,17 @@
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Code2, Sparkles, Rocket, User as UserIcon, LogOut, Users, LayoutDashboard  } from 'lucide-react';
+import { Code2, Sparkles, Rocket, LogOut, Users, LayoutDashboard } from 'lucide-react';
 import { JoinClassroom } from './student/JoinClassroom';
 
 type Props = {
   user: User;
   onStartCustomProject: () => void;
-  onOpenProfile: () => void;
   onOpenDashboard?: () => void;
   onLogout?: () => void;
 };
 
-export function LandingPage({ user, onStartCustomProject, onOpenProfile, onOpenDashboard, onLogout }: Props) {
+export function LandingPage({ user, onStartCustomProject, onOpenDashboard, onLogout }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-orange-50">
@@ -55,14 +54,6 @@ export function LandingPage({ user, onStartCustomProject, onOpenProfile, onOpenD
                   <LayoutDashboard className="w-5 h-5" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onOpenProfile}
-                className="rounded-full"
-              >
-                <UserIcon className="w-5 h-5" />
-              </Button>
               {onLogout && (
                 <Button
                   variant="ghost"

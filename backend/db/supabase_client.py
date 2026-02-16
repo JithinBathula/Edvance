@@ -420,7 +420,7 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
     result = execute_with_retry(
         "get_user_projects",
         lambda: supabase.table("projects").select(
-            "id, title, brief, status, vm_type, tech_stack, created_at, updated_at"
+            "id, title, brief, status, vm_type, tech_stack, source_assignment_id, created_at, updated_at"
         ).eq("user_id", user_id).order("created_at", desc=True).execute(),
     )
     return result.data or []
@@ -1006,6 +1006,19 @@ def get_assignment_by_id(assignment_id: str) -> Optional[Dict[str, Any]]:
     if result.data:
         return result.data[0]
     return None
+
+
+def get_assignments_with_classrooms(assignment_ids: List[str]) -> List[Dict[str, Any]]:
+    """Bulk fetch assignments with classroom name."""
+    if not assignment_ids:
+        return []
+    result = execute_with_retry(
+        "get_assignments_with_classrooms",
+        lambda: supabase.table("assignments").select(
+            "id, classroom_id, classrooms:classroom_id(name)"
+        ).in_("id", assignment_ids).execute(),
+    )
+    return result.data or []
 
 
 def update_assignment(assignment_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
