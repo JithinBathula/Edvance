@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../App';
 import { BACKEND_URL } from '../utils/constants';
 import { StudentClassesPanel } from './student/StudentClassesPanel';
+import { StudentSettingsPanel } from './StudentSettings';
 import { ProjectList } from './ProjectList';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -88,6 +89,8 @@ type Props = {
     onSelectProject: (project: any) => void;
     onLogout: () => void;
 };
+
+type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
 
 const chartConfig = {
     xp: { label: 'XP Earned', color: '#0d9488' },
@@ -185,8 +188,12 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeNav, setActiveNav] = useState('Home');
+    const [activeNav, setActiveNav] = useState<NavTab>('Home');
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
+    const [visitedTabs, setVisitedTabs] = useState<Record<'Classes' | 'Projects', boolean>>({ Classes: false, Projects: false });
+    const dashboardFetchInFlightRef = useRef(false);
+    const dashboardRetryTimersRef = useRef<number[]>([]);
+    const isMountedRef = useRef(true);
 
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
     const [classesKey, setClassesKey] = useState(0);
@@ -195,30 +202,46 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     useEffect(() => {
         if (activeNav === 'Classes') setClassesKey(k => k + 1);
         else if (activeNav === 'Projects') setProjectsKey(k => k + 1);
+        if (activeNav === 'Classes' || activeNav === 'Projects') {
+            setVisitedTabs(prev => (prev[activeNav] ? prev : { ...prev, [activeNav]: true }));
+        }
     }, [activeNav]);
 
-    useEffect(() => { fetchDashboard(); }, [user.id]);
+    useEffect(() => {
+        isMountedRef.current = true;
+        fetchDashboard();
+        return () => {
+            isMountedRef.current = false;
+            dashboardRetryTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+            dashboardRetryTimersRef.current = [];
+        };
+    }, [user.id]);
 
     const fetchDashboard = async (retries = 2) => {
+        if (dashboardFetchInFlightRef.current) return;
+        dashboardFetchInFlightRef.current = true;
         try {
             const response = await fetch(`${BACKEND_URL}/dashboard/${user.id}`, { credentials: 'include' });
             const result = await response.json();
             if (result.success) {
-                setData(result);
+                if (isMountedRef.current) setData(result);
             } else if (retries > 0) {
-                setTimeout(() => fetchDashboard(retries - 1), 500);
+                const timerId = window.setTimeout(() => void fetchDashboard(retries - 1), 500);
+                dashboardRetryTimersRef.current.push(timerId);
             } else {
-                setError(result.error || 'Failed to load dashboard');
+                if (isMountedRef.current) setError(result.error || 'Failed to load dashboard');
             }
         } catch (err) {
             if (retries > 0) {
-                setTimeout(() => fetchDashboard(retries - 1), 500);
+                const timerId = window.setTimeout(() => void fetchDashboard(retries - 1), 500);
+                dashboardRetryTimersRef.current.push(timerId);
             } else {
                 console.error('Dashboard error:', err);
-                setError('Failed to load dashboard');
+                if (isMountedRef.current) setError('Failed to load dashboard');
             }
         } finally {
-            setLoading(false);
+            dashboardFetchInFlightRef.current = false;
+            if (isMountedRef.current) setLoading(false);
         }
     };
 
@@ -293,7 +316,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         }] : []),
     ];
 
-    const navItems = [
+    const navItems: { icon: typeof Home; label: NavTab }[] = [
         { icon: Home, label: 'Home' },
         { icon: Users, label: 'Classes' },
         { icon: BookOpen, label: 'Projects' },
@@ -365,20 +388,23 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                 <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
                     {[
-                        { icon: Settings, label: 'Settings', onClick: undefined as (() => void) | undefined },
-                        { icon: LogOut, label: 'Log Out', onClick: onLogout },
-                    ].map(item => (
-                        <motion.button
-                            key={item.label}
-                            whileHover={{ x: 4 }}
-                            whileTap={{ scale: 0.97 }}
-                            onClick={item.onClick}
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/35 hover:text-white/60 hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer"
-                        >
-                            <item.icon className="w-4 h-4" />
-                            {item.label}
-                        </motion.button>
-                    ))}
+                        { icon: Settings, label: 'Settings' as const, onClick: () => setActiveNav('Settings') },
+                        { icon: LogOut, label: 'Log Out' as const, onClick: onLogout },
+                    ].map(item => {
+                        const isActive = item.label === 'Settings' && activeNav === 'Settings';
+                        return (
+                            <motion.button
+                                key={item.label}
+                                whileHover={{ x: 4 }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={item.onClick}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left bg-transparent border-none cursor-pointer ${isActive ? 'bg-teal-500/15 text-teal-300' : 'text-white/35 hover:text-white/60 hover:bg-white/5'}`}
+                            >
+                                <item.icon className="w-4 h-4" />
+                                {item.label}
+                            </motion.button>
+                        );
+                    })}
                 </div>
             </motion.nav>
 
@@ -432,22 +458,33 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                 {/* ── 3-Column Grid ── */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
 
-                    {/* Classes — always mounted, hidden when inactive */}
-                    <div className={activeNav === 'Classes' ? 'px-6 py-5 max-w-7xl mx-auto' : 'hidden'}>
-                        <StudentClassesPanel user={user} onSelectProject={onSelectProject} animationKey={classesKey} />
-                    </div>
+                    {/* Classes — lazy mount on first visit, then keep mounted */}
+                    {visitedTabs.Classes && (
+                        <div className={activeNav === 'Classes' ? 'px-6 py-5 max-w-7xl mx-auto' : 'hidden'}>
+                            <StudentClassesPanel user={user} onSelectProject={onSelectProject} animationKey={classesKey} />
+                        </div>
+                    )}
 
-                    {/* Projects — always mounted, hidden when inactive */}
-                    <div className={activeNav === 'Projects' ? 'px-6 py-5 max-w-7xl mx-auto' : 'hidden'}>
-                        <ProjectList
-                            user={user}
-                            onSelectProject={onSelectProject}
-                            onCreateNew={() => navigate('/custom-project')}
-                            onBack={() => setActiveNav('Home')}
-                            embedded
-                            animationKey={projectsKey}
-                        />
-                    </div>
+                    {/* Projects — lazy mount on first visit, then keep mounted */}
+                    {visitedTabs.Projects && (
+                        <div className={activeNav === 'Projects' ? 'px-6 py-5 max-w-7xl mx-auto' : 'hidden'}>
+                            <ProjectList
+                                user={user}
+                                onSelectProject={onSelectProject}
+                                onCreateNew={() => navigate('/custom-project')}
+                                onBack={() => setActiveNav('Home')}
+                                embedded
+                                animationKey={projectsKey}
+                            />
+                        </div>
+                    )}
+
+                    {/* Settings */}
+                    {activeNav === 'Settings' && (
+                        <div className="px-6 py-5 max-w-7xl mx-auto">
+                            <StudentSettingsPanel user={user} onLogout={onLogout} />
+                        </div>
+                    )}
 
                     {/* Home — conditionally rendered so staggered animations replay */}
                     {activeNav === 'Home' && (

@@ -4,14 +4,19 @@ Provides aggregated dashboard data for student view.
 """
 from flask import Blueprint, jsonify
 from datetime import datetime, timedelta
+import logging
 
 from db.supabase_client import (
     get_user_by_id,
     get_user_projects,
-    supabase
+    get_milestones_for_projects,
+    get_tasks_for_milestones,
+    get_user_progress_for_task_ids,
+    is_transient_supabase_error,
 )
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
+logger = logging.getLogger(__name__)
 
 
 def extract_concepts_from_projects(projects: list) -> list:
@@ -106,10 +111,7 @@ def get_dashboard(user_id: str):
         project_ids = [p['id'] for p in projects]
 
         # Query 3: Bulk fetch ALL milestones for all projects
-        milestones_result = supabase.table("milestones").select(
-            "id, project_id"
-        ).in_("project_id", project_ids).execute()
-        all_milestones = milestones_result.data or []
+        all_milestones = get_milestones_for_projects(project_ids)
 
         # Build milestone_id -> project_id mapping
         milestone_to_project: dict[str, str] = {}
@@ -123,10 +125,7 @@ def get_dashboard(user_id: str):
         all_task_ids: list[str] = []
 
         if milestone_ids:
-            tasks_result = supabase.table("tasks").select(
-                "id, milestone_id"
-            ).in_("milestone_id", milestone_ids).execute()
-            all_tasks = tasks_result.data or []
+            all_tasks = get_tasks_for_milestones(milestone_ids)
 
             for t in all_tasks:
                 all_task_ids.append(t['id'])
@@ -139,14 +138,11 @@ def get_dashboard(user_id: str):
         completion_dates: list[str] = []
 
         if all_task_ids:
-            progress_result = supabase.table("user_progress").select(
-                "task_id, status, completed_at"
-            ).eq("user_id", user_id).in_("task_id", all_task_ids).execute()
-            all_progress = progress_result.data or []
+            all_progress = get_user_progress_for_task_ids(user_id, all_task_ids)
 
             # Build a task_id -> project_id lookup
             task_to_project: dict[str, str] = {}
-            for t in (tasks_result.data or []):
+            for t in all_tasks:
                 pid = milestone_to_project.get(t['milestone_id'])
                 if pid:
                     task_to_project[t['id']] = pid
@@ -215,5 +211,12 @@ def get_dashboard(user_id: str):
         }), 200
 
     except Exception as e:
+        if is_transient_supabase_error(e):
+            logger.warning(
+                "upstream_unavailable endpoint=%s error_type=%s",
+                f"/api/dashboard/{user_id}",
+                type(e).__name__,
+            )
+            return jsonify({'success': False, 'error': 'Upstream service temporarily unavailable'}), 503
         print(f"Dashboard error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

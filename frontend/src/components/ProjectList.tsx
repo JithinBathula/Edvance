@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '../App';
 import { authFetch } from '../utils/authFetch';
@@ -57,38 +57,51 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
     const [assignedProjects, setAssignedProjects] = useState<AssignedProject[]>([]);
     const [assignedLoading, setAssignedLoading] = useState(false);
     const [startingAssignment, setStartingAssignment] = useState<string | null>(null);
+    const projectsFetchInFlightRef = useRef(false);
+    const assignmentsFetchInFlightRef = useRef(false);
+    const isMountedRef = useRef(true);
 
     useEffect(() => {
+        isMountedRef.current = true;
         fetchProjects();
         fetchAssignedProjects();
+        return () => {
+            isMountedRef.current = false;
+        };
     }, [user.id]);
 
     const fetchProjects = async () => {
+        if (projectsFetchInFlightRef.current) return;
+        projectsFetchInFlightRef.current = true;
         try {
             const response = await authFetch('/progress/projects');
             const data = await response.json();
             if (data.success) {
-                setProjects(data.projects);
+                if (isMountedRef.current) setProjects(data.projects);
             }
         } catch (err) {
             console.error('Error fetching projects:', err);
         } finally {
-            setLoading(false);
+            projectsFetchInFlightRef.current = false;
+            if (isMountedRef.current) setLoading(false);
         }
     };
 
     const fetchAssignedProjects = async () => {
+        if (assignmentsFetchInFlightRef.current) return;
+        assignmentsFetchInFlightRef.current = true;
         try {
-            setAssignedLoading(true);
+            if (isMountedRef.current) setAssignedLoading(true);
             const response = await authFetch('/assignments/my');
             const data = await response.json();
             if (data.success) {
-                setAssignedProjects(data.assignments);
+                if (isMountedRef.current) setAssignedProjects(data.assignments);
             }
         } catch (err) {
             console.error('Error fetching assignments:', err);
         } finally {
-            setAssignedLoading(false);
+            assignmentsFetchInFlightRef.current = false;
+            if (isMountedRef.current) setAssignedLoading(false);
         }
     };
 

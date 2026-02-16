@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '../../App';
 import { authFetch } from '../../utils/authFetch';
@@ -89,8 +89,13 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
   const [refreshing, setRefreshing] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [projectCache, setProjectCache] = useState<Record<string, ProjectDetail>>({});
+  const classesDataInFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const feedbackHydrationInFlightRef = useRef(false);
 
   const fetchClassesData = useCallback(async (isRefresh = false, refreshClassroomId?: string | null) => {
+    if (classesDataInFlightRef.current) return;
+    classesDataInFlightRef.current = true;
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
@@ -105,18 +110,20 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
 
       if (classroomsData.success) {
         const nextClassrooms = classroomsData.classrooms || [];
-        setClassrooms(nextClassrooms);
-        setSelectedClassroomId((prev) => {
-          if (prev && nextClassrooms.some((c: Classroom) => c.id === prev)) return prev;
-          return nextClassrooms[0]?.id || null;
-        });
+        if (isMountedRef.current) {
+          setClassrooms(nextClassrooms);
+          setSelectedClassroomId((prev) => {
+            if (prev && nextClassrooms.some((c: Classroom) => c.id === prev)) return prev;
+            return nextClassrooms[0]?.id || null;
+          });
+        }
       } else {
         toast.error(classroomsData.error || 'Failed to load classrooms');
       }
 
       if (assignmentsData.success) {
         const nextAssignments = assignmentsData.assignments || [];
-        setAssignments(nextAssignments);
+        if (isMountedRef.current) setAssignments(nextAssignments);
 
         if (isRefresh && refreshClassroomId) {
           const projectIdsToRefetch = nextAssignments
@@ -125,13 +132,15 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
             .filter((id: string | null): id is string => Boolean(id));
 
           if (projectIdsToRefetch.length > 0) {
-            setProjectCache((prev) => {
-              const next = { ...prev };
-              for (const projectId of projectIdsToRefetch) {
-                delete next[projectId];
-              }
-              return next;
-            });
+            if (isMountedRef.current) {
+              setProjectCache((prev) => {
+                const next = { ...prev };
+                for (const projectId of projectIdsToRefetch) {
+                  delete next[projectId];
+                }
+                return next;
+              });
+            }
           }
         }
       } else {
@@ -141,13 +150,20 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
       console.error('Failed to fetch classes data:', error);
       toast.error('Failed to load classes data');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      classesDataInFlightRef.current = false;
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     void fetchClassesData();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [fetchClassesData, user.id]);
 
   const selectedClassroom = useMemo(
@@ -162,6 +178,7 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
 
   useEffect(() => {
     const hydrateFeedbackProjects = async () => {
+      if (feedbackHydrationInFlightRef.current) return;
       if (!selectedClassroomId) return;
 
       const projectIds = classAssignments
@@ -170,12 +187,13 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
         .filter((projectId) => !projectCache[projectId]);
 
       if (projectIds.length === 0) {
-        setFeedbackLoading(false);
+        if (isMountedRef.current) setFeedbackLoading(false);
         return;
       }
 
       try {
-        setFeedbackLoading(true);
+        feedbackHydrationInFlightRef.current = true;
+        if (isMountedRef.current) setFeedbackLoading(true);
         const details = await Promise.all(
           projectIds.map(async (projectId) => {
             const response = await authFetch(`/progress/projects/${projectId}/full`);
@@ -185,17 +203,20 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
           })
         );
 
-        setProjectCache((prev) => {
-          const next = { ...prev };
-          for (const detail of details) {
-            if (detail?.id) next[detail.id] = detail;
-          }
-          return next;
-        });
+        if (isMountedRef.current) {
+          setProjectCache((prev) => {
+            const next = { ...prev };
+            for (const detail of details) {
+              if (detail?.id) next[detail.id] = detail;
+            }
+            return next;
+          });
+        }
       } catch (error) {
         console.error('Failed to load class feedback details:', error);
       } finally {
-        setFeedbackLoading(false);
+        feedbackHydrationInFlightRef.current = false;
+        if (isMountedRef.current) setFeedbackLoading(false);
       }
     };
 

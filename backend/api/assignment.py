@@ -4,6 +4,7 @@ Teachers create/manage assignments; students view and start them.
 """
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
+import logging
 
 from api.middleware import require_auth, require_teacher
 from db.supabase_client import (
@@ -21,9 +22,11 @@ from db.supabase_client import (
     get_project_by_id,
     get_project_full_detail,
     get_total_tasks_for_projects,
+    is_transient_supabase_error,
 )
 
 assignment_bp = Blueprint("assignment", __name__, url_prefix="/api/assignments")
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -176,28 +179,38 @@ def update_assignment_route(assignment_id: str):
 @require_auth
 def my_assignments():
     """List all assignments for the current student."""
-    rows = get_student_assignments_for_user(g.user_id)
+    try:
+        rows = get_student_assignments_for_user(g.user_id)
 
-    assignments = []
-    for r in rows:
-        a = r.get("assignments", {})
-        classroom = a.get("classrooms", {}) if isinstance(a.get("classrooms"), dict) else {}
-        assignments.append({
-            "id": r["id"],
-            "assignment_id": a.get("id"),
-            "title": a.get("title", ""),
-            "description": a.get("description"),
-            "due_date": a.get("due_date"),
-            "classroom_name": classroom.get("name", ""),
-            "classroom_id": classroom.get("id", ""),
-            "status": r["status"],
-            "project_id": r.get("project_id"),
-            "started_at": r.get("started_at"),
-            "completed_at": r.get("completed_at"),
-            "template_project_id": a.get("template_project_id"),
-        })
+        assignments = []
+        for r in rows:
+            a = r.get("assignments", {})
+            classroom = a.get("classrooms", {}) if isinstance(a.get("classrooms"), dict) else {}
+            assignments.append({
+                "id": r["id"],
+                "assignment_id": a.get("id"),
+                "title": a.get("title", ""),
+                "description": a.get("description"),
+                "due_date": a.get("due_date"),
+                "classroom_name": classroom.get("name", ""),
+                "classroom_id": classroom.get("id", ""),
+                "status": r["status"],
+                "project_id": r.get("project_id"),
+                "started_at": r.get("started_at"),
+                "completed_at": r.get("completed_at"),
+                "template_project_id": a.get("template_project_id"),
+            })
 
-    return jsonify({"success": True, "assignments": assignments}), 200
+        return jsonify({"success": True, "assignments": assignments}), 200
+    except Exception as exc:
+        if is_transient_supabase_error(exc):
+            logger.warning(
+                "upstream_unavailable endpoint=%s error_type=%s",
+                "/api/assignments/my",
+                type(exc).__name__,
+            )
+            return jsonify({'success': False, 'error': 'Upstream service temporarily unavailable'}), 503
+        raise
 
 
 @assignment_bp.route("/<assignment_id>/start", methods=["POST"])
