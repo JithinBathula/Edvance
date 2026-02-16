@@ -42,15 +42,7 @@ _TRANSIENT_EXCEPTION_TYPES = (
     httpcore.NetworkError,
 )
 
-_shared_httpx_client = httpx.Client(
-    http2=False,
-    timeout=httpx.Timeout(connect=5.0, read=20.0, write=20.0, pool=5.0),
-    limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-    follow_redirects=True,
-)
-
 supabase_options = SyncClientOptions(
-    httpx_client=_shared_httpx_client,
     postgrest_client_timeout=20,
     storage_client_timeout=20,
     function_client_timeout=10,

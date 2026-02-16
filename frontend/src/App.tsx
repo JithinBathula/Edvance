@@ -9,9 +9,8 @@ import { LoginScreen } from "./components/LoginScreen";
 import { SignupScreen } from "./components/SignupScreen";
 import { AuthCallback } from "./components/AuthCallback";
 import { OnboardingScreen } from "./components/OnboardingScreen";
-import { LandingPage } from "./components/LandingPage";
-import { ProjectList } from "./components/ProjectList";
 import { CustomProjectChat } from "./components/CustomProjectChat";
+import { StudentLayout } from "./components/student/StudentLayout";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
@@ -21,6 +20,9 @@ import { TeacherSettings } from "./components/teacher/TeacherSettings";
 import { AssignmentCreate } from "./components/teacher/AssignmentCreate";
 import { AssignmentDetail } from "./components/teacher/AssignmentDetail";
 import { StudentDashboard } from "./components/StudentDashboard";
+import { StudentClassesPanel } from "./components/student/StudentClassesPanel";
+import { StudentSettingsPanel } from "./components/StudentSettings";
+import { ProjectList } from "./components/ProjectList";
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -388,40 +390,17 @@ export default function App() {
             }
           />
           <Route
-            path="/dashboard"
-            element={
-              <RequireUser>
-                <LandingPage
-                  user={user!}
-                  onStartCustomProject={() => navigate("/projects")}
-                  onOpenDashboard={() => navigate("/student-dashboard")}
-                  onLogout={handleLogout}
-                />
-              </RequireUser>
-            }
-          />
-          <Route
-            path="/projects"
-            element={
-              <RequireUser>
-                <ProjectList
-                  user={user!}
-                  onSelectProject={handleProjectReady}
-                  onCreateNew={() => navigate("/custom-project")}
-                  onBack={handleBackToLanding}
-                />
-              </RequireUser>
-            }
-          />
-          <Route
             path="/custom-project"
             element={
               <RequireUser>
-                <CustomProjectChat
-                  user={user!}
-                  onProjectCreated={handleRequirementsReady}
-                  onBack={() => navigate("/projects")}
-                />
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <CustomProjectChat
+                    user={user!}
+                    onProjectCreated={handleRequirementsReady}
+                    onBack={() => navigate("/student-dashboard")}
+                    embedded
+                  />
+                </StudentLayout>
               </RequireUser>
             }
           />
@@ -430,12 +409,14 @@ export default function App() {
             element={
               <RequireUser>
                 {projectRequirements ? (
-                  <ProjectPlanning
-                    user={user!}
-                    requirements={projectRequirements}
-                    onProjectReady={handleProjectReady}
-                    onBack={() => navigate("/custom-project")}
-                  />
+                  <StudentLayout user={user!} onLogout={handleLogout}>
+                    <ProjectPlanning
+                      user={user!}
+                      requirements={projectRequirements}
+                      onProjectReady={handleProjectReady}
+                      onBack={() => navigate("/custom-project")}
+                    />
+                  </StudentLayout>
                 ) : (
                   <Navigate to="/custom-project" replace />
                 )}
@@ -468,10 +449,54 @@ export default function App() {
                   onBack={handleBackToLanding}
                   onSelectProject={handleProjectReady}
                   onLogout={handleLogout}
-                  onProfilePictureUpdate={handleProfilePictureUpdate}
-                  onProfileUpdate={handleProfileUpdate}
-                  onProjectCreated={handleRequirementsReady}
                 />
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/student/classes"
+            element={
+              <RequireUser>
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                    <StudentClassesPanel user={user!} onSelectProject={handleProjectReady} />
+                  </div>
+                </StudentLayout>
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/student/projects"
+            element={
+              <RequireUser>
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                    <ProjectList
+                      user={user!}
+                      onSelectProject={handleProjectReady}
+                      onCreateNew={() => navigate('/custom-project')}
+                      onBack={() => navigate('/student-dashboard')}
+                      embedded
+                    />
+                  </div>
+                </StudentLayout>
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/student/settings"
+            element={
+              <RequireUser>
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                    <StudentSettingsPanel
+                      user={user!}
+                      onLogout={handleLogout}
+                      onProfilePictureUpdate={handleProfilePictureUpdate}
+                      onProfileUpdate={handleProfileUpdate}
+                    />
+                  </div>
+                </StudentLayout>
               </RequireUser>
             }
           />
