@@ -488,7 +488,7 @@ export default function App() {
             element={
               <RequireUser>
                 <StudentLayout user={user!} onLogout={handleLogout}>
-                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                  <div className="px-6 py-5 flex-1 overflow-y-auto scrollbar-thin">
                     <StudentSettingsPanel
                       user={user!}
                       onLogout={handleLogout}

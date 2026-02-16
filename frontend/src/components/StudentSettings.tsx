@@ -169,7 +169,7 @@ export function StudentSettingsPanel({ user, onLogout, onProfilePictureUpdate, o
 
   return (
     <>
-      <div className="mx-auto max-w-3xl">
+      <div className="w-full">
         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0} className="mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Settings</h2>
           <p className="mt-1 text-sm text-slate-500">Manage your profile, preferences, and account</p>
