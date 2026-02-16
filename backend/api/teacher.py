@@ -28,6 +28,7 @@ from db.supabase_client import (
     get_bulk_student_projects,
     get_total_tasks_for_projects,
     get_bulk_chat_message_counts,
+    get_recent_chat_questions,
     get_chat_message_counts_for_student,
     update_classroom,
     remove_student_from_classroom,
@@ -645,16 +646,37 @@ def get_classroom_analytics(classroom_id: str):
 
     # ── AI usage ──
     ai_usage_data = get_bulk_chat_message_counts(student_ids, all_project_ids)
+    student_name_by_id = {
+        s['users']['id']: s['users'].get('name', 'Unknown')
+        for s in students_raw
+        if s.get('users')
+    }
+    project_title_by_id = {p['id']: p.get('title', 'Untitled project') for p in all_projects}
     total_questions = 0
     total_responses = 0
     for uid_counts in ai_usage_data.values():
         total_questions += uid_counts.get('user', 0)
         total_responses += uid_counts.get('assistant', 0)
+
+    recent_questions_raw = get_recent_chat_questions(student_ids, all_project_ids, limit=8)
+    recent_questions = []
+    for q in recent_questions_raw:
+        content = (q.get('content') or '').strip()
+        if not content:
+            continue
+        recent_questions.append({
+            'student_name': student_name_by_id.get(q.get('user_id'), 'Unknown'),
+            'project_title': project_title_by_id.get(q.get('project_id'), 'Untitled project'),
+            'content': content,
+            'created_at': q.get('created_at'),
+        })
+
     num_students = len(student_ids) or 1
     ai_usage = {
         'total_questions': total_questions,
         'total_responses': total_responses,
         'avg_per_student': round(total_questions / num_students, 1),
+        'recent_questions': recent_questions,
     }
 
     return jsonify({
@@ -665,7 +687,7 @@ def get_classroom_analytics(classroom_id: str):
         'project_stats': {
             'total_started': total_started,
             'total_completed': total_completed_projects,
-            'avg_time_per_task_hours': avg_time,
+            'avg_xp_per_student': round(sum(s['xp'] for s in leaderboard) / len(leaderboard), 1) if leaderboard else 0,
             'most_popular_vm': most_popular_vm,
         },
         'students_needing_help': students_needing_help,

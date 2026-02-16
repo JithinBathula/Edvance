@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Clock, Target, AlertCircle, CheckCircle2, Users, MessageSquare, BookOpen } from 'lucide-react';
+import { Star, Target, AlertCircle, CheckCircle2, Users, MessageSquare } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -11,7 +11,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
 } from 'recharts';
 import type { Analytics } from './classroomDetail.types';
 
@@ -25,12 +24,6 @@ const REASON_LABELS: Record<string, string> = {
   started_never_completed: 'Stuck on first task',
   no_activity: 'Never started',
 };
-
-function getCompletionColor(rate: number): string {
-  if (rate >= 75) return '#10b981'; // green
-  if (rate >= 25) return '#f59e0b'; // amber
-  return '#ef4444'; // red
-}
 
 export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
   if (!analytics) {
@@ -50,15 +43,6 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
   ];
 
   const topLeaderboard = analytics.xp_leaderboard.slice(0, 10);
-
-  const assignmentChartData = (analytics.assignment_analytics || []).map((a) => ({
-    title: a.title.length > 25 ? a.title.slice(0, 22) + '...' : a.title,
-    fullTitle: a.title,
-    completed: a.completed,
-    total: a.total,
-    rate: a.total > 0 ? Math.round((a.completed / a.total) * 100) : 0,
-    onTimeRate: a.total > 0 && a.due_date ? Math.round((a.on_time_count / a.total) * 100) : null,
-  }));
 
   return (
     <div className="space-y-6">
@@ -102,17 +86,17 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
       )}
 
       {/* Metric Cards — all 4 slots filled */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Time Per Task</CardTitle>
-            <Clock className="h-4 w-4 text-teal-600" />
+            <CardTitle className="text-sm font-medium">Avg XP Per Student</CardTitle>
+            <Star className="h-4 w-4 text-teal-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {analytics.project_stats.avg_time_per_task_hours.toFixed(1)}h
+              {analytics.project_stats.avg_xp_per_student.toFixed(1)}
             </div>
-            <p className="text-xs text-gray-600 mt-1">Average across all tasks</p>
+            <p className="text-xs text-gray-600 mt-1">Average experience points</p>
           </CardContent>
         </Card>
 
@@ -161,7 +145,7 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Progress Distribution */}
         <Card>
           <CardHeader>
@@ -225,143 +209,101 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
         </Card>
       </div>
 
-      {/* Assignment Performance */}
-      {assignmentChartData.length > 0 && (
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* AI Usage Card */}
+        {analytics.ai_usage && (
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-teal-600" />
+                AI Tutor Usage
+              </CardTitle>
+              <CardDescription>
+                How students are using the AI assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-full flex flex-col gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {analytics.ai_usage.total_questions}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">Total Questions Asked</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {analytics.ai_usage.total_responses}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">Total AI Responses</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {analytics.ai_usage.avg_per_student}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">Avg Questions per Student</p>
+                </div>
+              </div>
+
+              <div className="pt-1 border-t">
+                <p className="text-sm font-medium text-gray-900 mb-3">Recent questions</p>
+                {analytics.ai_usage.recent_questions?.length ? (
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {analytics.ai_usage.recent_questions.map((q, idx) => (
+                      <div key={`${q.student_name}-${idx}`} className="rounded-md border bg-gray-50 p-3">
+                        <p className="text-sm text-gray-900 line-clamp-2">{q.content}</p>
+                        <p className="mt-1 text-xs text-gray-600">
+                          {q.student_name} · {q.project_title}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No recent questions yet.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* XP Leaderboard */}
+        <Card className={!analytics.ai_usage ? 'lg:col-span-2 h-full' : 'h-full'}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-teal-600" />
-              Assignment Performance
-            </CardTitle>
+            <CardTitle>XP Leaderboard</CardTitle>
             <CardDescription>
-              Per-assignment completion rates
+              Top 10 students by experience points
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(200, assignmentChartData.length * 50 + 40)}>
+            <ResponsiveContainer width="100%" height={400}>
               <BarChart
-                data={assignmentChartData}
+                data={topLeaderboard}
                 layout="vertical"
-                margin={{ left: 20, right: 40 }}
+                margin={{ left: 12, right: 12 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                <XAxis type="number" />
                 <YAxis
                   type="category"
-                  dataKey="title"
-                  width={160}
-                  tick={{ fontSize: 12 }}
+                  dataKey="student_name"
+                  width={72}
                 />
-                <Tooltip
-                  formatter={(value: number) => [`${value}%`, 'Completion']}
-                  labelFormatter={(_label, payload) => {
-                    const item = payload?.[0]?.payload as typeof assignmentChartData[number] | undefined;
-                    return item ? `${item.fullTitle} (${item.completed}/${item.total})` : _label;
-                  }}
+                <Tooltip />
+                <Bar
+                  dataKey="xp"
+                  fill="url(#colorXp)"
+                  radius={[0, 8, 8, 0]}
                 />
-                <Bar dataKey="rate" radius={[0, 8, 8, 0]}>
-                  {assignmentChartData.map((entry, index) => (
-                    <Cell key={index} fill={getCompletionColor(entry.rate)} />
-                  ))}
-                </Bar>
+                <defs>
+                  <linearGradient id="colorXp" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#0d9488" />
+                    <stop offset="100%" stopColor="#14b8a6" />
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
-            {assignmentChartData.some((a) => a.onTimeRate !== null) && (
-              <div className="mt-4 space-y-2">
-                {analytics.assignment_analytics
-                  .filter((a) => a.due_date)
-                  .map((a) => (
-                    <div key={a.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 truncate max-w-[60%]">{a.title}</span>
-                      <span className="text-gray-500">
-                        On-time: {a.total > 0 ? Math.round((a.on_time_count / a.total) * 100) : 0}%
-                        {a.avg_completion_hours !== null && (
-                          <span className="ml-3">Avg: {a.avg_completion_hours}h</span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            )}
           </CardContent>
         </Card>
-      )}
-
-      {/* AI Usage Card */}
-      {analytics.ai_usage && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-teal-600" />
-              AI Tutor Usage
-            </CardTitle>
-            <CardDescription>
-              How students are using the AI assistant
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">
-                  {analytics.ai_usage.total_questions}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Total Questions Asked</p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">
-                  {analytics.ai_usage.total_responses}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Total AI Responses</p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">
-                  {analytics.ai_usage.avg_per_student}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Avg Questions per Student</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* XP Leaderboard */}
-      <Card>
-        <CardHeader>
-          <CardTitle>XP Leaderboard</CardTitle>
-          <CardDescription>
-            Top 10 students by experience points
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart
-              data={topLeaderboard}
-              layout="vertical"
-              margin={{ left: 100 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis
-                type="category"
-                dataKey="student_name"
-                width={100}
-              />
-              <Tooltip />
-              <Bar
-                dataKey="xp"
-                fill="url(#colorXp)"
-                radius={[0, 8, 8, 0]}
-              />
-              <defs>
-                <linearGradient id="colorXp" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#0d9488" />
-                  <stop offset="100%" stopColor="#14b8a6" />
-                </linearGradient>
-              </defs>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }

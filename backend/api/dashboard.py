@@ -4,14 +4,20 @@ Provides aggregated dashboard data for student view.
 """
 from flask import Blueprint, jsonify
 from datetime import datetime, timedelta
+import logging
 
 from db.supabase_client import (
     get_user_by_id,
     get_user_projects,
-    supabase
+    get_assignments_with_classrooms,
+    get_milestones_for_projects,
+    get_tasks_for_milestones,
+    get_user_progress_for_task_ids,
+    is_transient_supabase_error,
 )
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
+logger = logging.getLogger(__name__)
 
 
 def extract_concepts_from_projects(projects: list) -> list:
@@ -104,12 +110,20 @@ def get_dashboard(user_id: str):
             }), 200
 
         project_ids = [p['id'] for p in projects]
+        source_assignment_ids = [p.get('source_assignment_id') for p in projects if p.get('source_assignment_id')]
+
+        assignment_classroom_name: dict[str, str] = {}
+        if source_assignment_ids:
+            assignment_rows = get_assignments_with_classrooms(source_assignment_ids)
+            for row in assignment_rows:
+                classroom = row.get('classrooms') or {}
+                if isinstance(classroom, dict) and classroom.get('name'):
+                    assignment_classroom_name[row['id']] = classroom['name']
+                elif isinstance(classroom, list) and classroom and isinstance(classroom[0], dict) and classroom[0].get('name'):
+                    assignment_classroom_name[row['id']] = classroom[0]['name']
 
         # Query 3: Bulk fetch ALL milestones for all projects
-        milestones_result = supabase.table("milestones").select(
-            "id, project_id"
-        ).in_("project_id", project_ids).execute()
-        all_milestones = milestones_result.data or []
+        all_milestones = get_milestones_for_projects(project_ids)
 
         # Build milestone_id -> project_id mapping
         milestone_to_project: dict[str, str] = {}
@@ -123,10 +137,7 @@ def get_dashboard(user_id: str):
         all_task_ids: list[str] = []
 
         if milestone_ids:
-            tasks_result = supabase.table("tasks").select(
-                "id, milestone_id"
-            ).in_("milestone_id", milestone_ids).execute()
-            all_tasks = tasks_result.data or []
+            all_tasks = get_tasks_for_milestones(milestone_ids)
 
             for t in all_tasks:
                 all_task_ids.append(t['id'])
@@ -139,14 +150,11 @@ def get_dashboard(user_id: str):
         completion_dates: list[str] = []
 
         if all_task_ids:
-            progress_result = supabase.table("user_progress").select(
-                "task_id, status, completed_at"
-            ).eq("user_id", user_id).in_("task_id", all_task_ids).execute()
-            all_progress = progress_result.data or []
+            all_progress = get_user_progress_for_task_ids(user_id, all_task_ids)
 
             # Build a task_id -> project_id lookup
             task_to_project: dict[str, str] = {}
-            for t in (tasks_result.data or []):
+            for t in all_tasks:
                 pid = milestone_to_project.get(t['milestone_id'])
                 if pid:
                     task_to_project[t['id']] = pid
@@ -184,6 +192,8 @@ def get_dashboard(user_id: str):
                 'updated_at': project.get('updated_at'),
                 'estimated_hours': max(1, total // 2),
                 'xp_reward': total * 10,
+                'source_assignment_id': project.get('source_assignment_id'),
+                'classroom_name': assignment_classroom_name.get(project.get('source_assignment_id', '')),
             }
 
             if project['status'] == 'completed':
@@ -215,5 +225,12 @@ def get_dashboard(user_id: str):
         }), 200
 
     except Exception as e:
+        if is_transient_supabase_error(e):
+            logger.warning(
+                "upstream_unavailable endpoint=%s error_type=%s",
+                f"/api/dashboard/{user_id}",
+                type(e).__name__,
+            )
+            return jsonify({'success': False, 'error': 'Upstream service temporarily unavailable'}), 503
         print(f"Dashboard error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -4,17 +4,19 @@ Provides @require_auth and @require_teacher decorators.
 """
 import os
 import functools
+import logging
 import jwt
 from jwt import PyJWKClient
 from flask import request, jsonify, g
 
-from db.supabase_client import get_user_by_id
+from db.supabase_client import get_user_by_id, is_transient_supabase_error
 
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 if not SUPABASE_URL:
     raise RuntimeError("SUPABASE_URL environment variable is required")
 
 jwks_client = PyJWKClient(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json")
+logger = logging.getLogger(__name__)
 
 
 def require_auth(f):
@@ -54,7 +56,22 @@ def require_auth(f):
         if not auth_user_id:
             return jsonify({'success': False, 'error': 'Invalid token: missing sub'}), 401
 
-        user = get_user_by_id(auth_user_id)
+        try:
+            user = get_user_by_id(auth_user_id)
+        except Exception as exc:
+            if is_transient_supabase_error(exc):
+                logger.warning(
+                    "upstream_unavailable endpoint=%s stage=auth_user_lookup error_type=%s",
+                    request.path,
+                    type(exc).__name__,
+                )
+                return jsonify({'success': False, 'error': 'Upstream service temporarily unavailable'}), 503
+            logger.exception(
+                "auth_user_lookup_failed endpoint=%s error_type=%s",
+                request.path,
+                type(exc).__name__,
+            )
+            return jsonify({'success': False, 'error': 'Authentication lookup failed'}), 503
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 401
 
