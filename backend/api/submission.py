@@ -7,6 +7,23 @@ from flask import Blueprint, request, jsonify, g
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
 from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks
+
+
+def _merge_feedback(user_id: str, task_id: str, new_message: str) -> dict:
+    """Build feedback dict preserving any existing teacher_feedback fields."""
+    new_feedback = {'message': new_message}
+    try:
+        existing = supabase.table('user_progress').select('feedback').eq(
+            'user_id', user_id
+        ).eq('task_id', task_id).execute()
+        if existing.data and existing.data[0].get('feedback'):
+            old = existing.data[0]['feedback']
+            for key in ('teacher_feedback', 'teacher_feedback_at', 'teacher_name'):
+                if key in old:
+                    new_feedback[key] = old[key]
+    except Exception:
+        pass
+    return new_feedback
 from services.git_repo import read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
@@ -99,20 +116,30 @@ def evaluate_submission():
 
         try:
             if result.is_correct:
+                # Check if task was already completed (prevent double XP)
+                already_completed = False
+                try:
+                    existing = supabase.table("user_progress").select("status").eq(
+                        "user_id", user_id).eq("task_id", task_id).maybe_single().execute()
+                    already_completed = existing.data and existing.data.get("status") == "completed"
+                except Exception:
+                    pass
+
                 update_progress(
                     user_id=user_id,
                     task_id=task_id,
                     status='completed',
                     submitted_code=code,
                     passed=True,
-                    feedback={'message': result.feedback}
+                    feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
 
-                # Award XP for task completion (atomic increment)
-                try:
-                    new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
-                except Exception as xp_error:
-                    print(f"Warning: Failed to update XP: {xp_error}")
+                # Award XP only on first completion
+                if not already_completed:
+                    try:
+                        new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
+                    except Exception as xp_error:
+                        print(f"Warning: Failed to update XP: {xp_error}")
 
                 # Check if this completes an assignment
                 try:
@@ -232,7 +259,7 @@ def evaluate_submission():
                     status='in_progress',
                     submitted_code=code,
                     passed=False,
-                    feedback={'message': result.feedback}
+                    feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
         except Exception:
             pass  # Non-critical: progress update failure doesn't affect response

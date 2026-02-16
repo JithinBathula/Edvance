@@ -30,6 +30,7 @@ import {
   ArrowRight,
   Info,
   Lock,
+  GraduationCap,
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
 
@@ -265,6 +266,12 @@ type Task = {
   testSpec?: {
     expected_state?: string;
     verification_code?: string;
+  };
+  feedback?: {
+    message?: string;
+    teacher_feedback?: string;
+    teacher_feedback_at?: string;
+    teacher_name?: string;
   };
 };
 
@@ -945,6 +952,24 @@ export function ProjectWorkspace({
                   Ask Cody
                 </button>
               </div>
+
+              {/* Teacher Feedback Banner */}
+              {safeCurrentTask.feedback?.teacher_feedback && (
+                <div className="mb-6 rounded-xl p-4 border border-blue-200" style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)' }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <GraduationCap className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-blue-800 text-sm">
+                      Feedback from {safeCurrentTask.feedback.teacher_name || 'your teacher'}
+                    </span>
+                    {safeCurrentTask.feedback.teacher_feedback_at && (
+                      <span className="text-xs text-blue-500">
+                        {new Date(safeCurrentTask.feedback.teacher_feedback_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-blue-900 text-[15px] leading-relaxed">{safeCurrentTask.feedback.teacher_feedback}</p>
+                </div>
+              )}
 
               {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
                 <div className="mb-6">

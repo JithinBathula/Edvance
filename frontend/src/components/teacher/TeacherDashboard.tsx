@@ -8,11 +8,8 @@ import {
   CheckCircle,
   Plus,
   Copy,
-  LogOut,
-  GraduationCap,
   Play,
   FolderPlus,
-  FileText,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -28,6 +25,7 @@ import { Input } from '../ui/input';
 import { authFetch } from '../../utils/authFetch';
 import { timeAgo } from '../../utils/formatTime';
 import { User } from '../../App';
+import { TeacherLayout } from './TeacherLayout';
 
 interface TeacherDashboardProps {
   user: User;
@@ -60,7 +58,8 @@ interface RecentActivity {
 
 export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     total_classrooms: 0,
     total_students: 0,
@@ -97,6 +96,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
   };
 
@@ -196,63 +196,18 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
     }
   };
 
-  if (loading) {
+  if (initialLoad) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent"></div>
-      </div>
+      <TeacherLayout onLogout={onLogout}>
+        <div className="flex h-full items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent"></div>
+        </div>
+      </TeacherLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-        {/* Logo */}
-        <div className="flex h-16 items-center border-b border-gray-200 px-6">
-          <GraduationCap className="mr-2 h-6 w-6 text-teal-600" />
-          <span className="bg-gradient-to-r from-teal-600 to-amber-500 bg-clip-text text-xl font-bold text-transparent">
-            Edvance
-          </span>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          <button className="flex w-full items-center rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-600">
-            <Activity className="mr-3 h-5 w-5" />
-            Dashboard
-          </button>
-          <button
-            onClick={() => navigate('/teacher/create-assignment')}
-            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <FileText className="mr-3 h-5 w-5" />
-            Create Assignment
-          </button>
-          <button
-            onClick={() => navigate('/teacher/settings')}
-            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <Target className="mr-3 h-5 w-5" />
-            Settings
-          </button>
-        </nav>
-
-        {/* Logout */}
-        <div className="border-t border-gray-200 p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={onLogout}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="ml-64 flex-1 overflow-auto">
+    <TeacherLayout onLogout={onLogout}>
         <div className="mx-auto max-w-7xl p-8">
           {/* Header */}
           <div className="mb-8">
@@ -433,7 +388,6 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
             </Card>
           </div>
         </div>
-      </main>
 
       {/* Create Classroom Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -503,6 +457,6 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </TeacherLayout>
   );
 }
