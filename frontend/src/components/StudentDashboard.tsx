@@ -494,10 +494,42 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
                             <div className="grid grid-cols-4 gap-3">
                                 {[
-                                    { value: stats.total_projects, label: 'Projects', note: `${stats.in_progress_projects} in progress`, color: 'text-teal-700' },
-                                    { value: stats.current_streak, label: 'Day Streak', note: stats.current_streak > 0 ? 'Keep it going' : 'Start today', color: 'text-orange-700' },
-                                    { value: stats.total_xp, label: 'Total XP', note: `${Math.max(levelInfo.next - stats.total_xp, 0)} to next level`, color: 'text-amber-700' },
-                                    { value: `${stats.completed_projects}/${stats.total_projects || 0}`, label: 'Completed', note: `${overallPercent}% overall`, color: 'text-emerald-700' },
+                                    {
+                                        value: stats.total_projects,
+                                        label: 'Projects',
+                                        note: `${stats.in_progress_projects} in progress`,
+                                        trend: `${stats.completed_projects} done`,
+                                        progress: Math.min((stats.completed_projects / Math.max(stats.total_projects, 1)) * 100, 100),
+                                        color: 'text-teal-700',
+                                        barColor: 'bg-teal-600'
+                                    },
+                                    {
+                                        value: stats.current_streak,
+                                        label: 'Day Streak',
+                                        note: stats.current_streak > 0 ? 'Keep it going' : 'Start today',
+                                        trend: `${Math.max(7 - stats.current_streak, 0)} to 7d goal`,
+                                        progress: Math.min((stats.current_streak / 7) * 100, 100),
+                                        color: 'text-orange-700',
+                                        barColor: 'bg-orange-600'
+                                    },
+                                    {
+                                        value: stats.total_xp,
+                                        label: 'Total XP',
+                                        note: `${Math.max(levelInfo.next - stats.total_xp, 0)} to next level`,
+                                        trend: `L${levelInfo.level} -> L${levelInfo.level + 1}`,
+                                        progress: Math.min((stats.total_xp / levelInfo.next) * 100, 100),
+                                        color: 'text-amber-700',
+                                        barColor: 'bg-amber-600'
+                                    },
+                                    {
+                                        value: `${stats.completed_projects}/${stats.total_projects || 0}`,
+                                        label: 'Completed',
+                                        note: `${overallPercent}% overall`,
+                                        trend: `${totalTasks - doneTasks} pending`,
+                                        progress: overallPercent,
+                                        color: 'text-emerald-700',
+                                        barColor: 'bg-emerald-600'
+                                    },
                                 ].map((s, i) => (
                                     <motion.div
                                         key={s.label}
@@ -512,8 +544,19 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                 <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
                                                 <div className="text-sm font-semibold text-slate-700">{s.label}</div>
                                             </div>
+                                            <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                                {s.trend}
+                                            </span>
                                         </div>
                                         <p className="text-xs text-slate-400 mt-2">{s.note}</p>
+                                        <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <motion.div
+                                                className={`h-full rounded-full ${s.barColor}`}
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${s.progress}%` }}
+                                                transition={{ duration: 0.7, delay: 0.1 + i * 0.08, ease: 'easeOut' }}
+                                            />
+                                        </div>
                                     </motion.div>
                                 ))}
                             </div>
@@ -526,16 +569,19 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                             {/* Filter Tabs + Title */}
                             <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-                                <Card className="p-4 border-slate-100">
-                                    <div className="flex items-center justify-between mb-4">
+                                <Card className="p-3 border-slate-100">
+                                    <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
                                             <ListFilter className="w-4 h-4 text-teal-600" />
                                             <h2 className="font-bold text-xl text-slate-800">Projects</h2>
                                         </div>
+                                        <span className="text-xs font-medium text-slate-400">
+                                            {in_progress_projects.length} active • {completed_projects.length} completed
+                                        </span>
                                     </div>
 
                                     {/* Tabs */}
-                                    <div className="flex gap-1.5 bg-slate-100 rounded-xl p-1">
+                                    <div className="flex gap-1.5 bg-slate-100 rounded-xl p-0.5">
                                         {filterTabs.map(tab => {
                                             const isActive = filter === tab.key;
                                             return (
@@ -543,7 +589,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                     key={tab.key}
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => setFilter(tab.key)}
-                                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-none cursor-pointer transition-all ${isActive
+                                                    className={`flex-1 py-1.5 px-3 rounded-lg text-sm font-medium border-none cursor-pointer transition-all ${isActive
                                                         ? 'bg-white text-teal-700 shadow-sm'
                                                         : 'bg-transparent text-slate-400 hover:text-slate-600'
                                                         }`}
