@@ -470,6 +470,7 @@ export default function App() {
                   onLogout={handleLogout}
                   onProfilePictureUpdate={handleProfilePictureUpdate}
                   onProfileUpdate={handleProfileUpdate}
+                  onProjectCreated={handleRequirementsReady}
                 />
               </RequireUser>
             }

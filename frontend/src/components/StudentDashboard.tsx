@@ -6,6 +6,7 @@ import { BACKEND_URL } from '../utils/constants';
 import { StudentClassesPanel } from './student/StudentClassesPanel';
 import { StudentSettingsPanel } from './StudentSettings';
 import { ProjectList } from './ProjectList';
+import { CustomProjectChat } from './CustomProjectChat';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import {
@@ -31,7 +32,7 @@ import {
     Code2,
     Home,
     Users,
-
+    ArrowLeft,
     BookOpen,
     Settings,
     LogOut,
@@ -90,6 +91,7 @@ type Props = {
     onLogout: () => void;
     onProfilePictureUpdate?: (url: string) => void;
     onProfileUpdate?: (data: import('../App').OnboardingData) => void;
+    onProjectCreated?: (requirementsData: any) => void;
 };
 
 type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
@@ -185,7 +187,7 @@ function ProgressRing({ percent, size = 110, stroke = 10 }: { percent: number; s
 
 /* ───────────── Main Component ───────────── */
 
-export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onProfilePictureUpdate, onProfileUpdate }: Props) {
+export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onProfilePictureUpdate, onProfileUpdate, onProjectCreated }: Props) {
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -203,6 +205,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onPr
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const notificationsRef = useRef<HTMLDivElement | null>(null);
+    const [showCreateProject, setShowCreateProject] = useState(false);
 
     useEffect(() => {
         if (activeNav === 'Classes') setClassesKey(k => k + 1);
@@ -445,12 +448,31 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onPr
                     className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0"
                 >
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">
-                            <span className="text-slate-800">Welcome back, </span>
-                            <span className="gradient-text">{user.name?.split(' ')[0]}!</span>
-                            <span> 👋</span>
-                        </h1>
-                        <p className="text-slate-400 text-sm mt-0.5">Let's continue your coding journey</p>
+                        {showCreateProject ? (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => { setShowCreateProject(false); setActiveNav('Projects'); }}
+                                        className="text-slate-400 hover:text-teal-600 transition-colors cursor-pointer bg-transparent border-none p-0"
+                                    >
+                                        <ArrowLeft className="w-5 h-5" />
+                                    </button>
+                                    <h1 className="text-2xl font-bold tracking-tight">
+                                        <span className="gradient-text">Create Custom Project</span>
+                                    </h1>
+                                </div>
+                                <p className="text-slate-400 text-sm mt-0.5 ml-7">AI-powered project architect</p>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="text-2xl font-bold tracking-tight">
+                                    <span className="text-slate-800">Welcome back, </span>
+                                    <span className="gradient-text">{user.name?.split(' ')[0]}!</span>
+                                    <span> 👋</span>
+                                </h1>
+                                <p className="text-slate-400 text-sm mt-0.5">Let's continue your coding journey</p>
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-3 text-sm text-slate-500">
@@ -527,6 +549,16 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onPr
                 </motion.div>
 
                 {/* ── 2-Column Grid ── */}
+                {showCreateProject && onProjectCreated ? (
+                    <div className="flex-1 overflow-hidden">
+                        <CustomProjectChat
+                            user={user}
+                            onProjectCreated={onProjectCreated}
+                            onBack={() => { setShowCreateProject(false); setActiveNav('Projects'); }}
+                            embedded
+                        />
+                    </div>
+                ) : (
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
 
                     {/* Classes — lazy mount on first visit, then keep mounted */}
@@ -542,7 +574,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onPr
                             <ProjectList
                                 user={user}
                                 onSelectProject={onSelectProject}
-                                onCreateNew={() => navigate('/custom-project')}
+                                onCreateNew={() => setShowCreateProject(true)}
                                 onBack={() => setActiveNav('Home')}
                                 embedded
                                 animationKey={projectsKey}
@@ -692,7 +724,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onPr
                                         variants={listItem} initial="hidden" animate="visible" custom={0}
                                         whileHover={{ scale: 1.01, y: -2 }}
                                         whileTap={{ scale: 0.99 }}
-                                        onClick={() => navigate('/custom-project')}
+                                        onClick={() => setShowCreateProject(true)}
                                         className="cursor-pointer"
                                     >
                                         <Card className="p-4 border-slate-100 hover:shadow-md transition-shadow border-dashed">
@@ -990,6 +1022,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout, onPr
                     )}
 
                 </div>
+                )}
             </main>
         </div>
     );
