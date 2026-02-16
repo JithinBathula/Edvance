@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { User } from '../../App';
 import { authFetch } from '../../utils/authFetch';
 import { Button } from '../ui/button';
@@ -68,9 +69,18 @@ interface FeedbackSnippet {
 type Props = {
   user: User;
   onSelectProject: (project: any) => void;
+  animationKey?: number;
 };
 
-export function StudentClassesPanel({ user, onSelectProject }: Props) {
+const staggerItem = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.08, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  }),
+};
+
+export function StudentClassesPanel({ user, onSelectProject, animationKey }: Props) {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [assignments, setAssignments] = useState<AssignedProject[]>([]);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
@@ -316,7 +326,8 @@ export function StudentClassesPanel({ user, onSelectProject }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div key={animationKey} className="space-y-4">
+      <motion.div variants={staggerItem} initial="hidden" animate="visible" custom={0}>
       <Card className="p-4 border-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -345,7 +356,9 @@ export function StudentClassesPanel({ user, onSelectProject }: Props) {
           </div>
         </div>
       </Card>
+      </motion.div>
 
+      <motion.div variants={staggerItem} initial="hidden" animate="visible" custom={1}>
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-4">
           <Card className="p-3 border-slate-100">
@@ -446,6 +459,7 @@ export function StudentClassesPanel({ user, onSelectProject }: Props) {
             )}
           </Card>
 
+          <motion.div variants={staggerItem} initial="hidden" animate="visible" custom={2}>
           <Card className="p-4 border-slate-100">
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="w-4 h-4 text-teal-600" />
@@ -473,8 +487,10 @@ export function StudentClassesPanel({ user, onSelectProject }: Props) {
               </div>
             )}
           </Card>
+          </motion.div>
         </div>
       </div>
+      </motion.div>
     </div>
   );
 }

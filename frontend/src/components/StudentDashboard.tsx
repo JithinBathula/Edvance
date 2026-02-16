@@ -189,6 +189,13 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
 
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
+    const [classesKey, setClassesKey] = useState(0);
+    const [projectsKey, setProjectsKey] = useState(0);
+
+    useEffect(() => {
+        if (activeNav === 'Classes') setClassesKey(k => k + 1);
+        else if (activeNav === 'Projects') setProjectsKey(k => k + 1);
+    }, [activeNav]);
 
     useEffect(() => { fetchDashboard(); }, [user.id]);
 
@@ -341,7 +348,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 transition={{ delay: 0.1 + i * 0.05 }}
                                 whileHover={{ x: 4 }}
                                 whileTap={{ scale: 0.97 }}
-                                onClick={() => { if (isActive) return; setActiveNav(item.label); if (item.action) item.action(); }}
+                                onClick={() => { if (isActive) return; setActiveNav(item.label); }}
                                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left border-none cursor-pointer ${isActive
                                     ? 'bg-teal-500/15 text-teal-300'
                                     : 'bg-transparent text-white/40 hover:text-white/70 hover:bg-white/5'
@@ -424,21 +431,26 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                 {/* ── 3-Column Grid ── */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
-                    {activeNav === 'Classes' ? (
-                        <div className="px-6 py-5 max-w-7xl mx-auto">
-                            <StudentClassesPanel user={user} onSelectProject={onSelectProject} />
-                        </div>
-                    ) : activeNav === 'Projects' ? (
-                        <div className="px-6 py-5 max-w-7xl mx-auto">
-                            <ProjectList
-                                user={user}
-                                onSelectProject={onSelectProject}
-                                onCreateNew={() => navigate('/custom-project')}
-                                onBack={() => setActiveNav('Home')}
-                                embedded
-                            />
-                        </div>
-                    ) : (
+
+                    {/* Classes — always mounted, hidden when inactive */}
+                    <div className={activeNav === 'Classes' ? 'px-6 py-5 max-w-7xl mx-auto' : 'hidden'}>
+                        <StudentClassesPanel user={user} onSelectProject={onSelectProject} animationKey={classesKey} />
+                    </div>
+
+                    {/* Projects — always mounted, hidden when inactive */}
+                    <div className={activeNav === 'Projects' ? 'px-6 py-5 max-w-7xl mx-auto' : 'hidden'}>
+                        <ProjectList
+                            user={user}
+                            onSelectProject={onSelectProject}
+                            onCreateNew={() => navigate('/custom-project')}
+                            onBack={() => setActiveNav('Home')}
+                            embedded
+                            animationKey={projectsKey}
+                        />
+                    </div>
+
+                    {/* Home — conditionally rendered so staggered animations replay */}
+                    {activeNav === 'Home' && (
                         <div className="grid grid-cols-12 gap-4 px-6 py-5 max-w-7xl mx-auto">
 
                         {/* ══════ LEFT COLUMN (3 cols) ══════ */}
@@ -852,6 +864,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                         </div>
                         </div>
                     )}
+
                 </div>
             </main>
         </div>

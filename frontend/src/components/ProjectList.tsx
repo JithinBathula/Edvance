@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { User } from '../App';
 import { authFetch } from '../utils/authFetch';
 import { Button } from './ui/button';
@@ -37,9 +38,18 @@ type Props = {
     onCreateNew: () => void;
     onBack: () => void;
     embedded?: boolean;
+    animationKey?: number;
 };
 
-export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedded }: Props) {
+const staggerItem = {
+    hidden: { opacity: 0, y: 16 },
+    visible: (i: number) => ({
+        opacity: 1, y: 0,
+        transition: { delay: i * 0.08, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    }),
+};
+
+export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedded, animationKey }: Props) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingProject, setLoadingProject] = useState<string | null>(null);
@@ -179,9 +189,9 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
     };
 
     const content = (
-        <>
+        <div key={animationKey}>
             {/* Tabs */}
-            <div className={embedded ? "" : "max-w-6xl mx-auto px-4 pt-6"}>
+            <motion.div variants={staggerItem} initial="hidden" animate="visible" custom={0} className={embedded ? "" : "max-w-6xl mx-auto px-4 pt-6"}>
                 <div className="flex gap-1 bg-white rounded-lg p-1 w-fit border">
                     <button
                         onClick={() => setActiveTab('my')}
@@ -213,9 +223,9 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
                         )}
                     </button>
                 </div>
-            </div>
+            </motion.div>
 
-            <div className={embedded ? "py-4" : "max-w-6xl mx-auto px-4 py-6"}>
+            <motion.div variants={staggerItem} initial="hidden" animate="visible" custom={1} className={embedded ? "py-4" : "max-w-6xl mx-auto px-4 py-6"}>
                 {activeTab === 'my' ? (
                     /* My Projects Tab */
                     <>
@@ -226,6 +236,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {/* Create New Project Card */}
+                                <motion.div variants={staggerItem} initial="hidden" animate="visible" custom={2}>
                                 <Card
                                     className="p-6 border-2 border-dashed border-gray-300 hover:border-[#7622e5] cursor-pointer transition-colors group flex flex-col items-center justify-center min-h-[200px]"
                                     onClick={onCreateNew}
@@ -238,12 +249,13 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
                                         Start a new custom learning project
                                     </p>
                                 </Card>
+                                </motion.div>
 
                                 {/* Existing Projects */}
-                                {projects.map((project) => (
+                                {projects.map((project, i) => (
+                                    <motion.div key={project.id} variants={staggerItem} initial="hidden" animate="visible" custom={3 + i}>
                                     <Card
-                                        key={project.id}
-                                        className="p-6 hover:shadow-lg cursor-pointer transition-shadow bg-white"
+                                        className="p-6 hover:shadow-lg cursor-pointer transition-shadow bg-white h-full"
                                         onClick={() => handleSelectProject(project.id)}
                                     >
                                         {loadingProject === project.id ? (
@@ -269,6 +281,7 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
                                             </>
                                         )}
                                     </Card>
+                                    </motion.div>
                                 ))}
                             </div>
                         )}
@@ -296,8 +309,9 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {assignedProjects.map((ap) => (
-                                    <Card key={ap.id} className="p-6 bg-white hover:shadow-lg transition-shadow">
+                                {assignedProjects.map((ap, i) => (
+                                    <motion.div key={ap.id} variants={staggerItem} initial="hidden" animate="visible" custom={2 + i}>
+                                    <Card className="p-6 bg-white hover:shadow-lg transition-shadow h-full">
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
                                                 <BookOpen className="w-5 h-5 text-white" />
@@ -357,13 +371,14 @@ export function ProjectList({ user, onSelectProject, onCreateNew, onBack, embedd
                                             ) : null}
                                         </div>
                                     </Card>
+                                    </motion.div>
                                 ))}
                             </div>
                         )}
                     </>
                 )}
-            </div>
-        </>
+            </motion.div>
+        </div>
     );
 
     if (embedded) return content;
