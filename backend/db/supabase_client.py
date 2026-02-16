@@ -934,6 +934,23 @@ def get_chat_message_counts_for_student(user_id: str, project_ids: List[str]) ->
     return counts
 
 
+def get_recent_chat_questions(student_ids: List[str], project_ids: List[str], limit: int = 8) -> List[Dict[str, Any]]:
+    """
+    Get most recent student chat questions for a classroom's projects.
+    """
+    if not student_ids or not project_ids:
+        return []
+    result = execute_with_retry(
+        "get_recent_chat_questions",
+        lambda: supabase.table("chat_messages").select(
+            "user_id, project_id, content, created_at"
+        ).in_("user_id", student_ids).in_(
+            "project_id", project_ids
+        ).eq("role", "user").order("created_at", desc=True).limit(limit).execute(),
+    )
+    return result.data or []
+
+
 def update_classroom(classroom_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Update classroom name and/or description."""
     allowed = {k: v for k, v in data.items() if k in ('name', 'description')}

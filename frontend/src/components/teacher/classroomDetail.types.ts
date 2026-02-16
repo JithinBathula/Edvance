@@ -41,7 +41,7 @@ export interface Analytics {
   project_stats: {
     total_started: number;
     total_completed: number;
-    avg_time_per_task_hours: number;
+    avg_xp_per_student: number;
     most_popular_vm: string;
   };
   students_needing_help: Array<{
@@ -65,6 +65,12 @@ export interface Analytics {
     total_questions: number;
     total_responses: number;
     avg_per_student: number;
+    recent_questions: Array<{
+      student_name: string;
+      project_title: string;
+      content: string;
+      created_at: string | null;
+    }>;
   };
   total_tasks_completed: number;
   active_students_7d: number;
