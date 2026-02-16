@@ -329,10 +329,6 @@ export function ProjectWorkspace({
   const askCodyPopupRef = useRef<HTMLDivElement>(null);
   const selectedTextRef = useRef<string>('');
 
-  const handleAskTutor = (term: string) => {
-    setChatPrefill(`Can you explain what "${term}" means in the context of this task?`);
-    if (!isChatOpen) setIsChatOpen(true);
-  };
 
   const showAskCodyPopup = (x: number, y: number, text: string) => {
     selectedTextRef.current = text;
@@ -988,9 +984,7 @@ export function ProjectWorkspace({
                   {showHints && (
                     <div className="mt-3 rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(to bottom right, #ecfeff, white)', border: '1px solid #cffafe' }}>
                       <div className="space-y-5">
-                        {(() => {
-                          const hintMatchedTerms = new Set<string>();
-                          return safeCurrentTask.hints.map((hint, idx) => (
+                        {safeCurrentTask.hints.map((hint, idx) => (
                             <div
                               key={idx}
                               className="flex items-start gap-4"
@@ -999,11 +993,10 @@ export function ProjectWorkspace({
                                 {idx + 1}
                               </span>
                               <p className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
-                                {parseTextToNodes(hint, hintMatchedTerms, handleAskTutor)}
+                                {hint}
                               </p>
                             </div>
-                          ));
-                        })()}
+                          ))}
                       </div>
                     </div>
                   )}
