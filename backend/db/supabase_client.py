@@ -6,10 +6,15 @@ import os
 import string
 import random
 import hashlib
+import logging
+import time
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from supabase.lib.client_options import SyncClientOptions
+import httpx
+import httpcore
 
 load_dotenv()
 
@@ -20,7 +25,81 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")  # Use service key for backend
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in environment variables")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+logger = logging.getLogger(__name__)
+
+_MAX_RETRY_ATTEMPTS = 3
+_RETRY_BASE_DELAY_SECONDS = 0.2
+_RETRY_JITTER_SECONDS = 0.1
+
+_TRANSIENT_EXCEPTION_TYPES = (
+    httpx.RemoteProtocolError,
+    httpx.ReadTimeout,
+    httpx.ConnectError,
+    httpx.TransportError,
+    httpcore.RemoteProtocolError,
+    httpcore.ReadTimeout,
+    httpcore.ConnectError,
+    httpcore.NetworkError,
+)
+
+_shared_httpx_client = httpx.Client(
+    http2=False,
+    timeout=httpx.Timeout(connect=5.0, read=20.0, write=20.0, pool=5.0),
+    limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+    follow_redirects=True,
+)
+
+supabase_options = SyncClientOptions(
+    httpx_client=_shared_httpx_client,
+    postgrest_client_timeout=20,
+    storage_client_timeout=20,
+    function_client_timeout=10,
+)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY, options=supabase_options)
+
+
+def is_transient_supabase_error(exc: BaseException) -> bool:
+    """
+    Return True when an exception chain contains transient transport failures.
+    """
+    current: Optional[BaseException] = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, _TRANSIENT_EXCEPTION_TYPES):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def execute_with_retry(operation_name: str, fn):
+    """
+    Execute a Supabase/PostgREST operation with retries for transient transport errors.
+    """
+    for attempt in range(1, _MAX_RETRY_ATTEMPTS + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            is_transient = is_transient_supabase_error(exc)
+            if (not is_transient) or attempt >= _MAX_RETRY_ATTEMPTS:
+                if is_transient:
+                    logger.error(
+                        "supabase_operation_failed operation=%s attempt=%d error_type=%s",
+                        operation_name,
+                        attempt,
+                        type(exc).__name__,
+                    )
+                raise
+
+            delay = (_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))) + random.uniform(0, _RETRY_JITTER_SECONDS)
+            logger.warning(
+                "supabase_retry operation=%s attempt=%d delay_seconds=%.3f error_type=%s",
+                operation_name,
+                attempt,
+                delay,
+                type(exc).__name__,
+            )
+            time.sleep(delay)
 
 
 # =============================================================================
@@ -42,7 +121,10 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
     """
     Fetch a user by their ID.
     """
-    result = supabase.table("users").select("*").eq("id", user_id).execute()
+    result = execute_with_retry(
+        "get_user_by_id",
+        lambda: supabase.table("users").select("*").eq("id", user_id).execute(),
+    )
 
     if result.data:
         return result.data[0]
@@ -309,11 +391,14 @@ def get_user_progress_for_project(user_id: str, project_id: str) -> List[Dict[st
     if not task_ids:
         return []
 
-    result = supabase.table("user_progress").select("*").eq(
-        "user_id", user_id
-    ).in_(
-        "task_id", task_ids
-    ).execute()
+    result = execute_with_retry(
+        "get_user_progress_for_project",
+        lambda: supabase.table("user_progress").select("*").eq(
+            "user_id", user_id
+        ).in_(
+            "task_id", task_ids
+        ).execute(),
+    )
     return result.data or []
 
 
@@ -321,7 +406,10 @@ def get_user_projects_list(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all projects for a user with basic info for listing.
     """
-    result = supabase.table("projects").select("id, title, brief, status, vm_type, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    result = execute_with_retry(
+        "get_user_projects_list",
+        lambda: supabase.table("projects").select("id, title, brief, status, vm_type, created_at, updated_at").eq("user_id", user_id).neq("content_type", "assignment").order("created_at", desc=True).execute(),
+    )
     return result.data or []
 
 
@@ -329,9 +417,12 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all projects for a user with fields needed by dashboard.
     """
-    result = supabase.table("projects").select(
-        "id, title, brief, status, vm_type, tech_stack, created_at, updated_at"
-    ).eq("user_id", user_id).order("created_at", desc=True).execute()
+    result = execute_with_retry(
+        "get_user_projects",
+        lambda: supabase.table("projects").select(
+            "id, title, brief, status, vm_type, tech_stack, created_at, updated_at"
+        ).eq("user_id", user_id).order("created_at", desc=True).execute(),
+    )
     return result.data or []
 
 
@@ -630,10 +721,28 @@ def get_classroom_student_count(classroom_id: str) -> int:
 
 def get_student_classrooms(student_id: str) -> List[Dict[str, Any]]:
     """Get all classrooms a student belongs to."""
-    result = supabase.table("classroom_members").select(
-        "*, classrooms:classroom_id(id, name, description, join_code, teacher_id, created_at)"
-    ).eq("student_id", student_id).execute()
+    result = execute_with_retry(
+        "get_student_classrooms",
+        lambda: supabase.table("classroom_members").select(
+            "*, classrooms:classroom_id(id, name, description, join_code, teacher_id, created_at)"
+        ).eq("student_id", student_id).execute(),
+    )
     return result.data or []
+
+
+def get_users_by_ids(user_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Fetch users by IDs in one query and return an id->user mapping."""
+    if not user_ids:
+        return {}
+    unique_ids = list({str(uid) for uid in user_ids if uid})
+    if not unique_ids:
+        return {}
+    result = execute_with_retry(
+        "get_users_by_ids",
+        lambda: supabase.table("users").select("id, name").in_("id", unique_ids).execute(),
+    )
+    rows = result.data or []
+    return {str(row.get("id")): row for row in rows if row.get("id")}
 
 
 def deactivate_classroom(classroom_id: str) -> Dict[str, Any]:
@@ -865,9 +974,12 @@ def create_assignment(
 
 def get_assignments_for_classroom(classroom_id: str) -> List[Dict[str, Any]]:
     """Get all active assignments for a classroom."""
-    result = supabase.table("assignments").select("*").eq(
-        "classroom_id", classroom_id
-    ).eq("is_active", True).order("created_at", desc=True).execute()
+    result = execute_with_retry(
+        "get_assignments_for_classroom",
+        lambda: supabase.table("assignments").select("*").eq(
+            "classroom_id", classroom_id
+        ).eq("is_active", True).order("created_at", desc=True).execute(),
+    )
     return result.data or []
 
 
@@ -907,12 +1019,48 @@ def create_student_assignment(assignment_id: str, student_id: str) -> Dict[str, 
 
 def get_student_assignments_for_user(student_id: str) -> List[Dict[str, Any]]:
     """Get all assignments for a student with assignment and classroom details."""
-    result = supabase.table("student_assignments").select(
-        "*, assignments:assignment_id(id, title, description, due_date, is_active, template_project_id, classroom_id, classrooms:classroom_id(id, name))"
-    ).eq("student_id", student_id).execute()
+    result = execute_with_retry(
+        "get_student_assignments_for_user",
+        lambda: supabase.table("student_assignments").select(
+            "*, assignments:assignment_id(id, title, description, due_date, is_active, template_project_id, classroom_id, classrooms:classroom_id(id, name))"
+        ).eq("student_id", student_id).execute(),
+    )
     rows = result.data or []
     # Filter to only active assignments
     return [r for r in rows if r.get("assignments", {}).get("is_active", False)]
+
+
+def get_milestones_for_projects(project_ids: List[str]) -> List[Dict[str, Any]]:
+    """Bulk-fetch milestones for a set of project IDs."""
+    if not project_ids:
+        return []
+    result = execute_with_retry(
+        "get_milestones_for_projects",
+        lambda: supabase.table("milestones").select("id, project_id").in_("project_id", project_ids).execute(),
+    )
+    return result.data or []
+
+
+def get_tasks_for_milestones(milestone_ids: List[str]) -> List[Dict[str, Any]]:
+    """Bulk-fetch tasks for a set of milestone IDs."""
+    if not milestone_ids:
+        return []
+    result = execute_with_retry(
+        "get_tasks_for_milestones",
+        lambda: supabase.table("tasks").select("id, milestone_id").in_("milestone_id", milestone_ids).execute(),
+    )
+    return result.data or []
+
+
+def get_user_progress_for_task_ids(user_id: str, task_ids: List[str]) -> List[Dict[str, Any]]:
+    """Bulk-fetch user progress rows for a task ID list."""
+    if not task_ids:
+        return []
+    result = execute_with_retry(
+        "get_user_progress_for_task_ids",
+        lambda: supabase.table("user_progress").select("task_id, status, completed_at").eq("user_id", user_id).in_("task_id", task_ids).execute(),
+    )
+    return result.data or []
 
 
 def get_student_assignments_for_assignment(assignment_id: str) -> List[Dict[str, Any]]:
