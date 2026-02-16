@@ -455,7 +455,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                     </div>
                 </motion.div>
 
-                {/* ── 3-Column Grid ── */}
+                {/* ── 2-Column Grid ── */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
 
                     {/* Classes — lazy mount on first visit, then keep mounted */}
@@ -488,82 +488,41 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                     {/* Home — conditionally rendered so staggered animations replay */}
                     {activeNav === 'Home' && (
-                        <div className="grid grid-cols-12 gap-4 px-6 py-5 max-w-7xl mx-auto">
+                        <div className="px-6 py-5 max-w-7xl mx-auto space-y-4">
 
-                        {/* ══════ LEFT COLUMN (3 cols) ══════ */}
-                        <div className="col-span-3 flex flex-col gap-4">
-
-                            {/* Notifications */}
-                            <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
-                                <Card className="p-4 border-slate-100">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <Bell className="w-4 h-4 text-teal-600" />
-                                            <span className="font-bold text-base text-slate-800">Notifications</span>
+                        {/* Quick Stats Top Row */}
+                        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
+                            <div className="grid grid-cols-4 gap-3">
+                                {[
+                                    { value: stats.total_projects, label: 'Projects', note: `${stats.in_progress_projects} in progress`, color: 'text-teal-700' },
+                                    { value: stats.current_streak, label: 'Day Streak', note: stats.current_streak > 0 ? 'Keep it going' : 'Start today', color: 'text-orange-700' },
+                                    { value: stats.total_xp, label: 'Total XP', note: `${Math.max(levelInfo.next - stats.total_xp, 0)} to next level`, color: 'text-amber-700' },
+                                    { value: `${stats.completed_projects}/${stats.total_projects || 0}`, label: 'Completed', note: `${overallPercent}% overall`, color: 'text-emerald-700' },
+                                ].map((s, i) => (
+                                    <motion.div
+                                        key={s.label}
+                                        variants={statPop}
+                                        initial="hidden"
+                                        animate="visible"
+                                        custom={i}
+                                        className="rounded-2xl border border-slate-100 bg-white p-3"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+                                                <div className="text-sm font-semibold text-slate-700">{s.label}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {notifications.length > 0 ? notifications.map((n, i) => (
-                                            <motion.div
-                                                key={i}
-                                                variants={listItem} initial="hidden" animate="visible" custom={i}
-                                                whileHover={{ x: 3 }}
-                                                className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                                            >
-                                                <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ backgroundColor: n.color }} />
-                                                <div className="min-w-0 flex-1">
-                                                    <h4 className="font-semibold text-sm text-slate-800 leading-snug">{n.title}</h4>
-                                                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{n.message}</p>
-                                                    <span className="text-xs text-slate-300 mt-1 block">{n.time}</span>
-                                                </div>
-                                            </motion.div>
-                                        )) : (
-                                            <p className="text-sm text-slate-400 py-4 text-center">No new notifications</p>
-                                        )}
-                                    </div>
-                                </Card>
-                            </motion.div>
+                                        <p className="text-xs text-slate-400 mt-2">{s.note}</p>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
 
-                            {/* Tip of the Day */}
-                            <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-                                <Card className="p-4 border-slate-100">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="text-xl">{todayTip.emoji}</span>
-                                        <span className="font-bold text-base text-slate-800">{todayTip.title}</span>
-                                    </div>
-                                    <p className="text-sm text-slate-500 leading-relaxed">{todayTip.text}</p>
-                                </Card>
-                            </motion.div>
+                        <div className="grid grid-cols-12 gap-4">
 
-                            {/* Quick Stats */}
-                            <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={3}>
-                                <Card className="p-4 border-slate-100">
-                                    <span className="font-bold text-base text-slate-800 mb-3 block">Quick Stats</span>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                            { value: stats.total_projects, label: 'Projects', emoji: '📁', bg: 'bg-teal-50', color: 'text-teal-700' },
-                                            { value: stats.completed_projects, label: 'Done', emoji: '✅', bg: 'bg-emerald-50', color: 'text-emerald-700' },
-                                            { value: stats.total_xp, label: 'Total XP', emoji: '⚡', bg: 'bg-amber-50', color: 'text-amber-700' },
-                                            { value: stats.current_streak, label: 'Streak', emoji: '🔥', bg: 'bg-orange-50', color: 'text-orange-700' },
-                                        ].map((s, i) => (
-                                            <motion.div
-                                                key={s.label}
-                                                variants={statPop} initial="hidden" animate="visible" custom={i}
-                                                whileHover={{ scale: 1.05 }}
-                                                className={`${s.bg} rounded-xl p-3 text-center cursor-default`}
-                                            >
-                                                <div className="text-lg mb-0.5">{s.emoji}</div>
-                                                <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-                                                <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                </Card>
-                            </motion.div>
-                        </div>
-
-                        {/* ══════ CENTER COLUMN (6 cols) — Projects ══════ */}
-                        <div className="col-span-6 flex flex-col gap-4">
+                        {/* ══════ LEFT COLUMN (8 cols) — Projects ══════ */}
+                        <div className="col-span-8 flex flex-col gap-4">
 
                             {/* Filter Tabs + Title */}
                             <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
@@ -736,37 +695,41 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                             </AnimatePresence>
                         </div>
 
-                        {/* ══════ RIGHT COLUMN (3 cols) — Profile + Skills ══════ */}
-                        <div className="col-span-3 flex flex-col gap-4">
+                        {/* ══════ RIGHT COLUMN (4 cols) — Sidebar ══════ */}
+                        <div className="col-span-4 flex flex-col gap-4">
 
                             {/* Profile Card */}
                             <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-                                <Card className="p-5 border-slate-100 text-center">
-                                    <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        whileHover={{ scale: 1.1 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => navigate('/profile')}
-                                        transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
-                                        className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-2xl font-bold text-white mx-auto mb-3 cursor-pointer overflow-hidden"
-                                        style={{ boxShadow: '0 0 20px rgba(13, 148, 136, 0.25)' }}
-                                    >
-                                        {user.profilePictureUrl ? (
-                                            <img
-                                                src={user.profilePictureUrl}
-                                                alt={user.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            user.name?.charAt(0)?.toUpperCase() || 'U'
-                                        )}
-                                    </motion.div>
-                                    <h3 className="font-bold text-lg text-slate-800">{user.name || 'Student'}</h3>
-                                    <p className="text-sm text-slate-400 mt-0.5">Level {levelInfo.level} • {levelInfo.title}</p>
+                                <Card className="p-5 border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => navigate('/profile')}
+                                            transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
+                                            className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-2xl font-bold text-white cursor-pointer overflow-hidden shrink-0"
+                                            style={{ boxShadow: '0 0 20px rgba(13, 148, 136, 0.25)' }}
+                                        >
+                                            {user.profilePictureUrl ? (
+                                                <img
+                                                    src={user.profilePictureUrl}
+                                                    alt={user.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                user.name?.charAt(0)?.toUpperCase() || 'U'
+                                            )}
+                                        </motion.div>
+                                        <div className="min-w-0">
+                                            <h3 className="font-bold text-lg text-slate-800 leading-tight truncate">{user.name || 'Student'}</h3>
+                                            <p className="text-sm text-slate-400 mt-1">Level {levelInfo.level} • {levelInfo.title}</p>
+                                        </div>
+                                    </div>
 
                                     {/* XP Progress to next level */}
-                                    <div className="mt-4 px-2">
+                                    <div className="mt-3 px-1">
                                         <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
                                             <span>LV{levelInfo.level}</span>
                                             <span>{stats.total_xp} / {levelInfo.next} XP</span>
@@ -782,7 +745,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2 mt-4">
+                                    <div className="grid grid-cols-3 gap-2 mt-3">
                                         {[
                                             { value: stats.total_projects, label: 'Projects', color: '#0d9488' },
                                             { value: stats.current_streak, label: 'Streak', color: '#f59e0b' },
@@ -793,7 +756,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                 initial={{ opacity: 0, y: 8 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: 0.7 + i * 0.1 }}
-                                                className="bg-slate-50 rounded-xl py-2.5"
+                                                className="bg-slate-50 rounded-xl min-h-[84px] px-2 py-2 flex flex-col items-center justify-center text-center"
                                             >
                                                 <div className="text-lg font-bold" style={{ color: s.color }}>{s.value}</div>
                                                 <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
@@ -864,6 +827,48 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 </Card>
                             </motion.div>
 
+                            {/* Notifications */}
+                            <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
+                                <Card className="p-4 border-slate-100">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Bell className="w-4 h-4 text-teal-600" />
+                                            <span className="font-bold text-base text-slate-800">Notifications</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {notifications.length > 0 ? notifications.map((n, i) => (
+                                            <motion.div
+                                                key={i}
+                                                variants={listItem} initial="hidden" animate="visible" custom={i}
+                                                whileHover={{ x: 3 }}
+                                                className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                                            >
+                                                <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ backgroundColor: n.color }} />
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="font-semibold text-sm text-slate-800 leading-snug">{n.title}</h4>
+                                                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{n.message}</p>
+                                                    <span className="text-xs text-slate-300 mt-1 block">{n.time}</span>
+                                                </div>
+                                            </motion.div>
+                                        )) : (
+                                            <p className="text-sm text-slate-400 py-4 text-center">No new notifications</p>
+                                        )}
+                                    </div>
+                                </Card>
+                            </motion.div>
+
+                            {/* Tip of the Day */}
+                            <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
+                                <Card className="p-4 border-slate-100">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="text-xl">{todayTip.emoji}</span>
+                                        <span className="font-bold text-base text-slate-800">{todayTip.title}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-500 leading-relaxed">{todayTip.text}</p>
+                                </Card>
+                            </motion.div>
+
                             {/* Skills */}
                             <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
                                 <Card className="p-4 border-slate-100">
@@ -898,6 +903,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     )}
                                 </Card>
                             </motion.div>
+                        </div>
                         </div>
                         </div>
                     )}
