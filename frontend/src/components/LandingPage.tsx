@@ -1,0 +1,1061 @@
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import {
+  Sparkles, Rocket, Brain, Users, Zap,
+  Terminal, ArrowRight, CheckCircle2,
+  Star, Menu, X, BookOpen, Trophy
+} from 'lucide-react';
+import { Button } from './ui/button';
+import { User } from '../App';
+import edvanceLogoSrc from '../assets/edvance-logo.svg';
+
+type Props = { user: User | null };
+
+// ─── Edvance Logo Component (inline SVG for navbar/footer) ────────────
+
+function EdvanceLogo({ size = 36 }: { size?: number }) {
+  return (
+    <img src={edvanceLogoSrc} alt="Edvance" width={size} height={size} className="object-contain" />
+  );
+}
+
+// ─── Animation variants ───────────────────────────────────────────────
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  },
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  },
+};
+
+// ─── Animated Counter ─────────────────────────────────────────────────
+
+function AnimatedCounter({ target, isInView }: { target: number; isInView: boolean }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!isInView) return;
+    let startTime: number | null = null;
+    const duration = 2000;
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [isInView, target]);
+  return <>{count}</>;
+}
+
+// ─── Floating Code Token ──────────────────────────────────────────────
+
+function FloatingCodeToken({ text, className, delay }: { text: string; className: string; delay: number }) {
+  return (
+    <motion.div
+      animate={{ y: [0, -18, 0], rotate: [0, 4, -4, 0] }}
+      transition={{ duration: 5 + delay, repeat: Infinity, ease: "easeInOut" }}
+      className={`absolute font-mono font-bold select-none pointer-events-none ${className}`}
+    >
+      {text}
+    </motion.div>
+  );
+}
+
+// ─── Code Editor Mockup ───────────────────────────────────────────────
+
+function CodeEditorMockup() {
+  const codeLines = [
+    { indent: 0, tokens: [{ text: 'def ', color: '#c678dd' }, { text: 'calculate_budget', color: '#61afef' }, { text: '(expenses):', color: '#abb2bf' }] },
+    { indent: 1, tokens: [{ text: 'total', color: '#e06c75' }, { text: ' = ', color: '#abb2bf' }, { text: 'sum', color: '#61afef' }, { text: '(expenses)', color: '#abb2bf' }] },
+    { indent: 1, tokens: [{ text: 'if ', color: '#c678dd' }, { text: 'total ', color: '#e06c75' }, { text: '> ', color: '#abb2bf' }, { text: '1000', color: '#d19a66' }, { text: ':', color: '#abb2bf' }] },
+    { indent: 2, tokens: [{ text: 'print', color: '#61afef' }, { text: '(', color: '#abb2bf' }, { text: '"Over budget!"', color: '#98c379' }, { text: ')', color: '#abb2bf' }] },
+    { indent: 1, tokens: [{ text: 'return ', color: '#c678dd' }, { text: 'total', color: '#e06c75' }] },
+    { indent: 0, tokens: [] },
+    { indent: 0, tokens: [{ text: '# AI suggests: Add error handling', color: '#5c6370' }] },
+    { indent: 0, tokens: [{ text: 'budget ', color: '#e06c75' }, { text: '= ', color: '#abb2bf' }, { text: 'calculate_budget', color: '#61afef' }, { text: '([', color: '#abb2bf' }, { text: '250', color: '#d19a66' }, { text: ', ', color: '#abb2bf' }, { text: '400', color: '#d19a66' }, { text: ', ', color: '#abb2bf' }, { text: '375', color: '#d19a66' }, { text: '])', color: '#abb2bf' }] },
+  ];
+
+  return (
+    <div className="relative w-full">
+      <div className="absolute -inset-6 bg-gradient-to-r from-[#0d9488]/20 to-[#f59e0b]/15 rounded-3xl blur-3xl" />
+      <motion.div
+        initial={{ opacity: 0, x: 60, rotateY: -10 }}
+        animate={{ opacity: 1, x: 0, rotateY: 0 }}
+        transition={{ duration: 1, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="relative bg-[#0f172a] rounded-2xl shadow-2xl shadow-teal-900/20 border border-teal-500/10 overflow-hidden"
+      >
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-[#1e293b]">
+          <div className="flex gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+            <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+            <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+          </div>
+          <div className="ml-3 flex gap-1">
+            <div className="px-3 py-1 rounded-md bg-teal-500/15 text-xs text-teal-300 font-mono">main.py</div>
+          </div>
+        </div>
+        <div className="p-5 font-mono text-sm leading-relaxed">
+          {codeLines.map((line, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.9 + i * 0.12, duration: 0.4 }}
+              className="flex"
+              style={{ paddingLeft: `${line.indent * 24}px` }}
+            >
+              <span className="text-white/20 w-8 text-right mr-4 select-none text-xs leading-relaxed">{i + 1}</span>
+              {line.tokens.map((token, j) => (
+                <span key={j} style={{ color: token.color }}>{token.text}</span>
+              ))}
+              {line.tokens.length === 0 && <span>&nbsp;</span>}
+            </motion.div>
+          ))}
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.2, duration: 0.5 }}
+          className="mx-5 mb-4 px-3 py-2 rounded-lg bg-teal-500/15 border border-teal-500/25 flex items-center gap-2"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+          <span className="text-xs text-teal-300">AI: Consider adding a try/except block for invalid inputs</span>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Navbar ───────────────────────────────────────────────────────────
+
+function Navbar({ user }: { user: User | null }) {
+  const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const navLinks = [
+    { label: 'Features', href: '#features' },
+    { label: 'Projects', href: '#projects' },
+    { label: 'How It Works', href: '#how-it-works' },
+    { label: 'For Teachers', href: '#for-teachers' },
+  ];
+
+  return (
+    <motion.nav
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'backdrop-blur-xl bg-white/80 border-b border-gray-200/60 shadow-sm'
+          : 'bg-transparent'
+      }`}
+    >
+      <div className="w-full px-6 lg:px-10 h-16 flex items-center justify-between">
+        <a href="/" className="flex items-center gap-2">
+          <EdvanceLogo size={36} />
+          <span className="text-xl font-bold text-[#1B5E6B]">
+            edvance
+          </span>
+        </a>
+
+        <div className="hidden md:flex items-center gap-8">
+          {navLinks.map(link => (
+            <a
+              key={link.label}
+              href={link.href}
+              className="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+
+        <div className="hidden md:flex items-center gap-3">
+          {user ? (
+            <Button
+              onClick={() => navigate(user.role === 'teacher' ? '/teacher/dashboard' : '/student-dashboard')}
+              className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 shadow-md shadow-teal-500/20"
+            >
+              Go to Dashboard <ArrowRight className="w-4 h-4" />
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/login')}
+                className="text-slate-600 hover:text-teal-600"
+              >
+                Log In
+              </Button>
+              <Button
+                onClick={() => navigate('/signup')}
+                className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 shadow-md shadow-teal-500/20"
+              >
+                Get Started <ArrowRight className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="md:hidden p-2 text-slate-600 hover:text-teal-600 transition-colors"
+        >
+          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-xl overflow-hidden"
+          >
+            <div className="px-6 py-4 space-y-3">
+              {navLinks.map(link => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="block text-sm font-medium text-slate-600 hover:text-teal-600 py-2"
+                >
+                  {link.label}
+                </a>
+              ))}
+              <div className="pt-3 border-t border-gray-100 space-y-2">
+                {user ? (
+                  <Button
+                    onClick={() => navigate(user.role === 'teacher' ? '/teacher/dashboard' : '/student-dashboard')}
+                    className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white"
+                  >
+                    Go to Dashboard
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => navigate('/login')} className="w-full">Log In</Button>
+                    <Button onClick={() => navigate('/signup')} className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white">Get Started</Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.nav>
+  );
+}
+
+// ─── Hero Section ─────────────────────────────────────────────────────
+
+function HeroSection({ user }: { user: User | null }) {
+  const navigate = useNavigate();
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
+  const textY = useTransform(scrollYProgress, [0, 1], ['0%', '15%']);
+
+  return (
+    <section ref={ref} className="relative min-h-screen flex items-center overflow-hidden">
+      {/* Full-width gradient background */}
+      <motion.div style={{ y: bgY }} className="absolute inset-0">
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #cffafe 0%, #f0fdfa 35%, #ffffff 60%, #fef3c7 100%)' }} />
+      </motion.div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #0d9488 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+
+      {/* Animated gradient orbs */}
+      <motion.div
+        animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-0 -left-40 w-[500px] h-[500px] bg-teal-400/20 rounded-full blur-[100px]"
+      />
+      <motion.div
+        animate={{ scale: [1, 1.15, 1], opacity: [0.1, 0.25, 0.1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="absolute -bottom-20 -right-40 w-[600px] h-[600px] bg-amber-300/15 rounded-full blur-[100px]"
+      />
+      <motion.div
+        animate={{ scale: [1, 1.1, 1], opacity: [0.08, 0.2, 0.08] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-teal-500/10 rounded-full blur-[80px]"
+      />
+
+      {/* Floating code tokens */}
+      <FloatingCodeToken text="{ }" className="text-teal-500/[0.12] text-3xl top-[12%] left-[6%]" delay={0} />
+      <FloatingCodeToken text="< />" className="text-amber-500/[0.1] text-2xl top-[20%] right-[10%]" delay={1.5} />
+      <FloatingCodeToken text="def" className="text-teal-600/[0.1] text-xl bottom-[35%] left-[4%]" delay={0.8} />
+      <FloatingCodeToken text="=>" className="text-teal-400/[0.1] text-2xl bottom-[18%] right-[6%]" delay={2} />
+      <FloatingCodeToken text="( )" className="text-amber-400/[0.08] text-xl top-[55%] left-[12%]" delay={1.2} />
+      <FloatingCodeToken text="[ ]" className="text-teal-500/[0.1] text-2xl top-[8%] right-[22%]" delay={0.5} />
+      <FloatingCodeToken text="print" className="text-teal-600/[0.08] text-lg bottom-[25%] right-[30%]" delay={1.8} />
+
+      {/* Content - full width */}
+      <motion.div style={{ y: textY }} className="relative w-full px-6 lg:px-10 py-20 pt-28">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Left - Text */}
+          <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
+            <motion.div variants={staggerItem}>
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-500/10 text-teal-700 text-sm font-medium mb-6 border border-teal-500/10">
+                <Sparkles className="w-4 h-4" />
+                AI-Powered Learning Platform
+              </span>
+            </motion.div>
+
+            <motion.h1
+              variants={staggerItem}
+              className="text-5xl sm:text-6xl lg:text-[4.5rem] font-bold text-slate-800 leading-[1.08] tracking-tight"
+            >
+              Learn Coding by{' '}
+              <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Building Real Projects
+              </span>
+            </motion.h1>
+
+            <motion.p variants={staggerItem} className="mt-6 text-lg sm:text-xl text-slate-500 leading-relaxed max-w-xl">
+              Edvance uses AI to guide you through hands-on coding projects. Get personalized feedback,
+              step-by-step guidance, and build a real portfolio — all while learning at your own pace.
+            </motion.p>
+
+            <motion.div variants={staggerItem} className="mt-10 flex flex-wrap gap-4">
+              {user ? (
+                <Button
+                  size="lg"
+                  onClick={() => navigate(user.role === 'teacher' ? '/teacher/dashboard' : '/student-dashboard')}
+                  className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 px-8 h-13 text-base rounded-xl shadow-lg shadow-teal-500/25"
+                >
+                  Go to Dashboard <ArrowRight className="w-5 h-5" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="lg"
+                    onClick={() => navigate('/signup')}
+                    className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 px-8 h-13 text-base rounded-xl shadow-lg shadow-teal-500/25"
+                  >
+                    Start Learning Free <ArrowRight className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => navigate('/login')}
+                    className="gap-2 px-8 h-13 text-base rounded-xl border-slate-200 text-slate-600 hover:border-teal-400 hover:text-teal-600"
+                  >
+                    Log In
+                  </Button>
+                </>
+              )}
+            </motion.div>
+
+            <motion.div variants={staggerItem} className="mt-10 flex items-center gap-8 text-sm text-slate-400">
+              <span className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
+                  <Users className="w-3.5 h-3.5 text-teal-600" />
+                </div>
+                500+ Students
+              </span>
+              <span className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <Rocket className="w-3.5 h-3.5 text-amber-600" />
+                </div>
+                50+ Projects
+              </span>
+              <span className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
+                  <Zap className="w-3.5 h-3.5 text-teal-600" />
+                </div>
+                AI-Powered
+              </span>
+            </motion.div>
+          </motion.div>
+
+          {/* Right - Code Editor Mockup */}
+          <div className="hidden lg:block">
+            <CodeEditorMockup />
+          </div>
+        </div>
+      </motion.div>
+    </section>
+  );
+}
+
+// ─── Features Section ─────────────────────────────────────────────────
+
+function FeaturesSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.15 });
+
+  const features = [
+    { icon: Brain, title: 'AI Project Guide', description: 'Get personalized AI guidance that adapts to your skill level. Like having a tutor available 24/7.', color: 'teal' },
+    { icon: Terminal, title: 'Real Code Editor', description: 'Write, run, and debug code in a built-in IDE. No setup required — just start coding.', color: 'cyan' },
+    { icon: Rocket, title: 'Project-Based Learning', description: 'Learn by building real projects, not toy exercises. Build a portfolio while you learn.', color: 'amber' },
+    { icon: Zap, title: 'Instant Feedback', description: 'Submit your code and get AI-powered feedback in seconds. Understand your mistakes and improve.', color: 'orange' },
+    { icon: Users, title: 'Classroom Integration', description: 'Teachers can create assignments, manage classrooms, and track student progress in real-time.', color: 'teal' },
+    { icon: Star, title: 'XP & Progress', description: 'Earn XP, level up, and track your coding journey with detailed analytics and milestones.', color: 'amber' },
+  ];
+
+  const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
+    teal: { bg: 'bg-teal-50', icon: 'text-teal-600', border: 'group-hover:border-teal-200' },
+    cyan: { bg: 'bg-cyan-50', icon: 'text-cyan-600', border: 'group-hover:border-cyan-200' },
+    amber: { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'group-hover:border-amber-200' },
+    orange: { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'group-hover:border-orange-200' },
+  };
+
+  return (
+    <section id="features" ref={ref} className="py-28 px-6 lg:px-10">
+      <div className="w-full">
+        <motion.div
+          variants={sectionVariants}
+          initial="hidden"
+          animate={isInView ? 'visible' : 'hidden'}
+          className="text-center mb-16 max-w-3xl mx-auto"
+        >
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">
+            Features
+          </span>
+          <h2 className="text-4xl sm:text-5xl font-bold text-slate-800">
+            Everything You Need to{' '}
+            <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Master Coding
+            </span>
+          </h2>
+          <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
+            From AI-powered guidance to real-time code execution, Edvance gives you all the tools to become a confident programmer.
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          animate={isInView ? 'visible' : 'hidden'}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-7xl mx-auto"
+        >
+          {features.map((f, i) => {
+            const c = colorMap[f.color];
+            return (
+              <motion.div
+                key={i}
+                variants={staggerItem}
+                whileHover={{ y: -8, transition: { duration: 0.3 } }}
+                className={`group bg-white rounded-2xl border border-gray-100 ${c.border} p-7 hover:shadow-xl hover:shadow-gray-100/80 transition-all duration-300 cursor-default`}
+              >
+                <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <f.icon className={`w-6 h-6 ${c.icon}`} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">{f.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{f.description}</p>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Student Projects Showcase ────────────────────────────────────────
+
+function StudentProjectsSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.1 });
+  const scrollRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: scrollRef, offset: ["start end", "end start"] });
+  const x = useTransform(scrollYProgress, [0, 1], ['5%', '-5%']);
+  const xReverse = useTransform(scrollYProgress, [0, 1], ['-3%', '3%']);
+
+  const projects = [
+    {
+      emoji: '🎮',
+      title: 'Terminal Hangman',
+      description: 'Build a classic word-guessing game where players try to reveal a hidden word one letter at a time.',
+      tags: ['Loops', 'Conditionals', 'Lists'],
+      xp: 140,
+      tasks: 14,
+      color: '#0d9488',
+      code: `word = random.choice(words)\nguesses = []\nlives = 6\n\nwhile lives > 0:\n  display = ""\n  for letter in word:\n    if letter in guesses:\n      display += letter\n    else:\n      display += "_"\n  print(display)`,
+    },
+    {
+      emoji: '💰',
+      title: 'Terminal Expense Tracker',
+      description: 'Create a menu-driven app to track expenses with categories, totals, and spending analysis.',
+      tags: ['Dictionaries', 'Functions', 'File I/O'],
+      xp: 110,
+      tasks: 11,
+      color: '#f59e0b',
+      code: `expenses = []\n\ndef add_expense(name, amount, cat):\n  expenses.append({\n    "name": name,\n    "amount": amount,\n    "category": cat\n  })\n\ndef total_by_category(cat):\n  return sum(e["amount"]\n    for e in expenses\n    if e["category"] == cat)`,
+    },
+    {
+      emoji: '📊',
+      title: 'Text Similarity Checker',
+      description: 'Compare two pieces of text using NLP techniques to determine how similar they are.',
+      tags: ['AI/NLP', 'Strings', 'Algorithms'],
+      xp: 170,
+      tasks: 17,
+      color: '#7c3aed',
+      code: `def jaccard_similarity(a, b):\n  set_a = set(a.lower().split())\n  set_b = set(b.lower().split())\n  \n  intersection = set_a & set_b\n  union = set_a | set_b\n  \n  return len(intersection) /\\\n         len(union)\n\nscore = jaccard_similarity(\n  text1, text2)`,
+    },
+    {
+      emoji: '🤖',
+      title: 'AI Chatbot',
+      description: 'Build a rule-based chatbot that understands patterns and responds intelligently to user queries.',
+      tags: ['AI', 'Regex', 'OOP'],
+      xp: 200,
+      tasks: 20,
+      color: '#0891b2',
+      code: `class Chatbot:\n  def __init__(self):\n    self.patterns = {\n      r"hello|hi": "Hey there!",\n      r"how are you": "I'm good!",\n      r"bye": "Goodbye!"\n    }\n\n  def respond(self, message):\n    for pattern, reply in\\\n        self.patterns.items():\n      if re.search(pattern, msg):\n        return reply`,
+    },
+    {
+      emoji: '🎲',
+      title: 'Number Guessing AI',
+      description: 'Create a game where the computer uses binary search to guess your number in minimal attempts.',
+      tags: ['Algorithms', 'Binary Search', 'Logic'],
+      xp: 130,
+      tasks: 12,
+      color: '#db2777',
+      code: `def ai_guess(low, high):\n  attempts = 0\n  while low <= high:\n    mid = (low + high) // 2\n    attempts += 1\n    print(f"Is it {mid}?")\n    \n    feedback = input()\n    if feedback == "correct":\n      return attempts\n    elif feedback == "higher":\n      low = mid + 1\n    else:\n      high = mid - 1`,
+    },
+    {
+      emoji: '📈',
+      title: 'Stock Price Analyzer',
+      description: 'Analyze historical stock data, calculate moving averages, and detect trends using Python.',
+      tags: ['Data Analysis', 'Statistics', 'Visualization'],
+      xp: 180,
+      tasks: 16,
+      color: '#059669',
+      code: `def moving_average(prices, n):\n  averages = []\n  for i in range(len(prices)):\n    if i < n - 1:\n      averages.append(None)\n    else:\n      window = prices[i-n+1:i+1]\n      avg = sum(window) / n\n      averages.append(avg)\n  return averages\n\nma_7 = moving_average(data, 7)`,
+    },
+  ];
+
+  return (
+    <section id="projects" ref={ref} className="py-28 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%)' }}>
+      <div className="px-6 lg:px-10 mb-16">
+        <motion.div
+          variants={sectionVariants}
+          initial="hidden"
+          animate={isInView ? 'visible' : 'hidden'}
+          className="text-center max-w-3xl mx-auto"
+        >
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-medium mb-4">
+            <Trophy className="w-3.5 h-3.5" />
+            Student Projects
+          </span>
+          <h2 className="text-4xl sm:text-5xl font-bold text-slate-800">
+            Real Projects Built by{' '}
+            <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Our Students
+            </span>
+          </h2>
+          <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
+            From terminal games to AI-powered apps — see the kind of Python projects you'll build on Edvance.
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Scrolling project cards */}
+      <div ref={scrollRef}>
+        <motion.div style={{ x }} className="flex gap-6 px-6 lg:px-10 pb-4">
+          {projects.map((project, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 40, rotate: 1 }}
+              animate={isInView ? { opacity: 1, y: 0, rotate: 0 } : {}}
+              transition={{ delay: i * 0.1, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -10, rotate: 0, transition: { duration: 0.3 } }}
+              className="flex-shrink-0 w-[380px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-default"
+            >
+              {/* Code preview */}
+              <div className="bg-[#0f172a] p-4 relative overflow-hidden">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+                  <span className="ml-2 text-[10px] text-white/30 font-mono">main.py</span>
+                </div>
+                <pre className="font-mono text-[11px] leading-[1.6] text-white/70 overflow-hidden h-[154px]">
+                  <code>{project.code}</code>
+                </pre>
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0f172a] to-transparent" />
+              </div>
+
+              {/* Project info */}
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{project.emoji}</span>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">{project.title}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">{project.tasks} tasks</p>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: project.color + '15', color: project.color }}>
+                    +{project.xp} XP
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed mb-4">{project.description}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.tags.map(tag => (
+                    <span key={tag} className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Second row scrolling opposite direction */}
+      <div className="mt-6">
+        <motion.div style={{ x: xReverse }} className="flex gap-6 px-6 lg:px-10 pb-4">
+          {[...projects].reverse().map((project, i) => (
+            <motion.div
+              key={`r-${i}`}
+              initial={{ opacity: 0, y: 40 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.3 + i * 0.1, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -10, transition: { duration: 0.3 } }}
+              className="flex-shrink-0 w-[380px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-default"
+            >
+              <div className="bg-[#0f172a] p-4 relative overflow-hidden">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+                  <span className="ml-2 text-[10px] text-white/30 font-mono">main.py</span>
+                </div>
+                <pre className="font-mono text-[11px] leading-[1.6] text-white/70 overflow-hidden h-[154px]">
+                  <code>{project.code}</code>
+                </pre>
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0f172a] to-transparent" />
+              </div>
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{project.emoji}</span>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">{project.title}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">{project.tasks} tasks</p>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: project.color + '15', color: project.color }}>
+                    +{project.xp} XP
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed mb-4">{project.description}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.tags.map(tag => (
+                    <span key={tag} className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ─── How It Works Section ─────────────────────────────────────────────
+
+function HowItWorksSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.15 });
+
+  const steps = [
+    { number: '01', icon: Sparkles, title: 'Describe Your Project', description: 'Tell our AI what you want to build. It creates a personalized learning plan with milestones tailored to your skill level.', color: 'from-teal-500 to-teal-600' },
+    { number: '02', icon: Terminal, title: 'Code with AI Guidance', description: 'Write real code in our built-in editor. Get hints, explanations, and instant feedback as you progress through each task.', color: 'from-cyan-500 to-teal-500' },
+    { number: '03', icon: Rocket, title: 'Submit & Level Up', description: 'Submit your completed tasks, earn XP, unlock achievements, and build your portfolio project by project.', color: 'from-amber-500 to-orange-500' },
+  ];
+
+  return (
+    <section id="how-it-works" ref={ref} className="py-28 px-6 lg:px-10" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f0fdfa 50%, #ffffff 100%)' }}>
+      <div className="w-full max-w-6xl mx-auto">
+        <motion.div
+          variants={sectionVariants}
+          initial="hidden"
+          animate={isInView ? 'visible' : 'hidden'}
+          className="text-center mb-20"
+        >
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">
+            How It Works
+          </span>
+          <h2 className="text-4xl sm:text-5xl font-bold text-slate-800">
+            Three Steps to{' '}
+            <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Start Building
+            </span>
+          </h2>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+          {/* Connecting line */}
+          <div className="hidden md:block absolute top-20 left-[20%] right-[20%] h-[2px]">
+            <motion.div
+              className="h-full rounded-full origin-left"
+              style={{ background: 'linear-gradient(90deg, #0d9488, #14b8a6, #f59e0b)' }}
+              initial={{ scaleX: 0 }}
+              animate={isInView ? { scaleX: 1 } : { scaleX: 0 }}
+              transition={{ duration: 1.5, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            />
+          </div>
+
+          {steps.map((step, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+              transition={{ delay: 0.3 + i * 0.2, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -6, transition: { duration: 0.3 } }}
+              className="text-center relative bg-white rounded-2xl border border-gray-100 p-8 hover:shadow-xl transition-all duration-300"
+            >
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center mx-auto mb-6 shadow-lg`}>
+                <step.icon className="w-7 h-7 text-white" />
+              </div>
+              <span className="text-6xl font-black" style={{ background: 'linear-gradient(135deg, #0d9488, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', opacity: 0.2 }}>
+                {step.number}
+              </span>
+              <h3 className="text-xl font-bold text-slate-800 mt-2">{step.title}</h3>
+              <p className="text-sm text-slate-500 mt-3 leading-relaxed">{step.description}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── For Teachers Section ─────────────────────────────────────────────
+
+function ForTeachersSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.15 });
+
+  const features = [
+    'Create and manage virtual classrooms',
+    'Assign customized coding projects',
+    'Real-time student progress tracking',
+    'AI-assisted grading and feedback',
+    'Detailed analytics and reports',
+  ];
+
+  return (
+    <section id="for-teachers" ref={ref} className="py-28 px-6 lg:px-10">
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-50 text-teal-600 text-sm font-medium mb-6">
+              <BookOpen className="w-4 h-4" />
+              For Educators
+            </span>
+            <h2 className="text-4xl sm:text-5xl font-bold text-slate-800 leading-tight">
+              Powerful Tools for{' '}
+              <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Educators
+              </span>
+            </h2>
+            <p className="mt-4 text-lg text-slate-500 leading-relaxed">
+              Create classrooms, assign projects, and track every student's progress in real-time. Focus on teaching while AI handles the heavy lifting.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {features.map((feature, i) => (
+                <motion.li
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={isInView ? { opacity: 1, x: 0 } : {}}
+                  transition={{ delay: 0.4 + i * 0.1, duration: 0.5 }}
+                  className="flex items-center gap-3 text-slate-600"
+                >
+                  <div className="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                  </div>
+                  <span>{feature}</span>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <div className="relative">
+              <div className="absolute -inset-6 bg-gradient-to-r from-teal-100/50 to-cyan-100/50 rounded-3xl blur-3xl" />
+              <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-teal-50 to-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-sm">
+                      <Users className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Python Fundamentals</p>
+                      <p className="text-xs text-slate-400">28 students enrolled</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-semibold">Active</span>
+                </div>
+                <div className="p-5 space-y-3">
+                  {[
+                    { name: 'Sarah K.', progress: 85, color: '#0d9488' },
+                    { name: 'James L.', progress: 72, color: '#f59e0b' },
+                    { name: 'Aisha M.', progress: 93, color: '#0d9488' },
+                    { name: 'Wei T.', progress: 58, color: '#f97316' },
+                  ].map((student, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={isInView ? { opacity: 1, x: 0 } : {}}
+                      transition={{ delay: 0.6 + i * 0.12 }}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-teal-50/50 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-xs font-bold text-teal-700">
+                        {student.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-700">{student.name}</p>
+                        <div className="mt-1.5 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: student.color }}
+                            initial={{ width: 0 }}
+                            animate={isInView ? { width: `${student.progress}%` } : { width: 0 }}
+                            transition={{ duration: 1.2, delay: 0.9 + i * 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-500 tabular-nums">{student.progress}%</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Stats Section ────────────────────────────────────────────────────
+
+function StatsSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.4 });
+
+  const stats = [
+    { value: 500, suffix: '+', label: 'Students Learning', icon: Users },
+    { value: 1000, suffix: '+', label: 'Projects Built', icon: Rocket },
+    { value: 50, suffix: '+', label: 'Coding Concepts', icon: BookOpen },
+    { value: 24, suffix: '/7', label: 'AI Assistance', icon: Zap },
+  ];
+
+  return (
+    <section ref={ref} className="py-24 px-6 lg:px-10 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 50%, #115e59 100%)' }}>
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-teal-400/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-[80px]" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-amber-400/5 rounded-full translate-x-1/3 translate-y-1/3 blur-[80px]" />
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+      <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center relative">
+        {stats.map((stat, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+            animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+            transition={{ delay: i * 0.12, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+              <stat.icon className="w-6 h-6 text-teal-300" />
+            </div>
+            <div className="text-4xl md:text-5xl font-black text-white">
+              <AnimatedCounter target={stat.value} isInView={isInView} />
+              {stat.suffix}
+            </div>
+            <p className="text-teal-200/60 mt-2 text-sm font-medium">{stat.label}</p>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── CTA Section ──────────────────────────────────────────────────────
+
+function CTASection({ user }: { user: User | null }) {
+  const navigate = useNavigate();
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.3 });
+
+  return (
+    <section ref={ref} className="py-28 px-6 lg:px-10">
+      <motion.div
+        initial={{ opacity: 0, y: 40, scale: 0.97 }}
+        animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+        transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="max-w-5xl mx-auto"
+      >
+        <div className="relative">
+          <div className="absolute -inset-8 bg-gradient-to-r from-teal-100/40 to-amber-100/30 rounded-[2rem] blur-3xl" />
+          <div className="relative rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%)' }}>
+            <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle, #0d9488 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+            <div className="relative p-12 md:p-20 text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={isInView ? { scale: 1 } : {}}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 15 }}
+                className="w-20 h-20 flex items-center justify-center mx-auto mb-8"
+              >
+                <EdvanceLogo size={72} />
+              </motion.div>
+              <h2 className="text-4xl sm:text-5xl font-bold text-slate-800">
+                Ready to Start Your{' '}
+                <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  Coding Journey
+                </span>
+                ?
+              </h2>
+              <p className="mt-5 text-lg text-slate-500 max-w-xl mx-auto">
+                Join hundreds of students already learning with Edvance. Start building real projects today.
+              </p>
+              <div className="mt-10">
+                {user ? (
+                  <Button
+                    size="lg"
+                    onClick={() => navigate(user.role === 'teacher' ? '/teacher/dashboard' : '/student-dashboard')}
+                    className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 px-10 h-14 text-lg rounded-xl shadow-lg shadow-teal-500/25"
+                  >
+                    Go to Dashboard <ArrowRight className="w-5 h-5" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    onClick={() => navigate('/signup')}
+                    className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 px-10 h-14 text-lg rounded-xl shadow-lg shadow-teal-500/25"
+                  >
+                    Get Started for Free <ArrowRight className="w-5 h-5" />
+                  </Button>
+                )}
+              </div>
+              {!user && <p className="mt-4 text-sm text-slate-400">No credit card required</p>}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </section>
+  );
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────
+
+function Footer() {
+  return (
+    <footer style={{ background: 'linear-gradient(180deg, #0f172a 0%, #0c4a4e 100%)' }}>
+      <div className="w-full px-6 lg:px-10 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <EdvanceLogo size={36} />
+              <span className="text-xl font-bold text-teal-200">
+                edvance
+              </span>
+            </div>
+            <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+              AI-powered project-based learning platform that helps students master coding through hands-on experience.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
+            <ul className="space-y-2.5">
+              {[
+                { label: 'Features', href: '#features' },
+                { label: 'Student Projects', href: '#projects' },
+                { label: 'How It Works', href: '#how-it-works' },
+                { label: 'For Teachers', href: '#for-teachers' },
+              ].map(link => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm text-slate-400 hover:text-teal-300 transition-colors">{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-white mb-4">Get Started</h4>
+            <ul className="space-y-2.5">
+              {[
+                { label: 'Sign Up', href: '/signup' },
+                { label: 'Log In', href: '/login' },
+              ].map(link => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm text-slate-400 hover:text-teal-300 transition-colors">{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-white/10 text-center max-w-7xl mx-auto">
+          <p className="text-sm text-slate-500">&copy; {new Date().getFullYear()} Edvance. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ─── Main Landing Page ────────────────────────────────────────────────
+
+export function LandingPage({ user }: Props) {
+  return (
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      <Navbar user={user} />
+      <HeroSection user={user} />
+      <FeaturesSection />
+      <StudentProjectsSection />
+      <HowItWorksSection />
+      <ForTeachersSection />
+      <StatsSection />
+      <CTASection user={user} />
+      <Footer />
+    </div>
+  );
+}
