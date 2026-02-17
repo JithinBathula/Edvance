@@ -859,6 +859,7 @@ export function ProjectWorkspace({
             ...updatedTasks[currentTaskIndex + 1],
             description: data.next_task.description || updatedTasks[currentTaskIndex + 1].description,
             hints: data.next_task.hints || updatedTasks[currentTaskIndex + 1].hints,
+            testSpec: data.next_task.testSpec || updatedTasks[currentTaskIndex + 1].testSpec,
           };
 
           const updatedMilestones = project.milestones?.map((milestone: any) => ({

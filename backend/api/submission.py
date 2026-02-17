@@ -93,6 +93,7 @@ def evaluate_submission():
 
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
+        coding_requirements = task.get('coding_requirements', None)
 
         if not code and project_id:
             project = get_project_by_id(project_id)
@@ -107,7 +108,8 @@ def evaluate_submission():
         result = evaluator.evaluate(
             user_code=code,
             task_instructions=task_instructions,
-            test_specification=test_specification
+            test_specification=test_specification,
+            coding_requirements=coding_requirements
         )
 
         # Define XP reward constant 
@@ -246,7 +248,9 @@ def evaluate_submission():
                             adapted_next_task = {
                                 **adapted_task,
                                 "id": next_task_data["id"],
-                                "position": next_task_data["position"]
+                                "position": next_task_data["position"],
+                                "description": adapted_task.get("instruction_theory", ""),
+                                "testSpec": adapted_task.get("test_specification", {}),
                             }
 
                 except Exception:

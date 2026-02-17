@@ -35,6 +35,9 @@ submission_user_prompt = """Evaluate this Python code submission:
 ## Task Instructions
 {task_instructions}
 
+## Coding Requirements (Checklist)
+{coding_requirements}
+
 ## Expected State / Test Specification
 {test_specification}
 
