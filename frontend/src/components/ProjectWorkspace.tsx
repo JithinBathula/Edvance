@@ -1150,6 +1150,34 @@ export function ProjectWorkspace({
                 <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} onAskTutor={handleAskTutor} />
               </div>
 
+              {/* Persistent Feedback Banner — visible after modal is closed */}
+              {evaluationFeedback && !showFeedbackModal && (
+                <div className="mb-6 rounded-xl p-4 border border-amber-200" style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    <span className="font-semibold text-amber-800 text-sm">Things to fix</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {evaluationFeedback
+                      .split('\n')
+                      .map(line => line.replace(/^[-•*]\s*/, '').trim())
+                      .filter(line => line.length > 0)
+                      .map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-amber-900 text-sm leading-relaxed">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: item
+                                .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-amber-100 rounded text-amber-800 font-mono text-xs">$1</code>')
+                                .replace(/'([^'\s]+)'/g, '<code class="px-1 py-0.5 bg-amber-100 rounded text-amber-800 font-mono text-xs">$1</code>')
+                            }}
+                          />
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Ask Cody selection popup — always rendered, shown/hidden via ref to avoid re-renders */}
               <div
                 ref={askCodyPopupRef}
@@ -1346,19 +1374,22 @@ export function ProjectWorkspace({
               </div>
             </div>
 
-            {/* Content - formatted as list */}
+            {/* Content - formatted as bullet list */}
             <div className="px-6 py-5">
               <div className="space-y-3">
-                {evaluationFeedback?.split(/(?<=\.)\s+/).filter(Boolean).map((sentence, i) => (
+                {evaluationFeedback
+                  ?.split('\n')
+                  .map(line => line.replace(/^[-•*]\s*/, '').trim())
+                  .filter(line => line.length > 0)
+                  .map((item, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                       {i + 1}
                     </span>
                     <p className="text-gray-700 text-sm leading-relaxed"
                       dangerouslySetInnerHTML={{
-                        __html: sentence
+                        __html: item
                           .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
-                          // Only match single-quoted text without spaces
                           .replace(/'([^'\s]+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
                       }}
                     />
@@ -1396,7 +1427,24 @@ export function ProjectWorkspace({
               </div>
             </div>
             <div className="px-6 py-5">
-              <p className="text-gray-700 text-[15px] leading-relaxed">{successFeedback}</p>
+              <div className="space-y-2.5">
+                {successFeedback
+                  ?.split('\n')
+                  .map(line => line.replace(/^[-•*]\s*/, '').trim())
+                  .filter(line => line.length > 0)
+                  .map((item, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <p className="text-gray-700 text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{
+                          __html: item
+                            .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-emerald-700 font-mono text-xs">$1</code>')
+                            .replace(/'([^'\s]+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-emerald-700 font-mono text-xs">$1</code>')
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
               <Button
