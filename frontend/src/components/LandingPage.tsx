@@ -495,7 +495,7 @@ function HeroSection({ user }: { user: User | null }) {
                     onClick={() => navigate('/signup')}
                     className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white gap-2 px-8 h-13 text-base rounded-xl shadow-lg shadow-teal-500/25"
                   >
-                    Start Learning Free <ArrowRight className="w-5 h-5" />
+                    Start Your First Project <ArrowRight className="w-5 h-5" />
                   </Button>
                   <Button
                     size="lg"
@@ -512,21 +512,21 @@ function HeroSection({ user }: { user: User | null }) {
             <motion.div variants={staggerItem} className="mt-10 flex items-center gap-8 text-sm text-slate-400">
               <span className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
-                  <Users className="w-3.5 h-3.5 text-teal-600" />
+                  <Zap className="w-3.5 h-3.5 text-teal-600" />
                 </div>
-                500+ Students
+                AI-Powered
               </span>
               <span className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center">
                   <Rocket className="w-3.5 h-3.5 text-amber-600" />
                 </div>
-                50+ Projects
+                Real Projects
               </span>
               <span className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
-                  <Zap className="w-3.5 h-3.5 text-teal-600" />
+                  <Terminal className="w-3.5 h-3.5 text-teal-600" />
                 </div>
-                AI-Powered
+                Built-in IDE
               </span>
             </motion.div>
           </motion.div>
@@ -708,7 +708,7 @@ function StudentProjectsSection() {
             </span>
           </h2>
           <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
-            From terminal games to AI-powered apps — see the kind of Python projects you'll build on Edvance.
+            From terminal games to AI-powered apps, see the kind of Python projects you'll build on Edvance.
           </p>
         </motion.div>
       </div>
@@ -1013,9 +1013,9 @@ function StatsSection() {
   const isInView = useInView(ref, { once: true, amount: 0.4 });
 
   const stats = [
-    { value: 500, suffix: '+', label: 'Students Learning', icon: Users },
-    { value: 1000, suffix: '+', label: 'Projects Built', icon: Rocket },
-    { value: 50, suffix: '+', label: 'Coding Concepts', icon: BookOpen },
+    { value: 5, suffix: '+', label: 'Python Levels', icon: Rocket },
+    { value: 20, suffix: '+', label: 'Real-World Projects', icon: BookOpen },
+    { value: 50, suffix: '+', label: 'Coding Concepts', icon: Brain },
     { value: 24, suffix: '/7', label: 'AI Assistance', icon: Zap },
   ];
 
@@ -1085,7 +1085,7 @@ function CTASection({ user }: { user: User | null }) {
                 ?
               </h2>
               <p className="mt-5 text-lg text-slate-500 max-w-xl mx-auto">
-                Join hundreds of students already learning with Edvance. Start building real projects today.
+                Start building real Python projects with AI guidance. No setup needed; just jump in and code.
               </p>
               <div className="mt-10">
                 {user ? (
