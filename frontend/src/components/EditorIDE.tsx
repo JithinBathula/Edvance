@@ -90,6 +90,7 @@ const filterFilesByMode = (files: ProjectFile[], mode: 'python' | 'web') =>
   files.filter((file) => isAllowedFile(file.name, mode));
 
 const FILE_CHANGE_DEBOUNCE_MS = 120;
+const RECENT_LOCAL_EDIT_WINDOW_MS = 250;
 
 const areFilesEqual = (a: ProjectFile[], b: ProjectFile[]) => {
   if (a === b) return true;
@@ -168,7 +169,9 @@ export function EditorIDE({
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filesChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingFilesRef = useRef<ProjectFile[] | null>(null);
+  const lastLocalEditAtRef = useRef(0);
   const monacoRef = useRef<Monaco | null>(null);
+  const editorRef = useRef<any>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const xtermContainerRef = useRef<HTMLDivElement>(null);
@@ -178,14 +181,24 @@ export function EditorIDE({
 
   const filteredFiles = useMemo(() => filterFilesByMode(localFiles, mode), [localFiles, mode]);
 
-  // Sync files from parent when they change
+  // Sync files from parent when it is safe to do so.
+  // This avoids stale parent echoes overriding in-flight local edits.
   useEffect(() => {
-    setLocalFiles((prev) => (areFilesEqual(prev, files) ? prev : files));
+    if (areFilesEqual(files, localFiles)) return;
+
+    const pending = pendingFilesRef.current;
+    if (pending && !areFilesEqual(files, pending)) return;
+
+    const isEditorFocused = editorRef.current?.hasTextFocus?.() ?? false;
+    const isRecentLocalEdit = Date.now() - lastLocalEditAtRef.current < RECENT_LOCAL_EDIT_WINDOW_MS;
+    if (isEditorFocused && isRecentLocalEdit) return;
+
+    setLocalFiles(files);
     if (!files.some((f) => f.name === activeFile) && files.length > 0) {
       setActiveFile(files[0].name);
       setOpenFiles([files[0].name]);
     }
-  }, [files, activeFile]);
+  }, [files, localFiles, activeFile]);
 
   // Initialize xterm when output panel opens
   useEffect(() => {
@@ -401,6 +414,7 @@ export function EditorIDE({
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       if (value === undefined) return;
+      lastLocalEditAtRef.current = Date.now();
       setLocalFiles((prev) => {
         const updated = prev.map((f) =>
           f.name === activeFile
@@ -418,7 +432,8 @@ export function EditorIDE({
     [activeFile, mode, onFilesChange, emitFilesChangeDebounced]
   );
 
-  const handleMonacoMount = useCallback((_editor: any, monaco: Monaco) => {
+  const handleMonacoMount = useCallback((editor: any, monaco: Monaco) => {
+    editorRef.current = editor;
     monacoRef.current = monaco;
     // Define custom dark theme
     monaco.editor.defineTheme('edvance-dark', {
