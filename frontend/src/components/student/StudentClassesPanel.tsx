@@ -347,6 +347,7 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
               Join Classroom
             </Button>
           }
+          onChanged={() => void fetchClassesData(true)}
         />
       </Card>
     );
@@ -379,6 +380,7 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
                   Join Class
                 </Button>
               }
+              onChanged={() => void fetchClassesData(true, selectedClassroomId)}
             />
           </div>
         </div>

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 interface JoinClassroomProps {
   trigger: React.ReactNode;
+  onChanged?: () => void;
 }
 
 interface Classroom {
@@ -20,7 +21,7 @@ interface Classroom {
   joined_at: string;
 }
 
-export function JoinClassroom({ trigger }: JoinClassroomProps) {
+export function JoinClassroom({ trigger, onChanged }: JoinClassroomProps) {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState(false);
@@ -67,6 +68,7 @@ export function JoinClassroom({ trigger }: JoinClassroomProps) {
         setCode('');
         setOpen(false);
         fetchClassrooms();
+        onChanged?.();
       } else {
         toast.error(data.error || 'Failed to join classroom');
       }
@@ -87,6 +89,7 @@ export function JoinClassroom({ trigger }: JoinClassroomProps) {
       if (data.success) {
         toast.success(`Left ${classroomName}`);
         fetchClassrooms();
+        onChanged?.();
       } else {
         toast.error(data.error || 'Failed to leave classroom');
       }
