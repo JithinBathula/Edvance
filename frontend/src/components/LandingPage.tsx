@@ -73,8 +73,12 @@ function AnimatedCounter({ target, isInView }: { target: number; isInView: boole
 function FloatingCodeToken({ text, className, delay }: { text: string; className: string; delay: number }) {
   return (
     <motion.div
-      animate={{ y: [0, -18, 0], rotate: [0, 4, -4, 0] }}
-      transition={{ duration: 5 + delay, repeat: Infinity, ease: "easeInOut" }}
+      animate={{
+        y: [0, -28, 6, -20, 0],
+        x: [0, 10, -8, 12, 0],
+        rotate: [0, 6, -5, 3, 0],
+      }}
+      transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }}
       className={`absolute font-mono font-bold select-none pointer-events-none ${className}`}
     >
       {text}
@@ -82,67 +86,183 @@ function FloatingCodeToken({ text, className, delay }: { text: string; className
   );
 }
 
-// ─── Code Editor Mockup ───────────────────────────────────────────────
+// ─── Cody the Caterpillar Mascot ──────────────────────────────────────
 
-function CodeEditorMockup() {
-  const codeLines = [
-    { indent: 0, tokens: [{ text: 'def ', color: '#c678dd' }, { text: 'calculate_budget', color: '#61afef' }, { text: '(expenses):', color: '#abb2bf' }] },
-    { indent: 1, tokens: [{ text: 'total', color: '#e06c75' }, { text: ' = ', color: '#abb2bf' }, { text: 'sum', color: '#61afef' }, { text: '(expenses)', color: '#abb2bf' }] },
-    { indent: 1, tokens: [{ text: 'if ', color: '#c678dd' }, { text: 'total ', color: '#e06c75' }, { text: '> ', color: '#abb2bf' }, { text: '1000', color: '#d19a66' }, { text: ':', color: '#abb2bf' }] },
-    { indent: 2, tokens: [{ text: 'print', color: '#61afef' }, { text: '(', color: '#abb2bf' }, { text: '"Over budget!"', color: '#98c379' }, { text: ')', color: '#abb2bf' }] },
-    { indent: 1, tokens: [{ text: 'return ', color: '#c678dd' }, { text: 'total', color: '#e06c75' }] },
-    { indent: 0, tokens: [] },
-    { indent: 0, tokens: [{ text: '# AI suggests: Add error handling', color: '#5c6370' }] },
-    { indent: 0, tokens: [{ text: 'budget ', color: '#e06c75' }, { text: '= ', color: '#abb2bf' }, { text: 'calculate_budget', color: '#61afef' }, { text: '([', color: '#abb2bf' }, { text: '250', color: '#d19a66' }, { text: ', ', color: '#abb2bf' }, { text: '400', color: '#d19a66' }, { text: ', ', color: '#abb2bf' }, { text: '375', color: '#d19a66' }, { text: '])', color: '#abb2bf' }] },
-  ];
+function CodyMascot({ size = 48 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Body segments - caterpillar body curving upward */}
+      {/* Tail segment */}
+      <circle cx="12" cy="44" r="7" fill="#6DD4A0" />
+      <circle cx="12" cy="44" r="7" fill="url(#codyShine)" />
+      {/* Segment 2 */}
+      <circle cx="22" cy="38" r="8" fill="#5EC492" />
+      <circle cx="22" cy="38" r="8" fill="url(#codyShine)" />
+      {/* Segment 3 */}
+      <circle cx="33" cy="34" r="8.5" fill="#4DB884" />
+      <circle cx="33" cy="34" r="8.5" fill="url(#codyShine)" />
+      {/* Head - largest segment */}
+      <circle cx="45" cy="28" r="11" fill="#3AAC76" />
+      <circle cx="45" cy="28" r="11" fill="url(#codyShine)" />
+      {/* Cheek blush */}
+      <circle cx="38" cy="31" r="2.5" fill="#FF9E9E" opacity="0.4" />
+      <circle cx="52" cy="31" r="2.5" fill="#FF9E9E" opacity="0.4" />
+      {/* Eyes */}
+      <circle cx="41" cy="25" r="3" fill="white" />
+      <circle cx="49" cy="25" r="3" fill="white" />
+      <circle cx="42" cy="24.5" r="1.8" fill="#1B5E6B" />
+      <circle cx="50" cy="24.5" r="1.8" fill="#1B5E6B" />
+      {/* Eye shine */}
+      <circle cx="42.7" cy="23.8" r="0.7" fill="white" />
+      <circle cx="50.7" cy="23.8" r="0.7" fill="white" />
+      {/* Happy smile */}
+      <path d="M42 30.5 Q45 34 48 30.5" stroke="#1B5E6B" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      {/* Antennae */}
+      <line x1="42" y1="18" x2="38" y2="11" stroke="#3AAC76" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="37.5" cy="10" r="2.5" fill="#F59E0B" />
+      <line x1="48" y1="18" x2="52" y2="11" stroke="#3AAC76" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="52.5" cy="10" r="2.5" fill="#F59E0B" />
+      {/* Tiny feet */}
+      <circle cx="10" cy="51" r="1.5" fill="#3AAC76" />
+      <circle cx="14" cy="51" r="1.5" fill="#3AAC76" />
+      <circle cx="20" cy="46" r="1.5" fill="#3AAC76" />
+      <circle cx="24" cy="46" r="1.5" fill="#3AAC76" />
+      <circle cx="31" cy="43" r="1.5" fill="#3AAC76" />
+      <circle cx="35" cy="43" r="1.5" fill="#3AAC76" />
+      {/* Gradient def */}
+      <defs>
+        <radialGradient id="codyShine" cx="0.35" cy="0.35" r="0.65">
+          <stop offset="0%" stopColor="white" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+    </svg>
+  );
+}
 
+// ─── Hero Split Visual (Error → Cody helps) ──────────────────────────
+
+function HeroVisual() {
   return (
     <div className="relative w-full">
-      <div className="absolute -inset-6 bg-gradient-to-r from-[#0d9488]/20 to-[#f59e0b]/15 rounded-3xl blur-3xl" />
-      <motion.div
-        initial={{ opacity: 0, x: 60, rotateY: -10 }}
-        animate={{ opacity: 1, x: 0, rotateY: 0 }}
-        transition={{ duration: 1, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="relative bg-[#0f172a] rounded-2xl shadow-2xl shadow-teal-900/20 border border-teal-500/10 overflow-hidden"
-      >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-[#1e293b]">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-            <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
-            <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="ml-3 flex gap-1">
-            <div className="px-3 py-1 rounded-md bg-teal-500/15 text-xs text-teal-300 font-mono">main.py</div>
-          </div>
-        </div>
-        <div className="p-5 font-mono text-sm leading-relaxed">
-          {codeLines.map((line, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.9 + i * 0.12, duration: 0.4 }}
-              className="flex"
-              style={{ paddingLeft: `${line.indent * 24}px` }}
-            >
-              <span className="text-white/20 w-8 text-right mr-4 select-none text-xs leading-relaxed">{i + 1}</span>
-              {line.tokens.map((token, j) => (
-                <span key={j} style={{ color: token.color }}>{token.text}</span>
-              ))}
-              {line.tokens.length === 0 && <span>&nbsp;</span>}
-            </motion.div>
-          ))}
-        </div>
+      <div className="absolute -inset-6 bg-gradient-to-r from-red-400/10 to-teal-400/15 rounded-3xl blur-3xl" />
+      <div className="relative flex flex-col gap-4">
+        {/* Error terminal */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.2, duration: 0.5 }}
-          className="mx-5 mb-4 px-3 py-2 rounded-lg bg-teal-500/15 border border-teal-500/25 flex items-center gap-2"
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="relative"
         >
-          <Sparkles className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-          <span className="text-xs text-teal-300">AI: Consider adding a try/except block for invalid inputs</span>
+          {/* Red glow behind terminal */}
+          <div className="absolute -inset-3 bg-red-500/20 rounded-3xl blur-2xl" />
+          <div className="absolute -inset-6 bg-red-400/10 rounded-3xl blur-3xl" />
+        <div
+          className="relative bg-[#0f172a] rounded-2xl shadow-2xl shadow-red-900/20 border border-red-500/20 overflow-hidden"
+        >
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5 bg-[#1e293b]">
+            <div className="flex gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+            </div>
+            <span className="ml-2 text-[10px] text-white/40 font-mono">terminal</span>
+          </div>
+          <div className="p-4 font-mono text-xs leading-relaxed">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
+              <span className="text-slate-500">$ python main.py</span>
+            </motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="mt-2">
+              <span className="text-slate-500">File &quot;main.py&quot;, line 12</span>
+            </motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}>
+              <span className="text-white/60">{'    '}expenses = [250 400 375]</span>
+            </motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}>
+              <span className="text-white/40">{'                    '}^^^</span>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.8, duration: 0.4 }}
+              className="mt-1"
+            >
+              <span className="text-red-400 font-bold">SyntaxError:</span>
+              <span className="text-red-300"> invalid syntax. Perhaps you forgot a comma?</span>
+            </motion.div>
+          </div>
+        </div>
         </motion.div>
-      </motion.div>
+
+        {/* Cody's help bubble */}
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ delay: 2.4, duration: 0.6, type: 'spring', stiffness: 200, damping: 18 }}
+          className="relative bg-white rounded-2xl shadow-xl border border-teal-200/60 p-5 ml-4"
+        >
+          {/* Speech bubble arrow */}
+          <div className="absolute -top-2 left-10 w-4 h-4 bg-white border-l border-t border-teal-200/60 rotate-45" />
+
+          <div className="relative flex gap-4">
+            {/* Cody mascot - bigger companion */}
+            <motion.div
+              animate={{ y: [0, -4, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="shrink-0 self-center"
+            >
+              <CodyMascot size={60} />
+            </motion.div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base font-bold text-[#1B5E6B]">Cody</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 font-medium">AI Helper</span>
+              </div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2.8, duration: 0.5 }}
+                className="text-sm text-slate-600 leading-relaxed"
+              >
+                Take a look at <span className="font-semibold text-teal-700">line 12</span> — the error says &quot;invalid syntax.&quot; What do you think is missing between those numbers in the list?
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                transition={{ delay: 3.3, duration: 0.4 }}
+                className="mt-2.5 bg-slate-50 rounded-lg px-3 py-2 text-xs text-slate-500 italic border border-slate-100"
+              >
+                Hint: Python lists separate items with a specific character...
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 3.8, duration: 0.4 }}
+                className="mt-3 flex gap-2"
+              >
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500 text-white text-xs font-medium cursor-default shadow-sm">
+                  <Zap className="w-3 h-3" />
+                  Explain this error
+                </span>
+                <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium cursor-default">
+                  Give me a hint
+                </span>
+              </motion.div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Caption */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 3.8 }}
+          className="text-center text-base text-slate-600 font-medium mt-2"
+        >
+          Real-time help, right when you need it.
+        </motion.p>
+      </div>
     </div>
   );
 }
@@ -312,18 +432,29 @@ function HeroSection({ user }: { user: User | null }) {
         className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-teal-500/10 rounded-full blur-[80px]"
       />
 
-      {/* Floating code tokens */}
-      <FloatingCodeToken text="{ }" className="text-teal-500/[0.12] text-3xl top-[12%] left-[6%]" delay={0} />
-      <FloatingCodeToken text="< />" className="text-amber-500/[0.1] text-2xl top-[20%] right-[10%]" delay={1.5} />
-      <FloatingCodeToken text="def" className="text-teal-600/[0.1] text-xl bottom-[35%] left-[4%]" delay={0.8} />
-      <FloatingCodeToken text="=>" className="text-teal-400/[0.1] text-2xl bottom-[18%] right-[6%]" delay={2} />
-      <FloatingCodeToken text="( )" className="text-amber-400/[0.08] text-xl top-[55%] left-[12%]" delay={1.2} />
-      <FloatingCodeToken text="[ ]" className="text-teal-500/[0.1] text-2xl top-[8%] right-[22%]" delay={0.5} />
-      <FloatingCodeToken text="print" className="text-teal-600/[0.08] text-lg bottom-[25%] right-[30%]" delay={1.8} />
+      {/* Floating code tokens — scattered across hero */}
+      <FloatingCodeToken text="{ }" className="text-teal-600/25 text-4xl top-[10%] left-[5%]" delay={0} />
+      <FloatingCodeToken text="< />" className="text-amber-500/20 text-3xl top-[18%] right-[8%]" delay={1.5} />
+      <FloatingCodeToken text="def" className="text-teal-700/20 text-2xl bottom-[32%] left-[3%]" delay={0.8} />
+      <FloatingCodeToken text="=>" className="text-teal-500/20 text-3xl bottom-[15%] right-[5%]" delay={2} />
+      <FloatingCodeToken text="( )" className="text-amber-500/18 text-2xl top-[52%] left-[10%]" delay={1.2} />
+      <FloatingCodeToken text="[ ]" className="text-teal-600/22 text-3xl top-[6%] right-[20%]" delay={0.5} />
+      <FloatingCodeToken text="print" className="text-teal-700/15 text-xl bottom-[22%] right-[28%]" delay={1.8} />
+      <FloatingCodeToken text="#" className="text-teal-500/20 text-4xl top-[40%] left-[2%]" delay={0.3} />
+      <FloatingCodeToken text="if" className="text-amber-600/18 text-2xl top-[70%] left-[8%]" delay={2.5} />
+      <FloatingCodeToken text="for" className="text-teal-600/18 text-2xl top-[30%] left-[18%]" delay={1} />
+      <FloatingCodeToken text="class" className="text-teal-700/15 text-xl bottom-[10%] left-[15%]" delay={3} />
+      <FloatingCodeToken text="import" className="text-amber-500/15 text-lg top-[15%] left-[35%]" delay={0.6} />
+      <FloatingCodeToken text="True" className="text-teal-500/18 text-xl bottom-[40%] right-[15%]" delay={1.4} />
+      <FloatingCodeToken text="while" className="text-amber-600/15 text-xl top-[65%] right-[20%]" delay={2.2} />
+      <FloatingCodeToken text="+" className="text-teal-600/22 text-3xl top-[45%] right-[3%]" delay={0.9} />
+      <FloatingCodeToken text="==" className="text-teal-500/18 text-2xl bottom-[5%] right-[40%]" delay={1.7} />
+      <FloatingCodeToken text="&&" className="text-amber-500/15 text-2xl top-[5%] left-[48%]" delay={2.8} />
+      <FloatingCodeToken text="return" className="text-teal-700/15 text-lg top-[75%] right-[35%]" delay={3.2} />
 
       {/* Content - full width */}
-      <motion.div style={{ y: textY }} className="relative w-full px-6 lg:px-10 py-20 pt-28">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <motion.div style={{ y: textY }} className="relative w-full px-6 lg:px-10 py-12 pt-24">
+        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-12 lg:gap-16 items-center">
           {/* Left - Text */}
           <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
             <motion.div variants={staggerItem}>
@@ -335,17 +466,17 @@ function HeroSection({ user }: { user: User | null }) {
 
             <motion.h1
               variants={staggerItem}
-              className="text-5xl sm:text-6xl lg:text-[4.5rem] font-bold text-slate-800 leading-[1.08] tracking-tight"
+              className="text-5xl sm:text-6xl lg:text-[3.5rem] xl:text-[4rem] font-bold text-slate-800 leading-[1.08] tracking-tight whitespace-nowrap"
             >
-              Learn Coding by{' '}
+              Coding is hard.{' '}
               <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Building Real Projects
+                You shouldn&apos;t do it alone.
               </span>
             </motion.h1>
 
             <motion.p variants={staggerItem} className="mt-6 text-lg sm:text-xl text-slate-500 leading-relaxed max-w-xl">
-              Edvance uses AI to guide you through hands-on coding projects. Get personalized feedback,
-              step-by-step guidance, and build a real portfolio — all while learning at your own pace.
+              Don&apos;t struggle in silence. Edvance gives you an AI partner that helps you debug, plan,
+              and learn in real-time. Turn &ldquo;I give up&rdquo; into &ldquo;I did it.&rdquo;
             </motion.p>
 
             <motion.div variants={staggerItem} className="mt-10 flex flex-wrap gap-4">
@@ -400,9 +531,9 @@ function HeroSection({ user }: { user: User | null }) {
             </motion.div>
           </motion.div>
 
-          {/* Right - Code Editor Mockup */}
+          {/* Right - Error → Cody helps visual */}
           <div className="hidden lg:block">
-            <CodeEditorMockup />
+            <HeroVisual />
           </div>
         </div>
       </motion.div>
@@ -433,13 +564,13 @@ function FeaturesSection() {
   };
 
   return (
-    <section id="features" ref={ref} className="py-28 px-6 lg:px-10">
+    <section id="features" ref={ref} className="py-16 px-6 lg:px-10">
       <div className="w-full">
         <motion.div
           variants={sectionVariants}
           initial="hidden"
           animate={isInView ? 'visible' : 'hidden'}
-          className="text-center mb-16 max-w-3xl mx-auto"
+          className="text-center mb-10 max-w-3xl mx-auto"
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">
             Features
@@ -558,8 +689,8 @@ function StudentProjectsSection() {
   ];
 
   return (
-    <section id="projects" ref={ref} className="py-28 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%)' }}>
-      <div className="px-6 lg:px-10 mb-16">
+    <section id="projects" ref={ref} className="py-16 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%)' }}>
+      <div className="px-6 lg:px-10 mb-10">
         <motion.div
           variants={sectionVariants}
           initial="hidden"
@@ -703,13 +834,13 @@ function HowItWorksSection() {
   ];
 
   return (
-    <section id="how-it-works" ref={ref} className="py-28 px-6 lg:px-10" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f0fdfa 50%, #ffffff 100%)' }}>
+    <section id="how-it-works" ref={ref} className="py-16 px-6 lg:px-10" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f0fdfa 50%, #ffffff 100%)' }}>
       <div className="w-full max-w-6xl mx-auto">
         <motion.div
           variants={sectionVariants}
           initial="hidden"
           animate={isInView ? 'visible' : 'hidden'}
-          className="text-center mb-20"
+          className="text-center mb-12"
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">
             How It Works
@@ -774,7 +905,7 @@ function ForTeachersSection() {
   ];
 
   return (
-    <section id="for-teachers" ref={ref} className="py-28 px-6 lg:px-10">
+    <section id="for-teachers" ref={ref} className="py-16 px-6 lg:px-10">
       <div className="w-full max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <motion.div
@@ -889,7 +1020,7 @@ function StatsSection() {
   ];
 
   return (
-    <section ref={ref} className="py-24 px-6 lg:px-10 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 50%, #115e59 100%)' }}>
+    <section ref={ref} className="py-14 px-6 lg:px-10 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 50%, #115e59 100%)' }}>
       {/* Decorative elements */}
       <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-teal-400/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-[80px]" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-amber-400/5 rounded-full translate-x-1/3 translate-y-1/3 blur-[80px]" />
@@ -926,7 +1057,7 @@ function CTASection({ user }: { user: User | null }) {
   const isInView = useInView(ref, { once: true, amount: 0.3 });
 
   return (
-    <section ref={ref} className="py-28 px-6 lg:px-10">
+    <section ref={ref} className="py-16 px-6 lg:px-10">
       <motion.div
         initial={{ opacity: 0, y: 40, scale: 0.97 }}
         animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
@@ -937,7 +1068,7 @@ function CTASection({ user }: { user: User | null }) {
           <div className="absolute -inset-8 bg-gradient-to-r from-teal-100/40 to-amber-100/30 rounded-[2rem] blur-3xl" />
           <div className="relative rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%)' }}>
             <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle, #0d9488 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-            <div className="relative p-12 md:p-20 text-center">
+            <div className="relative p-10 md:p-14 text-center">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={isInView ? { scale: 1 } : {}}
@@ -989,7 +1120,7 @@ function CTASection({ user }: { user: User | null }) {
 function Footer() {
   return (
     <footer style={{ background: 'linear-gradient(180deg, #0f172a 0%, #0c4a4e 100%)' }}>
-      <div className="w-full px-6 lg:px-10 py-16">
+      <div className="w-full px-6 lg:px-10 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-4">

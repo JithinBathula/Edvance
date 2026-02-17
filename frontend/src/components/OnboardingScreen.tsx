@@ -111,7 +111,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 p-4 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-amber-50 p-4 flex items-center justify-center">
       <div className="w-full max-w-2xl">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -138,11 +138,11 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   onClick={() => setRole('student')}
                   className={`p-6 rounded-xl border-2 transition-all text-left ${
                     role === 'student'
-                      ? 'border-[#7622e5] bg-purple-50 shadow-md'
-                      : 'border-gray-200 hover:border-[#7622e5]'
+                      ? 'border-teal-500 bg-teal-50 shadow-md'
+                      : 'border-gray-200 hover:border-teal-500'
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center mb-3">
                     <GraduationCap className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold mb-1">Student</h3>
@@ -153,11 +153,11 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   onClick={() => setRole('teacher')}
                   className={`p-6 rounded-xl border-2 transition-all text-left ${
                     role === 'teacher'
-                      ? 'border-[#7622e5] bg-purple-50 shadow-md'
-                      : 'border-gray-200 hover:border-[#7622e5]'
+                      ? 'border-amber-500 bg-amber-50 shadow-md'
+                      : 'border-gray-200 hover:border-amber-500'
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ffa200] to-[#ff8800] flex items-center justify-center mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-3">
                     <BookOpen className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold mb-1">Teacher</h3>
@@ -188,7 +188,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -225,7 +225,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -263,7 +263,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -299,7 +299,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                     <label
                       key={option.value}
                       className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                        isChecked ? 'border-[#7622e5] bg-purple-50' : 'border-gray-200 hover:border-[#7622e5]'
+                        isChecked ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-500'
                       }`}
                     >
                       <Checkbox
@@ -341,7 +341,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -370,7 +370,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
             <Button
               onClick={handleNext}
               disabled={!isStepComplete() || loading}
-              className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+              className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700"
             >
               {(step === 0 && role === 'teacher') || step === 5
                 ? (loading ? 'Saving...' : 'Complete')
