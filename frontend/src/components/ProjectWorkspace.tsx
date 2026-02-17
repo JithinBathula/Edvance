@@ -32,207 +32,10 @@ import {
   Lock,
   GraduationCap,
 } from "lucide-react";
-import { GLOSSARY } from "../utils/glossary";
-import { TechnicalTermHover } from "./TechnicalTermHover";
 import { BACKEND_URL } from '../utils/constants';
 
-
-// Sorted glossary terms by length descending for longest-match-first
-const SORTED_GLOSSARY_TERMS = Object.keys(GLOSSARY).sort(
-  (a, b) => b.length - a.length
-);
-
-// Build a combined regex from glossary terms using lookahead/lookbehind
-// so terms adjacent to punctuation (commas, periods) still match.
-const GLOSSARY_REGEX = new RegExp(
-  `(?<![a-zA-Z0-9])(${SORTED_GLOSSARY_TERMS.map((t) =>
-    t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  ).join("|")})(?![a-zA-Z0-9])`,
-  "gi"
-);
-
-// Keywords that get green styling (not in glossary but still highlighted)
-const KEYWORD_REGEX = /(?<![a-zA-Z0-9])(GET|POST|PUT|DELETE)(?![a-zA-Z0-9])/g;
-
-/**
- * Parse a text segment (non-code) into React nodes with glossary hover terms
- * and keyword highlighting. Only highlights the first occurrence of each term.
- */
-function parseSegmentWithTerms(
-  text: string,
-  matchedTerms: Set<string>,
-  onAskTutor?: (term: string) => void
-): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let keyCounter = 0;
-
-  // Collect all matches (glossary + keywords) with their positions
-  type Match = { index: number; length: number; text: string; type: "glossary" | "keyword" };
-  const matches: Match[] = [];
-
-  // Reset regex state
-  GLOSSARY_REGEX.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = GLOSSARY_REGEX.exec(text)) !== null) {
-    matches.push({ index: m.index, length: m[0].length, text: m[0], type: "glossary" });
-  }
-
-  KEYWORD_REGEX.lastIndex = 0;
-  while ((m = KEYWORD_REGEX.exec(text)) !== null) {
-    // Only add keyword matches that don't overlap with a glossary match
-    const overlaps = matches.some(
-      (existing) =>
-        m!.index >= existing.index && m!.index < existing.index + existing.length
-    );
-    if (!overlaps) {
-      matches.push({ index: m.index, length: m[0].length, text: m[0], type: "keyword" });
-    }
-  }
-
-  // Sort matches by position
-  matches.sort((a, b) => a.index - b.index);
-
-  for (const match of matches) {
-    // Add plain text before this match
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
-    }
-
-    if (match.type === "glossary") {
-      // Find the glossary key (case-insensitive lookup)
-      const glossaryKey = SORTED_GLOSSARY_TERMS.find(
-        (t) => t.toLowerCase() === match.text.toLowerCase()
-      );
-      const termLower = match.text.toLowerCase();
-
-      if (glossaryKey && !matchedTerms.has(termLower)) {
-        // First occurrence — render as hoverable term
-        matchedTerms.add(termLower);
-        nodes.push(
-          <TechnicalTermHover
-            key={`term-${keyCounter++}`}
-            term={glossaryKey}
-            definition={GLOSSARY[glossaryKey]}
-            onAskTutor={onAskTutor}
-          >
-            {match.text}
-          </TechnicalTermHover>
-        );
-      } else {
-        // Already highlighted or no definition — render as plain text
-        nodes.push(match.text);
-      }
-    } else {
-      // Keyword match (GET, POST, etc.)
-      nodes.push(
-        <span key={`kw-${keyCounter++}`} className="keyword">
-          {match.text}
-        </span>
-      );
-    }
-
-    lastIndex = match.index + match.length;
-  }
-
-  // Remaining text after last match
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
-  }
-
-  return nodes.length > 0 ? nodes : [text];
-}
-
-/**
- * Parse a sentence into React nodes, splitting on code regions first,
- * then applying glossary/keyword matching on non-code text.
- */
-function parseTextToNodes(
-  text: string,
-  matchedTerms: Set<string>,
-  onAskTutor?: (term: string) => void
-): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  let keyCounter = 0;
-
-  // Split on: backtick code, JSX tags, single-quoted code, function calls like method()
-  const codeRegex = /(`[^`]+`)|(<[A-Z][a-zA-Z0-9]*\s*\/>)|(<[A-Z][a-zA-Z0-9]*>)|('([^'\s]+)')|(\b[a-z_][a-z0-9_]*\(\))/gi;
-  let lastIndex = 0;
-  let m: RegExpExecArray | null;
-
-  while ((m = codeRegex.exec(text)) !== null) {
-    // Non-code text before this match
-    if (m.index > lastIndex) {
-      const segment = text.slice(lastIndex, m.index);
-      nodes.push(...parseSegmentWithTerms(segment, matchedTerms, onAskTutor));
-    }
-
-    // Render the code region
-    const matched = m[0];
-    if (matched.startsWith("`")) {
-      // Backtick code
-      const code = matched.slice(1, -1);
-      nodes.push(
-        <code key={`code-${keyCounter++}`} className="inline-code">
-          {code}
-        </code>
-      );
-    } else if (matched.startsWith("<")) {
-      // JSX tag
-      nodes.push(
-        <code key={`code-${keyCounter++}`} className="inline-code">
-          {matched.replace(/</g, "<").replace(/>/g, ">")}
-        </code>
-      );
-    } else if (matched.startsWith("'")) {
-      // Single-quoted code (no spaces)
-      const code = m[5] || matched.slice(1, -1);
-      nodes.push(
-        <code key={`code-${keyCounter++}`} className="inline-code">
-          {code}
-        </code>
-      );
-    } else if (matched.match(/^[a-z_]/i) && matched.endsWith("()")) {
-      // Function call like method(), split(), etc.
-      nodes.push(
-        <code key={`code-${keyCounter++}`} className="inline-code">
-          {matched}
-        </code>
-      );
-    }
-
-    lastIndex = m.index + matched.length;
-  }
-
-  // Remaining non-code text
-  if (lastIndex < text.length) {
-    nodes.push(
-      ...parseSegmentWithTerms(text.slice(lastIndex), matchedTerms, onAskTutor)
-    );
-  }
-
-  return nodes;
-}
-
-/**
- * Apply glossary/keyword highlighting to string children within ReactMarkdown output.
- * Leaves non-string children (React elements like <code>, <strong>) untouched.
- */
-function withGlossary(
-  children: React.ReactNode,
-  matchedTerms: Set<string>,
-  onAskTutor?: (term: string) => void
-): React.ReactNode {
-  return React.Children.map(children, (child) => {
-    if (typeof child === "string") {
-      return parseSegmentWithTerms(child, matchedTerms, onAskTutor);
-    }
-    return child;
-  });
-}
-
 // Shared markdown components for task content rendering
-const markdownComponents = (matchedTerms: Set<string>, onAskTutor?: (term: string) => void) => ({
+const markdownComponents = () => ({
   h1: ({ children }: any) => (
     <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
       {children}
@@ -250,7 +53,7 @@ const markdownComponents = (matchedTerms: Set<string>, onAskTutor?: (term: strin
   ),
   p: ({ children }: any) => (
     <p className="text-gray-600 text-[15px] leading-relaxed mb-3 last:mb-0">
-      {withGlossary(children, matchedTerms, onAskTutor)}
+      {children}
     </p>
   ),
   strong: ({ children }: any) => (
@@ -276,9 +79,7 @@ const markdownComponents = (matchedTerms: Set<string>, onAskTutor?: (term: strin
     </ol>
   ),
   li: ({ children }: any) => (
-    <li className="leading-relaxed">
-      {withGlossary(children, matchedTerms, onAskTutor)}
-    </li>
+    <li className="leading-relaxed">{children}</li>
   ),
   blockquote: ({ children }: any) => (
     <blockquote className="border-l-4 border-orange-300 bg-orange-50/50 pl-4 py-2 my-3 rounded-r">
@@ -331,8 +132,6 @@ function CollapsiblePart({
   content,
   isOpen,
   onToggle,
-  matchedTerms,
-  onAskTutor,
 }: {
   label: string;
   title: string;
@@ -340,10 +139,8 @@ function CollapsiblePart({
   content: string;
   isOpen: boolean;
   onToggle: () => void;
-  matchedTerms: Set<string>;
-  onAskTutor?: (term: string) => void;
 }) {
-  const components = markdownComponents(matchedTerms, onAskTutor);
+  const components = markdownComponents();
 
   return (
     <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden">
@@ -373,28 +170,23 @@ function CollapsiblePart({
 }
 
 // Component to format task description with full markdown rendering,
-// code highlighting, glossary terms, and structured Learn → Try → Do content
+// code highlighting, and structured Learn → Try → Do content
 function FormattedDescription({
   text,
-  onAskTutor,
 }: {
   text: string;
-  onAskTutor?: (term: string) => void;
 }) {
-  const matchedTermsRef = useRef(new Set<string>());
   const { intro, parts } = splitIntoParts(text);
 
   // Track which parts are open; reset when text changes (new task)
   const [openParts, setOpenParts] = useState<Set<number>>(() => new Set([0]));
 
-  // Reset matched terms and collapse state when text changes (new task)
+  // Reset collapse state when text changes (new task)
   useEffect(() => {
-    matchedTermsRef.current = new Set<string>();
     setOpenParts(new Set([0]));
   }, [text]);
 
-  const matchedTerms = matchedTermsRef.current;
-  const components = markdownComponents(matchedTerms, onAskTutor);
+  const components = markdownComponents();
 
   const togglePart = (index: number) => {
     setOpenParts(prev => {
@@ -419,10 +211,6 @@ function FormattedDescription({
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 0.875em;
           font-weight: 500;
-        }
-        .keyword {
-          color: #059669;
-          font-weight: 600;
         }
         .task-content .code-block code {
           background: transparent !important;
@@ -454,8 +242,6 @@ function FormattedDescription({
               content={part.content}
               isOpen={openParts.has(index)}
               onToggle={() => togglePart(index)}
-              matchedTerms={matchedTerms}
-              onAskTutor={onAskTutor}
             />
           ))}
         </div>
@@ -543,10 +329,6 @@ export function ProjectWorkspace({
   const askCodyPopupRef = useRef<HTMLDivElement>(null);
   const selectedTextRef = useRef<string>('');
 
-  const handleAskTutor = (term: string) => {
-    setChatPrefill(`Can you explain what "${term}" means in the context of this task?`);
-    if (!isChatOpen) setIsChatOpen(true);
-  };
 
   const showAskCodyPopup = (x: number, y: number, text: string) => {
     selectedTextRef.current = text;
@@ -1148,7 +930,7 @@ export function ProjectWorkspace({
             <div className="flex-1 overflow-y-auto p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
               <div ref={taskContentRef} className="max-w-none mb-6 relative">
-                <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} onAskTutor={handleAskTutor} />
+                <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} />
               </div>
 
               {/* Persistent Feedback Banner — visible after modal is closed */}
@@ -1231,9 +1013,7 @@ export function ProjectWorkspace({
                   {showHints && (
                     <div className="mt-3 rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(to bottom right, #ecfeff, white)', border: '1px solid #cffafe' }}>
                       <div className="space-y-5">
-                        {(() => {
-                          const hintMatchedTerms = new Set<string>();
-                          return safeCurrentTask.hints.map((hint, idx) => (
+                        {safeCurrentTask.hints.map((hint, idx) => (
                             <div
                               key={idx}
                               className="flex items-start gap-4"
@@ -1242,11 +1022,10 @@ export function ProjectWorkspace({
                                 {idx + 1}
                               </span>
                               <p className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
-                                {parseTextToNodes(hint, hintMatchedTerms, handleAskTutor)}
+                                {hint}
                               </p>
                             </div>
-                          ));
-                        })()}
+                          ))}
                       </div>
                     </div>
                   )}
