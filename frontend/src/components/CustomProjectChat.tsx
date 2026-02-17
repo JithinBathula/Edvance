@@ -335,7 +335,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
 
         const outlineJson = await outlineRes.json();
 
-        toast.success("Plan Created!");
         onProjectCreated({
             session: backendSessionData,
             outline: outlineJson,
@@ -533,9 +532,19 @@ useEffect(() => {
           
           {/* Handoff Spinner */}
           {isProcessingHandoff && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3 animate-in fade-in">
-              <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500 text-lg font-medium">Generating Project Blueprint...</p>
+            <div className="flex flex-col items-center justify-center py-10 gap-4 animate-in fade-in">
+              <div className="relative w-14 h-14">
+                <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
+                <div className="absolute inset-0 rounded-full border-4 border-teal-600 border-r-transparent border-b-transparent animate-spin" style={{ animationDuration: '0.9s' }} />
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <p className="text-gray-800 text-lg font-semibold">Generating Project Blueprint</p>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                </div>
+              </div>
             </div>
           )}
 
