@@ -13,6 +13,7 @@ from db.supabase_client import (
     get_milestones_for_projects,
     get_tasks_for_milestones,
     get_user_progress_for_task_ids,
+    get_student_assignments_for_user,
     is_transient_supabase_error,
 )
 
@@ -204,13 +205,40 @@ def get_dashboard(user_id: str):
             else:
                 in_progress.append(project_info)
 
+        # Add unstarted assignments as in-progress placeholders
+        started_assignment_ids = {p.get('source_assignment_id') for p in projects if p.get('source_assignment_id')}
+        student_assignments = get_student_assignments_for_user(user_id)
+        for sa in student_assignments:
+            assignment = sa.get('assignments') or {}
+            if assignment.get('id') in started_assignment_ids:
+                continue
+            classroom = assignment.get('classrooms') or {}
+            classroom_name = classroom.get('name') if isinstance(classroom, dict) else (classroom[0].get('name') if isinstance(classroom, list) and classroom else None)
+            in_progress.append({
+                'id': f"assignment:{sa['id']}",
+                'title': assignment.get('title', 'Untitled Assignment'),
+                'brief': assignment.get('description', ''),
+                'progress': 0,
+                'tasks_completed': 0,
+                'tasks_total': 0,
+                'vm_type': 'python',
+                'created_at': sa.get('created_at'),
+                'updated_at': sa.get('created_at'),
+                'estimated_hours': 1,
+                'xp_reward': 0,
+                'source_assignment_id': assignment.get('id'),
+                'classroom_name': classroom_name,
+                'is_unstarted_assignment': True,
+                'assignment_id': assignment.get('id'),
+            })
+
         concepts = extract_concepts_from_projects(projects)
         total_completed_tasks = sum(completed_per_project.values())
 
         return jsonify({
             'success': True,
             'stats': {
-                'total_projects': len(projects),
+                'total_projects': len(in_progress) + len(completed),
                 'completed_projects': len(completed),
                 'in_progress_projects': len(in_progress),
                 'total_xp': user.get('xp', 0),

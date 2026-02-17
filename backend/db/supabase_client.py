@@ -652,15 +652,21 @@ def create_classroom(teacher_id: str, name: str, description: Optional[str] = No
 
 def get_teacher_classrooms(teacher_id: str) -> List[Dict[str, Any]]:
     """List all active classrooms for a teacher."""
-    result = supabase.table("classrooms").select("*").eq(
-        "teacher_id", teacher_id
-    ).eq("is_active", True).order("created_at", desc=True).execute()
+    result = execute_with_retry(
+        "get_teacher_classrooms",
+        lambda: supabase.table("classrooms").select("*").eq(
+            "teacher_id", teacher_id
+        ).eq("is_active", True).order("created_at", desc=True).execute(),
+    )
     return result.data or []
 
 
 def get_classroom_by_id(classroom_id: str) -> Optional[Dict[str, Any]]:
     """Get a single classroom by ID."""
-    result = supabase.table("classrooms").select("*").eq("id", classroom_id).execute()
+    result = execute_with_retry(
+        "get_classroom_by_id",
+        lambda: supabase.table("classrooms").select("*").eq("id", classroom_id).execute(),
+    )
     if result.data:
         return result.data[0]
     return None
@@ -697,17 +703,23 @@ def remove_student_from_classroom(classroom_id: str, student_id: str) -> bool:
 
 def get_classroom_students(classroom_id: str) -> List[Dict[str, Any]]:
     """Get all students in a classroom with their user info."""
-    result = supabase.table("classroom_members").select(
-        "*, users:student_id(id, name, email, xp, onboarding, created_at)"
-    ).eq("classroom_id", classroom_id).execute()
+    result = execute_with_retry(
+        "get_classroom_students",
+        lambda: supabase.table("classroom_members").select(
+            "*, users:student_id(id, name, email, xp, onboarding, created_at)"
+        ).eq("classroom_id", classroom_id).execute(),
+    )
     return result.data or []
 
 
 def get_classroom_student_count(classroom_id: str) -> int:
     """Get student count for a classroom."""
-    result = supabase.table("classroom_members").select(
-        "id", count="exact"
-    ).eq("classroom_id", classroom_id).execute()
+    result = execute_with_retry(
+        "get_classroom_student_count",
+        lambda: supabase.table("classroom_members").select(
+            "id", count="exact"
+        ).eq("classroom_id", classroom_id).execute(),
+    )
     return result.count or 0
 
 
@@ -832,9 +844,12 @@ def get_bulk_student_progress(student_ids: List[str]) -> List[Dict[str, Any]]:
     """Get all progress records for multiple students in a single query."""
     if not student_ids:
         return []
-    result = supabase.table("user_progress").select(
-        "*, tasks:task_id(id, task_id_slug, milestone_id)"
-    ).in_("user_id", student_ids).execute()
+    result = execute_with_retry(
+        "get_bulk_student_progress",
+        lambda: supabase.table("user_progress").select(
+            "*, tasks:task_id(id, task_id_slug, milestone_id)"
+        ).in_("user_id", student_ids).execute(),
+    )
     return result.data or []
 
 
@@ -842,9 +857,12 @@ def get_bulk_student_projects(student_ids: List[str]) -> List[Dict[str, Any]]:
     """Get all projects for multiple students in a single query."""
     if not student_ids:
         return []
-    result = supabase.table("projects").select("*").in_(
-        "user_id", student_ids
-    ).order("created_at", desc=True).execute()
+    result = execute_with_retry(
+        "get_bulk_student_projects",
+        lambda: supabase.table("projects").select("*").in_(
+            "user_id", student_ids
+        ).order("created_at", desc=True).execute(),
+    )
     return result.data or []
 
 
@@ -855,9 +873,12 @@ def get_total_tasks_for_projects(project_ids: List[str]) -> Dict[str, int]:
     """
     if not project_ids:
         return {}
-    milestones_result = supabase.table("milestones").select(
-        "id, project_id"
-    ).in_("project_id", project_ids).execute()
+    milestones_result = execute_with_retry(
+        "get_total_tasks_for_projects.milestones",
+        lambda: supabase.table("milestones").select(
+            "id, project_id"
+        ).in_("project_id", project_ids).execute(),
+    )
     milestones = milestones_result.data or []
     if not milestones:
         return {}
@@ -865,9 +886,12 @@ def get_total_tasks_for_projects(project_ids: List[str]) -> Dict[str, int]:
     milestone_to_project = {m['id']: m['project_id'] for m in milestones}
     milestone_ids = list(milestone_to_project.keys())
 
-    tasks_result = supabase.table("tasks").select(
-        "id, milestone_id"
-    ).in_("milestone_id", milestone_ids).execute()
+    tasks_result = execute_with_retry(
+        "get_total_tasks_for_projects.tasks",
+        lambda: supabase.table("tasks").select(
+            "id, milestone_id"
+        ).in_("milestone_id", milestone_ids).execute(),
+    )
     tasks = tasks_result.data or []
 
     counts: Dict[str, int] = {}
@@ -885,11 +909,14 @@ def get_bulk_chat_message_counts(student_ids: List[str], project_ids: List[str])
     """
     if not student_ids or not project_ids:
         return {}
-    result = supabase.table("chat_messages").select(
-        "user_id, project_id, role"
-    ).in_("user_id", student_ids).in_(
-        "project_id", project_ids
-    ).execute()
+    result = execute_with_retry(
+        "get_bulk_chat_message_counts",
+        lambda: supabase.table("chat_messages").select(
+            "user_id, project_id, role"
+        ).in_("user_id", student_ids).in_(
+            "project_id", project_ids
+        ).execute(),
+    )
     messages = result.data or []
 
     counts: Dict[str, Dict[str, int]] = {}
@@ -909,11 +936,14 @@ def get_chat_message_counts_for_student(user_id: str, project_ids: List[str]) ->
     """
     if not project_ids:
         return {}
-    result = supabase.table("chat_messages").select(
-        "project_id, role"
-    ).eq("user_id", user_id).in_(
-        "project_id", project_ids
-    ).execute()
+    result = execute_with_retry(
+        "get_chat_message_counts_for_student",
+        lambda: supabase.table("chat_messages").select(
+            "project_id, role"
+        ).eq("user_id", user_id).in_(
+            "project_id", project_ids
+        ).execute(),
+    )
     messages = result.data or []
 
     counts: Dict[str, Dict[str, int]] = {}
