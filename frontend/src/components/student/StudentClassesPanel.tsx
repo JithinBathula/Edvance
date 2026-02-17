@@ -9,12 +9,18 @@ import { JoinClassroom } from './JoinClassroom';
 import {
   BookOpen,
   Calendar,
+  Clock,
   Loader2,
   MessageSquare,
   RefreshCw,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const PROJECT_EMOJIS = ['🖩', '🚀', '🪐', '📟', '📊', '🤖', '🎮', '🔬', '💻', '🛠️'];
+const PROJECT_COLORS = ['#0d9488', '#d97706', '#7c3aed', '#db2777', '#059669', '#7c3aed', '#ea580c', '#0891b2', '#be123c', '#65a30d'];
+const CLASS_ICONS = ['📚', '💻', '🔬', '🎨', '📐', '🌐', '🧮', '🎯'];
+const CLASS_COLORS = ['#0d9488', '#7c3aed', '#d97706', '#db2777', '#059669', '#ea580c', '#0891b2', '#65a30d'];
 
 interface Classroom {
   id: string;
@@ -384,21 +390,51 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
         <div className="col-span-4">
           <Card className="p-3 border-slate-100">
             <div className="space-y-2">
-              {classrooms.map((classroom) => {
+              {classrooms.map((classroom, classIdx) => {
                 const active = classroom.id === selectedClassroomId;
-                const assignmentCount = assignments.filter((a) => a.classroom_id === classroom.id).length;
+                const classAssigns = assignments.filter((a) => a.classroom_id === classroom.id);
+                const assignmentCount = classAssigns.length;
+                const completedCount = classAssigns.filter((a) => a.status === 'completed').length;
+                const classColor = CLASS_COLORS[classIdx % CLASS_COLORS.length];
+                const classIcon = CLASS_ICONS[classIdx % CLASS_ICONS.length];
+                const progressPct = assignmentCount > 0 ? Math.round((completedCount / assignmentCount) * 100) : 0;
                 return (
                   <button
                     key={classroom.id}
                     onClick={() => setSelectedClassroomId(classroom.id)}
-                    className={`w-full text-left rounded-lg border px-3 py-3 transition-colors ${
+                    className={`w-full text-left rounded-lg border px-3 py-3 transition-all ${
                       active
-                        ? 'border-teal-200 bg-teal-50'
+                        ? 'border-teal-200 bg-teal-50 shadow-sm'
                         : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
+                    style={active ? { borderLeftWidth: 4, borderLeftColor: classColor } : undefined}
                   >
-                    <div className="font-semibold text-slate-800">{classroom.name}</div>
-                    <div className="text-xs text-slate-500 mt-1">{classroom.teacher_name}</div>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0"
+                        style={{ backgroundColor: `${classColor}15`, color: classColor }}
+                      >
+                        {classIcon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-800 truncate">{classroom.name}</div>
+                        <div className="text-xs text-slate-500">{classroom.teacher_name}</div>
+                      </div>
+                    </div>
+                    {assignmentCount > 0 && (
+                      <div className="mt-2.5">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-slate-500">{completedCount}/{assignmentCount} completed</span>
+                          <span className="text-slate-400">{progressPct}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${progressPct}%`, backgroundColor: classColor }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
                       <span>Joined {formatDate(classroom.joined_at)}</span>
                       <span>{assignmentCount} project{assignmentCount === 1 ? '' : 's'}</span>
@@ -422,56 +458,103 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
             </div>
 
             {classAssignments.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center">
-                <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No class projects yet.</p>
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                  <BookOpen className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-600">No projects assigned yet</p>
+                <p className="text-xs text-slate-400 mt-1">Your teacher will assign projects here when they're ready.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {classAssignments.map((assignment) => {
+                {classAssignments.map((assignment, idx) => {
                   const loadingKey = assignment.assignment_id;
                   const isLoading = projectActionLoading === loadingKey;
                   const isStarted = Boolean(assignment.project_id);
+                  const emoji = PROJECT_EMOJIS[idx % PROJECT_EMOJIS.length];
+                  const color = PROJECT_COLORS[idx % PROJECT_COLORS.length];
+                  const cached = assignment.project_id ? projectCache[assignment.project_id] : null;
+                  const totalTasks = cached?.tasks?.length || 0;
+                  const xp = totalTasks * 10;
+                  const completedTasks = cached?.tasks?.filter((t) => {
+                    // Count tasks that have feedback as completed proxy
+                    return t.feedback?.teacher_feedback;
+                  }).length || 0;
+                  const taskProgressPct = totalTasks > 0
+                    ? assignment.status === 'completed' ? 100
+                    : Math.round((completedTasks / totalTasks) * 100)
+                    : 0;
                   return (
-                    <Card key={assignment.id} className="p-4 border-slate-200">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-slate-800">{assignment.title}</h4>
-                            <Badge
-                              className={
-                                assignment.status === 'completed'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : assignment.status === 'in_progress'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'bg-slate-100 text-slate-600'
-                              }
-                            >
-                              {assignment.status.replace('_', ' ')}
-                            </Badge>
+                    <Card key={assignment.id} className="p-4 border-slate-200 hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 mt-0.5"
+                          style={{ backgroundColor: `${color}15` }}
+                        >
+                          {emoji}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h4 className="font-semibold text-slate-800 truncate">{assignment.title}</h4>
+                              {assignment.status === 'in_progress' && (
+                                <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1 bg-amber-100 text-amber-700">
+                                  <Clock className="w-3 h-3" />
+                                  in progress
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isStarted && xp > 0 && (
+                                <span
+                                  className="text-xs font-bold rounded-full px-2 py-0.5"
+                                  style={{ backgroundColor: `${color}15`, color }}
+                                >
+                                  {xp} XP
+                                </span>
+                              )}
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  if (isStarted && assignment.project_id) {
+                                    void handleOpenProject(assignment.project_id, loadingKey);
+                                  } else {
+                                    void handleStartAssignment(assignment.assignment_id, loadingKey);
+                                  }
+                                }}
+                                disabled={isLoading}
+                                className="bg-teal-600 hover:bg-teal-700"
+                              >
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isStarted ? 'Open' : 'Start'}
+                              </Button>
+                            </div>
                           </div>
                           {assignment.description && (
                             <p className="text-sm text-slate-500 mt-1 line-clamp-2">{assignment.description}</p>
                           )}
-                          <div className={`mt-2 text-xs flex items-center gap-1 ${dueStyle(assignment.due_date)}`}>
-                            <Calendar className="w-3 h-3" />
-                            Due {formatDate(assignment.due_date)}
+                          <div className="mt-2 flex items-center gap-3">
+                            <div className={`text-xs flex items-center gap-1 ${dueStyle(assignment.due_date)}`}>
+                              <Calendar className="w-3 h-3" />
+                              Due {formatDate(assignment.due_date)}
+                            </div>
+                            {isStarted && totalTasks > 0 && (
+                              <span className="text-xs text-slate-400">
+                                {completedTasks}/{totalTasks} tasks
+                              </span>
+                            )}
+                            {!isStarted && (
+                              <span className="text-xs text-slate-400 italic">Start to track progress</span>
+                            )}
                           </div>
+                          {isStarted && totalTasks > 0 && (
+                            <div className="mt-2 w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${taskProgressPct}%`, backgroundColor: color }}
+                              />
+                            </div>
+                          )}
                         </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            if (isStarted && assignment.project_id) {
-                              void handleOpenProject(assignment.project_id, loadingKey);
-                            } else {
-                              void handleStartAssignment(assignment.assignment_id, loadingKey);
-                            }
-                          }}
-                          disabled={isLoading}
-                          className="bg-teal-600 hover:bg-teal-700"
-                        >
-                          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isStarted ? 'Open' : 'Start'}
-                        </Button>
                       </div>
                     </Card>
                   );
@@ -492,7 +575,13 @@ export function StudentClassesPanel({ user, onSelectProject, animationKey }: Pro
                 Loading feedback...
               </div>
             ) : latestFeedback.length === 0 ? (
-              <p className="text-sm text-slate-500">No teacher feedback yet for this class.</p>
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 text-center">
+                <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-2">
+                  <MessageSquare className="w-5 h-5 text-teal-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-600">No feedback yet</p>
+                <p className="text-xs text-slate-400 mt-1">Your teacher's feedback on tasks will appear here.</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {latestFeedback.map((item) => (
