@@ -5,7 +5,7 @@ import {
   Sparkles, Rocket, Brain, Users, Zap,
   Terminal, ArrowRight, CheckCircle2,
   Star, Menu, X, BookOpen, Trophy,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, ChevronDown
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { User } from '../App';
@@ -780,12 +780,24 @@ function StudentProjectsSection() {
 function HowItWorksSection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.15 });
+  const [activeStep, setActiveStep] = useState(0);
 
   const steps = [
-    { number: '01', icon: Sparkles, title: 'Describe Your Project', description: 'Tell our AI what you want to build. It creates a personalized learning plan with milestones tailored to your skill level.', color: 'from-teal-500 to-teal-600' },
-    { number: '02', icon: Terminal, title: 'Code with AI Guidance', description: 'Write real code in our built-in editor. Get hints, explanations, and instant feedback as you progress through each task.', color: 'from-cyan-500 to-teal-500' },
-    { number: '03', icon: Rocket, title: 'Submit & Level Up', description: 'Submit your completed tasks, earn XP, unlock achievements, and build your portfolio project by project.', color: 'from-amber-500 to-orange-500' },
+    { number: '01', icon: Sparkles, title: 'Describe Your Project', description: 'Tell our AI what you want to build. It creates a personalized learning plan with milestones tailored to your skill level.', color: 'from-teal-500 to-teal-600', accent: '#0d9488', gif: '/steps/step-01.gif' },
+    { number: '02', icon: Terminal, title: 'Code with AI Guidance', description: 'Write real code in our built-in editor. Get hints, explanations, and instant feedback as you progress through each task.', color: 'from-cyan-500 to-teal-500', accent: '#06b6d4', gif: '/steps/step-02.gif' },
+    { number: '03', icon: Rocket, title: 'Submit & Level Up', description: 'Submit your completed tasks, earn XP, unlock achievements, and build your portfolio project by project.', color: 'from-amber-500 to-orange-500', accent: '#f59e0b', gif: '/steps/step-03.gif' },
   ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveStep((prev) => (prev + 1) % steps.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeStep]);
+
+  const handleStepClick = (index: number) => {
+    setActiveStep(index);
+  };
 
   return (
     <section id="how-it-works" ref={ref} className="py-16 px-6 lg:px-10" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f0fdfa 50%, #ffffff 100%)' }}>
@@ -807,40 +819,105 @@ function HowItWorksSection() {
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-          {/* Connecting line */}
-          <div className="hidden md:block absolute top-20 left-[20%] right-[20%] h-[2px]">
-            <motion.div
-              className="h-full rounded-full origin-left"
-              style={{ background: 'linear-gradient(90deg, #0d9488, #14b8a6, #f59e0b)' }}
-              initial={{ scaleX: 0 }}
-              animate={isInView ? { scaleX: 1 } : { scaleX: 0 }}
-              transition={{ duration: 1.5, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-            />
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ delay: 0.3, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-8 md:gap-10 items-center"
+        >
+          {/* Left: Vertical Stepper */}
+          <div className="flex flex-col">
+            {steps.map((step, i) => {
+              const isActive = i === activeStep;
+              const isPast = i < activeStep;
+              return (
+                <div key={i}>
+                  <motion.button
+                    onClick={() => handleStepClick(i)}
+                    className={`relative w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all duration-300 cursor-pointer ${
+                      isActive
+                        ? 'bg-white shadow-lg ring-1 ring-teal-200'
+                        : 'bg-white/40 hover:bg-white/70'
+                    }`}
+                    animate={isActive ? { scale: 1 } : { scale: 0.97 }}
+                    whileHover={{ scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                        isActive
+                          ? `bg-gradient-to-br ${step.color} shadow-md`
+                          : isPast ? 'bg-teal-50' : 'bg-gray-100'
+                      }`}
+                    >
+                      <step.icon className={`w-5 h-5 transition-colors duration-300 ${isActive ? 'text-white' : isPast ? 'text-teal-400' : 'text-gray-400'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-xs font-bold transition-colors duration-300 ${isActive ? 'text-teal-600' : 'text-gray-400'}`}>
+                        STEP {step.number}
+                      </span>
+                      <h3 className={`text-[15px] font-semibold mt-0.5 transition-colors duration-300 ${isActive ? 'text-slate-800' : 'text-slate-400'}`}>
+                        {step.title}
+                      </h3>
+                      <AnimatePresence mode="wait">
+                        {isActive && (
+                          <motion.p
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="text-sm text-slate-500 mt-1 leading-relaxed"
+                          >
+                            {step.description}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.button>
+
+                  {/* Arrow connector between steps */}
+                  {i < steps.length - 1 && (
+                    <div className="flex flex-col items-center py-1">
+                      <div className={`w-[2px] h-6 transition-colors duration-300 ${isPast ? 'bg-teal-300' : 'bg-gray-200'}`} style={{ backgroundImage: isPast ? undefined : 'repeating-linear-gradient(to bottom, #e5e7eb 0px, #e5e7eb 4px, transparent 4px, transparent 8px)' }} />
+                      <ChevronDown className={`w-4 h-4 -mt-1 transition-colors duration-300 ${isPast ? 'text-teal-400' : 'text-gray-300'}`} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {steps.map((step, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 40, scale: 0.95 }}
-              animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-              transition={{ delay: 0.3 + i * 0.2, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-              whileHover={{ y: -6, transition: { duration: 0.3 } }}
-              className="text-center relative bg-white rounded-2xl border border-gray-100 p-10 hover:shadow-xl transition-all duration-300"
-            >
-              <div className="relative w-16 h-16 mx-auto mb-6">
-                <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-lg`}>
-                  <step.icon className="w-7 h-7 text-white" />
-                </div>
-                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-slate-700 shadow-sm">
-                  {step.number}
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 mt-2">{step.title}</h3>
-              <p className="text-sm text-slate-500 mt-3 leading-relaxed">{step.description}</p>
-            </motion.div>
-          ))}
-        </div>
+          {/* Right: GIF Preview */}
+          <div className="relative rounded-2xl overflow-hidden bg-slate-50 border border-gray-200 shadow-sm aspect-[4/3]">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={activeStep}
+                src={steps[activeStep].gif}
+                alt={steps[activeStep].title}
+                className="absolute inset-0 w-full h-full object-cover"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4, ease: 'easeInOut' }}
+              />
+            </AnimatePresence>
+
+            {/* Step indicator dots */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+              {steps.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleStepClick(i)}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === activeStep
+                      ? 'w-6 h-2 bg-teal-500'
+                      : 'w-2 h-2 bg-white/70 hover:bg-white'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
