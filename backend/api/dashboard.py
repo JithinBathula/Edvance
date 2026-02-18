@@ -13,6 +13,7 @@ from db.supabase_client import (
     get_milestones_for_projects,
     get_tasks_for_milestones,
     get_user_progress_for_task_ids,
+    get_student_assignments_for_user,
     is_transient_supabase_error,
 )
 
@@ -75,6 +76,30 @@ def _compute_xp_history_and_streak(completion_dates: list[str], days: int = 30):
     return history, streak
 
 
+def _build_unstarted_entry(sa):
+    """Build an in-progress placeholder dict from a student_assignment row."""
+    assignment = sa.get('assignments') or {}
+    classroom = assignment.get('classrooms') or {}
+    classroom_name = classroom.get('name') if isinstance(classroom, dict) else (classroom[0].get('name') if isinstance(classroom, list) and classroom else None)
+    return {
+        'id': f"assignment:{sa['id']}",
+        'title': assignment.get('title', 'Untitled Assignment'),
+        'brief': assignment.get('description', ''),
+        'progress': 0,
+        'tasks_completed': 0,
+        'tasks_total': 0,
+        'vm_type': 'python',
+        'created_at': sa.get('created_at'),
+        'updated_at': sa.get('created_at'),
+        'estimated_hours': 1,
+        'xp_reward': 0,
+        'source_assignment_id': assignment.get('id'),
+        'classroom_name': classroom_name,
+        'is_unstarted_assignment': True,
+        'assignment_id': assignment.get('id'),
+    }
+
+
 @dashboard_bp.route('/<user_id>', methods=['GET'])
 def get_dashboard(user_id: str):
     """
@@ -91,19 +116,20 @@ def get_dashboard(user_id: str):
         projects = get_user_projects(user_id)
 
         if not projects:
-            # No projects — return empty dashboard immediately
+            # Check for unstarted assignments even when no projects exist
+            unstarted = [_build_unstarted_entry(sa) for sa in get_student_assignments_for_user(user_id)]
             return jsonify({
                 'success': True,
                 'stats': {
-                    'total_projects': 0,
+                    'total_projects': len(unstarted),
                     'completed_projects': 0,
-                    'in_progress_projects': 0,
+                    'in_progress_projects': len(unstarted),
                     'total_xp': user.get('xp', 0),
                     'current_streak': 0,
                     'skills_count': 0,
                     'tasks_completed': 0,
                 },
-                'in_progress_projects': [],
+                'in_progress_projects': unstarted,
                 'completed_projects': [],
                 'xp_history': _compute_xp_history_and_streak([])[0],
                 'concepts': [],
@@ -204,13 +230,21 @@ def get_dashboard(user_id: str):
             else:
                 in_progress.append(project_info)
 
+        # Add unstarted assignments as in-progress placeholders
+        started_assignment_ids = {p.get('source_assignment_id') for p in projects if p.get('source_assignment_id')}
+        for sa in get_student_assignments_for_user(user_id):
+            assignment = sa.get('assignments') or {}
+            if assignment.get('id') in started_assignment_ids:
+                continue
+            in_progress.append(_build_unstarted_entry(sa))
+
         concepts = extract_concepts_from_projects(projects)
         total_completed_tasks = sum(completed_per_project.values())
 
         return jsonify({
             'success': True,
             'stats': {
-                'total_projects': len(projects),
+                'total_projects': len(in_progress) + len(completed),
                 'completed_projects': len(completed),
                 'in_progress_projects': len(in_progress),
                 'total_xp': user.get('xp', 0),

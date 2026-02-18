@@ -56,27 +56,35 @@ class SubmissionEvaluator:
         self,
         user_code: str,
         task_instructions: str,
-        test_specification: Dict[str, Any]
+        test_specification: Dict[str, Any],
+        coding_requirements: list | None = None
     ) -> SubmissionResult:
         """
         Evaluate a code submission against task requirements.
-        
+
         Args:
             user_code: The user's submitted Python code
             task_instructions: Description of what the task requires
             test_specification: The test spec with expected_state and verification_code
-            
+            coding_requirements: Optional checklist of specific coding requirements
+
         Returns:
             SubmissionResult with is_correct and feedback
         """
         test_spec_text = self._format_test_spec(test_specification)
-        
+
+        if coding_requirements:
+            coding_req_text = "\n".join(f"- {req}" for req in coding_requirements)
+        else:
+            coding_req_text = "No specific coding requirements provided."
+
         messages = [
             {"role": "system", "content": prompts.submission_system_prompt},
             {
                 "role": "user",
                 "content": prompts.submission_user_prompt.format(
                     task_instructions=task_instructions,
+                    coding_requirements=coding_req_text,
                     test_specification=test_spec_text,
                     user_code=user_code or "# No code submitted"
                 )

@@ -1,12 +1,12 @@
 import { ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  GraduationCap,
   Activity,
   Target,
   LogOut,
   FileText,
 } from 'lucide-react';
+import edvanceLogoSrc from '../../assets/edvance-logo.svg';
 import { Button } from '../ui/button';
 
 interface TeacherLayoutProps {
@@ -29,10 +29,10 @@ export function TeacherLayout({ children, onLogout }: TeacherLayoutProps) {
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
         {/* Logo */}
-        <div className="flex h-16 items-center border-b border-gray-200 px-6">
-          <GraduationCap className="mr-2 h-6 w-6 text-teal-600" />
-          <span className="bg-gradient-to-r from-teal-600 to-amber-500 bg-clip-text text-xl font-bold text-transparent">
-            Edvance
+        <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
+          <img src={edvanceLogoSrc} alt="Edvance" width={32} height={32} className="object-contain" />
+          <span className="text-xl font-bold text-[#1B5E6B]">
+            edvance
           </span>
         </div>
 

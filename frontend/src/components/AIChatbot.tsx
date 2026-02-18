@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2, RotateCcw } from 'lucide-react';
 import { authFetch } from '../utils/authFetch';
 import ReactMarkdown from 'react-markdown';
@@ -197,7 +197,7 @@ export function AIChatbot({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50/50" ref={scrollRef}>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 bg-gray-50/50" ref={scrollRef}>
         <div className="space-y-4">
           {isLoadingHistory ? (
             <div className="flex justify-center py-8">
@@ -213,15 +213,15 @@ export function AIChatbot({
                 )}
               </div>
               <div
-                className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user'
+                className={`rounded-2xl px-4 py-3 text-sm shadow-sm min-w-0 ${message.role === 'user'
                     ? 'bg-purple-100 text-purple-900 border border-purple-200'
                     : 'bg-white text-gray-700 border border-gray-100'
                   }`}
               >
                 {message.role === 'user' ? (
-                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">{message.content}</p>
                 ) : (
-                  <div className="prose prose-sm max-w-none">
+                  <div className="prose prose-sm max-w-none break-words [overflow-wrap:anywhere]">
                     <ReactMarkdown
                       components={{
                         p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
@@ -274,20 +274,21 @@ export function AIChatbot({
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-        <div className="relative flex items-center gap-2">
-          <Input
+        <div className="relative flex items-end gap-2">
+          <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Ask me anything..."
             disabled={isLoading}
-            className="pr-10"
+            className="pr-10 min-h-[40px] max-h-[120px] resize-none overflow-y-auto break-words [overflow-wrap:anywhere]"
+            rows={1}
           />
           <Button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className="absolute right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+            className="absolute right-1 bottom-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
           >
             <Send className="w-4 h-4" />
           </Button>

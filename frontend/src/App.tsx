@@ -23,6 +23,7 @@ import { StudentDashboard } from "./components/StudentDashboard";
 import { StudentClassesPanel } from "./components/student/StudentClassesPanel";
 import { StudentSettingsPanel } from "./components/StudentSettings";
 import { ProjectList } from "./components/ProjectList";
+import { LandingPage } from "./components/LandingPage";
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -191,7 +192,7 @@ export default function App() {
       localStorage.removeItem('edvance_user');
       localStorage.removeItem('edvance_current_project');
       localStorage.removeItem('edvance_project_requirements');
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
     };
 
     window.addEventListener('edvance:auth-expired', handleAuthExpired as EventListener);
@@ -234,7 +235,7 @@ export default function App() {
     setUser(null);
     setCurrentProject(null);
     setProjectRequirements(null);
-    navigate("/");
+    navigate("/login");
   };
 
   const handleOnboardingComplete = (onboardingData: OnboardingData, role?: 'student' | 'teacher') => {
@@ -317,7 +318,7 @@ export default function App() {
         </div>
       );
     }
-    if (!user) return <Navigate to="/" replace />;
+    if (!user) return <Navigate to="/login" replace />;
     return <>{children}</>;
   };
 
@@ -332,7 +333,7 @@ export default function App() {
         </div>
       );
     }
-    if (!user) return <Navigate to="/" replace />;
+    if (!user) return <Navigate to="/login" replace />;
     if (user.role !== 'teacher') return <Navigate to="/student-dashboard" replace />;
     return <>{children}</>;
   };
@@ -355,6 +356,10 @@ export default function App() {
         <Routes>
           <Route
             path="/"
+            element={<LandingPage user={user} />}
+          />
+          <Route
+            path="/login"
             element={
               user ? (
                 <Navigate to={
@@ -373,7 +378,7 @@ export default function App() {
               user ? (
                 <Navigate to="/onboarding" replace />
               ) : (
-                <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/")} />
+                <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/login")} />
               )
             }
           />
@@ -488,7 +493,7 @@ export default function App() {
             element={
               <RequireUser>
                 <StudentLayout user={user!} onLogout={handleLogout}>
-                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                  <div className="px-6 py-5 flex-1 overflow-y-auto scrollbar-thin">
                     <StudentSettingsPanel
                       user={user!}
                       onLogout={handleLogout}
@@ -548,7 +553,7 @@ export default function App() {
               </RequireTeacher>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
       <Toaster />

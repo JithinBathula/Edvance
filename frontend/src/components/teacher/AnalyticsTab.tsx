@@ -47,7 +47,7 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
   return (
     <div className="space-y-6">
       {/* Students Needing Help Alert */}
-      {analytics.students_needing_help.length > 0 && (
+      {analytics.students_needing_help.length > 0 && analytics.assignment_analytics.length > 0 && (
         <Card className="border-amber-200 bg-amber-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-900">

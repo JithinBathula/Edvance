@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authFetch } from '../../utils/authFetch';
 import { Button } from '../ui/button';
@@ -53,7 +53,12 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
+  const analyticsInFlightRef = useRef(false);
+  const assignmentsInFlightRef = useRef(false);
+
   useEffect(() => {
+    setAnalytics(null);
+    setAssignments([]);
     fetchClassroomData();
   }, [classroomId]);
 
@@ -64,7 +69,7 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
     if (activeTab === 'assignments' && assignments.length === 0) {
       fetchAssignments();
     }
-  }, [activeTab]);
+  }, [activeTab, classroomId]);
 
   const fetchClassroomData = async () => {
     try {
@@ -87,6 +92,8 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
   };
 
   const fetchAnalytics = async () => {
+    if (analyticsInFlightRef.current) return;
+    analyticsInFlightRef.current = true;
     try {
       const response = await authFetch(`/teacher/classrooms/${classroomId}/analytics`);
       const data = await response.json();
@@ -99,10 +106,14 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
     } catch (error) {
       console.error('Error fetching analytics:', error);
       toast.error('Failed to load analytics');
+    } finally {
+      analyticsInFlightRef.current = false;
     }
   };
 
   const fetchAssignments = async () => {
+    if (assignmentsInFlightRef.current) return;
+    assignmentsInFlightRef.current = true;
     try {
       setAssignmentsLoading(true);
       const response = await authFetch(`/assignments/classroom/${classroomId}`);
@@ -117,6 +128,7 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
       console.error('Error fetching assignments:', error);
       toast.error('Failed to load assignments');
     } finally {
+      assignmentsInFlightRef.current = false;
       setAssignmentsLoading(false);
     }
   };

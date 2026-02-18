@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../App';
 import { BACKEND_URL } from '../utils/constants';
+import { authFetch } from '../utils/authFetch';
+import { toast } from 'sonner';
 import { StudentLayout } from './student/StudentLayout';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -57,6 +59,8 @@ type ProjectInfo = {
     skills?: string[];
     source_assignment_id?: string | null;
     classroom_name?: string | null;
+    is_unstarted_assignment?: boolean;
+    assignment_id?: string | null;
 };
 
 type XPHistoryItem = { date: string; xp: number };
@@ -153,6 +157,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
+    const [startingAssignment, setStartingAssignment] = useState<string | null>(null);
     const dashboardFetchInFlightRef = useRef(false);
     const dashboardRetryTimersRef = useRef<number[]>([]);
     const isMountedRef = useRef(true);
@@ -207,6 +212,29 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     };
 
     const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const handleStartAssignment = async (assignmentId: string) => {
+        setStartingAssignment(assignmentId);
+        try {
+            const response = await authFetch(`/assignments/${assignmentId}/start`, { method: 'POST' });
+            const data = await response.json();
+            if (data.success && data.project) {
+                const fullRes = await authFetch(`/progress/projects/${data.project.id}/full`);
+                const fullData = await fullRes.json();
+                if (fullData.success && fullData.project) {
+                    onSelectProject(fullData.project);
+                } else {
+                    toast.error(fullData.error || 'Failed to load project');
+                }
+            } else {
+                toast.error(data.error || 'Failed to start assignment');
+            }
+        } catch {
+            toast.error('Failed to start assignment');
+        } finally {
+            setStartingAssignment(null);
+        }
+    };
 
     /* ── Content inside layout ── */
     const renderContent = () => {
@@ -424,7 +452,13 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                             variants={listItem} initial="hidden" animate="visible" custom={i}
                                             whileHover={{ scale: 1.01, y: -2 }}
                                             whileTap={{ scale: 0.99 }}
-                                            onClick={() => onSelectProject(project)}
+                                            onClick={() => {
+                                                if (project.is_unstarted_assignment && project.assignment_id) {
+                                                    handleStartAssignment(project.assignment_id);
+                                                } else {
+                                                    onSelectProject(project);
+                                                }
+                                            }}
                                             className="cursor-pointer"
                                         >
                                             <Card className="p-4 border-slate-100 hover:shadow-md transition-shadow">
@@ -452,12 +486,22 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                                 </span>
                                                                 <p className="text-sm text-slate-400 mt-2 leading-relaxed line-clamp-2">{project.brief}</p>
                                                             </div>
-                                                            <span
-                                                                className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
-                                                                style={{ backgroundColor: color + '12', color }}
-                                                            >
-                                                                {isCompleted ? `+${project.xp_earned || project.xp_reward}` : `+${project.xp_reward}`} XP
-                                                            </span>
+                                                            {project.is_unstarted_assignment ? (
+                                                                startingAssignment === project.assignment_id ? (
+                                                                    <Loader2 className="w-5 h-5 animate-spin text-teal-600 shrink-0" />
+                                                                ) : (
+                                                                    <span className="text-xs font-bold px-3 py-1 rounded-full shrink-0 bg-teal-600 text-white">
+                                                                        Start
+                                                                    </span>
+                                                                )
+                                                            ) : (
+                                                                <span
+                                                                    className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
+                                                                    style={{ backgroundColor: color + '12', color }}
+                                                                >
+                                                                    {isCompleted ? `+${project.xp_earned || project.xp_reward}` : `+${project.xp_reward}`} XP
+                                                                </span>
+                                                            )}
                                                         </div>
 
                                                         {/* Progress */}
@@ -465,7 +509,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                                             <div className="flex items-center justify-between text-xs mb-1.5">
                                                                 <span className="font-medium text-slate-500">Progress</span>
                                                                 <span className="text-sm font-semibold text-slate-600 shrink-0 tabular-nums">
-                                                                    {isCompleted ? `${project.tasks_total}/${project.tasks_total} tasks` : `${project.tasks_completed}/${project.tasks_total} tasks`}
+                                                                    {project.is_unstarted_assignment ? 'Not started' : isCompleted ? `${project.tasks_total}/${project.tasks_total} tasks` : `${project.tasks_completed}/${project.tasks_total} tasks`}
                                                                 </span>
                                                             </div>
                                                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">

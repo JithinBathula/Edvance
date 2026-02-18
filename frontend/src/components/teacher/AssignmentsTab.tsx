@@ -38,14 +38,7 @@ export function AssignmentsTab({ classroomId, assignments, assignmentsLoading }:
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No assignments yet</p>
-            <Button
-              onClick={() => navigate(`/teacher/create-assignment?classroom=${classroomId}`)}
-              variant="outline"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Assignment
-            </Button>
+            <p className="text-gray-500">No assignments yet</p>
           </CardContent>
         </Card>
       ) : (

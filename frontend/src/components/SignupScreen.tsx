@@ -5,7 +5,8 @@ import { BACKEND_URL } from '../utils/constants';
 import { setAccessToken } from '../utils/authFetch';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Code2, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import edvanceLogoSrc from '../assets/edvance-logo.svg';
 
 type Props = {
     onSignup: (user: User) => void;
@@ -112,17 +113,15 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: Props) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-orange-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 p-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#7622e5] to-[#b480f8] flex items-center justify-center">
-                            <Code2 className="w-8 h-8 text-white" />
-                        </div>
+                    <div className="flex justify-center items-center gap-2 mb-4">
+                        <img src={edvanceLogoSrc} alt="Edvance" width={48} height={48} className="object-contain" />
+                        <h1 className="text-3xl font-bold text-[#1B5E6B]">
+                            edvance
+                        </h1>
                     </div>
-                    <h1 className="text-4xl mb-2 bg-gradient-to-r from-[#7622e5] to-[#ffa200] bg-clip-text text-transparent">
-                        Edvance
-                    </h1>
                     <p className="text-gray-600">Create your account</p>
                 </div>
 
@@ -191,7 +190,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: Props) {
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+                            className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700"
                         >
                             {loading ? 'Creating account...' : 'Create Account'}
                         </Button>
@@ -227,7 +226,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: Props) {
                             Already have an account?{' '}
                             <button
                                 onClick={onSwitchToLogin}
-                                className="text-[#7622e5] hover:underline font-medium"
+                                className="text-teal-600 hover:underline font-medium"
                             >
                                 Log in
                             </button>
