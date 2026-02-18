@@ -31,6 +31,7 @@ import {
   Info,
   Lock,
   GraduationCap,
+  Play,
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
 
@@ -320,6 +321,9 @@ export function ProjectWorkspace({
   const lastProjectSignature = useRef<string>('');
   const taskListPanelRef = useRef<ImperativePanelHandle>(null);
 
+  // Try-out phase state
+  const [isTryOutPhase, setIsTryOutPhase] = useState(false);
+
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatPrefill, setChatPrefill] = useState<string | null>(null);
@@ -406,7 +410,52 @@ export function ProjectWorkspace({
     });
   }, []);
 
+  const triggerCelebrationConfetti = useCallback(() => {
+    import('canvas-confetti').then((confetti) => {
+      const brandColors = ['#0d9488', '#14b8a6', '#ffa200', '#f59e0b', '#10b981'];
+      // Continuous side confetti for 4 seconds
+      const duration = 4000;
+      const end = Date.now() + duration;
+      const frame = () => {
+        confetti.default({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: 0.6 },
+          colors: brandColors,
+          zIndex: 9999,
+        });
+        confetti.default({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: 0.6 },
+          colors: brandColors,
+          zIndex: 9999,
+        });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      };
+      frame();
+
+      // Three staggered large bursts
+      setTimeout(() => {
+        confetti.default({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: brandColors, zIndex: 9999 });
+      }, 0);
+      setTimeout(() => {
+        confetti.default({ particleCount: 100, spread: 120, origin: { y: 0.5 }, colors: brandColors, zIndex: 9999 });
+      }, 500);
+      setTimeout(() => {
+        confetti.default({
+          particleCount: 60, spread: 160, origin: { y: 0.4 }, colors: brandColors, zIndex: 9999,
+          shapes: ['star'], scalar: 1.2,
+        });
+      }, 1000);
+    });
+  }, []);
+
   const tasks: Task[] = project.tasks || [];
+  const totalXpEarned = tasks.length * 10;
+  const allRealTasksCompleted = tasks.length > 0 && completedTasks.length >= tasks.length;
   const currentTask = tasks[currentTaskIndex];
   const hasTasks = tasks.length > 0 && !!currentTask;
   const safeCurrentTask: Task = currentTask || {
@@ -683,35 +732,51 @@ export function ProjectWorkspace({
       setCurrentTaskIndex(currentTaskIndex + 1);
       setShowHints(false);
     } else {
-      handleProjectComplete();
+      setIsTryOutPhase(true);
     }
   };
 
   const handleProjectComplete = async () => {
+    triggerCelebrationConfetti();
     setShowCompletion(true);
   };
 
   if (showCompletion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full p-12 text-center bg-white">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#ffa200] to-[#ff8800] rounded-full flex items-center justify-center mx-auto mb-6">
-            <Trophy className="w-10 h-10 text-white" />
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f0fdfa 0%, #fff7ed 50%, #ecfdf5 100%)' }}>
+        {/* Top gradient strip */}
+        <div className="fixed top-0 left-0 right-0 h-1.5" style={{ background: 'linear-gradient(to right, #0d9488, #ffa200, #10b981)' }} />
+
+        <Card className="max-w-2xl w-full p-12 text-center bg-white/90 backdrop-blur shadow-xl border-0">
+          {/* Trophy with animated glow */}
+          <div className="relative w-24 h-24 mx-auto mb-8">
+            <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'linear-gradient(135deg, #0d9488, #ffa200)' }} />
+            <div className="relative w-24 h-24 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0d9488, #ffa200)' }}>
+              <Trophy className="w-12 h-12 text-white" />
+            </div>
           </div>
-          <h2 className="text-4xl mb-4">Amazing Work! 🎉</h2>
-          <p className="text-xl text-gray-600 mb-6">
+
+          <h2 className="text-4xl font-bold mb-2 bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(135deg, #0d9488, #ffa200, #10b981)' }}>
+            Amazing Work!
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
             You've successfully completed:{" "}
-            <span className="font-semibold">{project.title}</span>
+            <span className="font-semibold text-gray-800">{project.title}</span>
           </p>
 
-          <div className="bg-gradient-to-r from-purple-50 to-orange-50 rounded-xl p-6 mb-6">
+          {/* XP Card */}
+          <div className="rounded-xl p-6 mb-6 border border-teal-100" style={{ background: 'linear-gradient(135deg, #f0fdfa, #fff7ed)' }}>
             <div className="flex items-center justify-center gap-3 mb-2">
               <Sparkles className="w-6 h-6 text-[#ffa200]" />
-              <p className="text-2xl">+100 XP Earned!</p>
+              <p className="text-3xl font-bold" style={{ color: '#0d9488' }}>+{totalXpEarned} XP Earned!</p>
               <Sparkles className="w-6 h-6 text-[#ffa200]" />
             </div>
+            <p className="text-sm text-gray-500 mb-3">
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} x 10 XP each
+            </p>
+            <div className="h-px bg-gradient-to-r from-transparent via-teal-200 to-transparent mb-3" />
             <p className="text-sm text-gray-600">
-              You now have {(user.xp || 0) + 100} total XP
+              You now have <span className="font-semibold text-[#0d9488]">{(user.xp || 0) + totalXpEarned}</span> total XP
             </p>
           </div>
 
@@ -722,7 +787,8 @@ export function ProjectWorkspace({
 
           <Button
             onClick={onComplete}
-            className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+            className="px-8 py-3 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+            style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6)' }}
           >
             Back to Home
           </Button>
@@ -812,57 +878,84 @@ export function ProjectWorkspace({
                   {(() => {
                     // Use milestones structure when available
                     if (project.milestones && project.milestones.length > 0) {
-                      return project.milestones.map((milestone: any, mIdx: number) => {
-                        const milestoneTasks = (milestone.tasks || []);
-                        const isGenerating = milestoneTasks.length === 0;
+                      return (
+                        <>
+                          {project.milestones.map((milestone: any, mIdx: number) => {
+                            const milestoneTasks = (milestone.tasks || []);
+                            const isGenerating = milestoneTasks.length === 0;
 
-                        return (
-                          <div key={milestone.id} className="mb-3">
-                            {/* Milestone Header */}
-                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1 flex items-center gap-1.5">
-                              <span>Task {mIdx + 1}: {milestone.title}</span>
-                              {isGenerating && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
-                            </div>
-                            {/* Tasks */}
-                            {isGenerating ? (
-                              <div className="px-3 py-1.5 ml-2 text-[11px] text-gray-400 italic">
-                                Generating tasks...
+                            return (
+                              <div key={milestone.id} className="mb-3">
+                                {/* Milestone Header */}
+                                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1 flex items-center gap-1.5">
+                                  <span>Task {mIdx + 1}: {milestone.title}</span>
+                                  {isGenerating && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
+                                </div>
+                                {/* Tasks */}
+                                {isGenerating ? (
+                                  <div className="px-3 py-1.5 ml-2 text-[11px] text-gray-400 italic">
+                                    Generating tasks...
+                                  </div>
+                                ) : (
+                                  milestoneTasks.map((task: any, tIdx: number) => {
+                                    const idx = tasks.findIndex((t) => t.id === task.id);
+                                    const accessible = isTaskAccessible(idx);
+                                    return (
+                                      <button
+                                        key={task.id}
+                                        disabled={!accessible}
+                                        onClick={() => {
+                                          if (idx >= 0 && accessible) {
+                                            setCurrentTaskIndex(idx);
+                                            setShowHints(false);
+                                            setIsTryOutPhase(false);
+                                          }
+                                        }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                                        style={idx === currentTaskIndex && !isTryOutPhase
+                                          ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
+                                          : completedTasks.includes(task.id)
+                                            ? { color: '#059669', borderLeft: '3px solid #10b981' }
+                                            : !accessible
+                                              ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
+                                              : { color: '#374151', borderLeft: '3px solid transparent' }
+                                        }
+                                      >
+                                        <span className="text-xs font-medium flex items-center gap-1.5">
+                                          {!accessible && <Lock className="w-3 h-3" />}
+                                          • {mIdx + 1}.{tIdx + 1}
+                                        </span>
+                                      </button>
+                                    );
+                                  })
+                                )}
                               </div>
-                            ) : (
-                              milestoneTasks.map((task: any, tIdx: number) => {
-                                const idx = tasks.findIndex((t) => t.id === task.id);
-                                const accessible = isTaskAccessible(idx);
-                                return (
-                                  <button
-                                    key={task.id}
-                                    disabled={!accessible}
-                                    onClick={() => {
-                                      if (idx >= 0 && accessible) {
-                                        setCurrentTaskIndex(idx);
-                                        setShowHints(false);
-                                      }
-                                    }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                                    style={idx === currentTaskIndex
-                                      ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
-                                      : completedTasks.includes(task.id)
-                                        ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                        : !accessible
-                                          ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
-                                          : { color: '#374151', borderLeft: '3px solid transparent' }
-                                    }
-                                  >
-                                    <span className="text-xs font-medium flex items-center gap-1.5">
-                                      {!accessible && <Lock className="w-3 h-3" />}
-                                      • {mIdx + 1}.{tIdx + 1}
-                                    </span>
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        );
-                      });
+                            );
+                          })}
+                          {/* Try Out Your Project milestone */}
+                          {allRealTasksCompleted && (
+                            <div className="mb-3">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 mb-1 flex items-center gap-1.5" style={{ color: '#0d9488' }}>
+                                <Play className="w-3 h-3" />
+                                <span>Try Out Your Project</span>
+                              </div>
+                              <button
+                                onClick={() => setIsTryOutPhase(true)}
+                                className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-teal-50 cursor-pointer"
+                                style={isTryOutPhase
+                                  ? { background: '#f0fdfa', color: '#0d9488', fontWeight: 500, borderLeft: '3px solid #0d9488' }
+                                  : { color: '#0d9488', borderLeft: '3px solid transparent' }
+                                }
+                              >
+                                <span className="text-xs font-medium flex items-center gap-1.5">
+                                  <Play className="w-3 h-3" />
+                                  Run & Test
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      );
                     }
 
                     // Fallback: group tasks by their major number from title
@@ -877,44 +970,71 @@ export function ProjectWorkspace({
                       groupedTasks[majorNum].tasks.push({ ...task, originalIdx: idx });
                     });
 
-                    return Object.entries(groupedTasks).map(([majorNum, group]) => (
-                      <div key={majorNum} className="mb-3">
-                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1">
-                          Task {majorNum}: {group.name}
-                        </div>
-                        {group.tasks.map((task) => {
-                          const idx = task.originalIdx;
-                          const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';
-                          const accessible = isTaskAccessible(idx);
-                          return (
+                    return (
+                      <>
+                        {Object.entries(groupedTasks).map(([majorNum, group]) => (
+                          <div key={majorNum} className="mb-3">
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 py-1 mb-1">
+                              Task {majorNum}: {group.name}
+                            </div>
+                            {group.tasks.map((task) => {
+                              const idx = task.originalIdx;
+                              const subNum = task.title.match(/\d+\.(\d+)/)?.[1] || '1';
+                              const accessible = isTaskAccessible(idx);
+                              return (
+                                <button
+                                  key={task.id}
+                                  disabled={!accessible}
+                                  onClick={() => {
+                                    if (accessible) {
+                                      setCurrentTaskIndex(idx);
+                                      setShowHints(false);
+                                      setIsTryOutPhase(false);
+                                    }
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                                  style={idx === currentTaskIndex && !isTryOutPhase
+                                    ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
+                                    : completedTasks.includes(task.id)
+                                      ? { color: '#059669', borderLeft: '3px solid #10b981' }
+                                      : !accessible
+                                        ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
+                                        : { color: '#374151', borderLeft: '3px solid transparent' }
+                                  }
+                                >
+                                  <span className="text-xs font-medium flex items-center gap-1.5">
+                                    {!accessible && <Lock className="w-3 h-3" />}
+                                    • {majorNum}.{subNum}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                        {/* Try Out Your Project milestone */}
+                        {allRealTasksCompleted && (
+                          <div className="mb-3">
+                            <div className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 mb-1 flex items-center gap-1.5" style={{ color: '#0d9488' }}>
+                              <Play className="w-3 h-3" />
+                              <span>Try Out Your Project</span>
+                            </div>
                             <button
-                              key={task.id}
-                              disabled={!accessible}
-                              onClick={() => {
-                                if (accessible) {
-                                  setCurrentTaskIndex(idx);
-                                  setShowHints(false);
-                                }
-                              }}
-                              className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 ${accessible ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                              style={idx === currentTaskIndex
-                                ? { background: '#fff7ed', color: '#ea580c', fontWeight: 500, borderLeft: '3px solid #ea580c' }
-                                : completedTasks.includes(task.id)
-                                  ? { color: '#059669', borderLeft: '3px solid #10b981' }
-                                  : !accessible
-                                    ? { color: '#9ca3af', borderLeft: '3px solid transparent' }
-                                    : { color: '#374151', borderLeft: '3px solid transparent' }
+                              onClick={() => setIsTryOutPhase(true)}
+                              className="w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-3 transition-all duration-200 ml-2 hover:bg-teal-50 cursor-pointer"
+                              style={isTryOutPhase
+                                ? { background: '#f0fdfa', color: '#0d9488', fontWeight: 500, borderLeft: '3px solid #0d9488' }
+                                : { color: '#0d9488', borderLeft: '3px solid transparent' }
                               }
                             >
                               <span className="text-xs font-medium flex items-center gap-1.5">
-                                {!accessible && <Lock className="w-3 h-3" />}
-                                • {majorNum}.{subNum}
+                                <Play className="w-3 h-3" />
+                                Run & Test
                               </span>
                             </button>
-                          );
-                        })}
-                      </div>
-                    ));
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
                 </div>
               </div>
@@ -928,6 +1048,38 @@ export function ProjectWorkspace({
         <ResizablePanel id="task-details" order={2} defaultSize={isChatOpen ? 25 : 43} minSize={15} maxSize={50}>
           <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
+              {isTryOutPhase ? (
+                /* Try-Out Phase Content */
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6)' }}>
+                    <Trophy className="w-10 h-10 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Congrats! You've completed all the coding tasks!
+                  </h2>
+                  <p className="text-gray-500 mb-8">Time to see your project in action</p>
+
+                  <div className="w-full max-w-md rounded-xl p-5 border border-teal-100 mb-8" style={{ background: 'linear-gradient(135deg, #f0fdfa, #ecfdf5)' }}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <Play className="w-5 h-5 text-[#0d9488]" />
+                      <span className="font-semibold text-gray-800">Test Your Project</span>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      Click the <strong>Run</strong> button in the IDE panel to test your project. Make sure everything works the way you expect!
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleProjectComplete}
+                    className="px-8 py-3 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                    style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6)' }}
+                  >
+                    <Trophy className="w-5 h-5 mr-2" />
+                    Complete Project
+                  </Button>
+                </div>
+              ) : (
+              <>
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
               <div ref={taskContentRef} className="max-w-none mb-6 relative">
                 <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} />
@@ -1062,6 +1214,8 @@ export function ProjectWorkspace({
                     </Button>
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
           </div>
@@ -1237,7 +1391,7 @@ export function ProjectWorkspace({
                 {currentTaskIndex < tasks.length - 1 ? (
                   <>Next Task <ArrowRight className="w-4 h-4 ml-2" /></>
                 ) : (
-                  <>Finish Project <Trophy className="w-4 h-4 ml-2" /></>
+                  <>Try Out Project <Play className="w-4 h-4 ml-2" /></>
                 )}
               </Button>
             </div>
