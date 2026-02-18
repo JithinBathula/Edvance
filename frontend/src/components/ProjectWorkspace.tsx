@@ -1169,6 +1169,7 @@ export function ProjectWorkspace({
                           <span
                             dangerouslySetInnerHTML={{
                               __html: item
+                                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                                 .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-amber-100 rounded text-amber-800 font-mono text-xs">$1</code>')
                                 .replace(/'([^'\s]+)'/g, '<code class="px-1 py-0.5 bg-amber-100 rounded text-amber-800 font-mono text-xs">$1</code>')
                             }}
@@ -1390,6 +1391,7 @@ export function ProjectWorkspace({
                     <p className="text-gray-700 text-sm leading-relaxed"
                       dangerouslySetInnerHTML={{
                         __html: item
+                          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                           .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
                           .replace(/'([^'\s]+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-orange-600 font-mono text-xs">$1</code>')
                       }}
@@ -1439,6 +1441,7 @@ export function ProjectWorkspace({
                       <p className="text-gray-700 text-sm leading-relaxed"
                         dangerouslySetInnerHTML={{
                           __html: item
+                            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                             .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-emerald-700 font-mono text-xs">$1</code>')
                             .replace(/'([^'\s]+)'/g, '<code class="px-1.5 py-0.5 bg-gray-100 rounded text-emerald-700 font-mono text-xs">$1</code>')
                         }}
