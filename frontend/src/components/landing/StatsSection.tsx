@@ -42,7 +42,7 @@ export function StatsSection() {
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-amber-400/5 rounded-full translate-x-1/3 translate-y-1/3 blur-[60px]" />
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center relative">
+      <div className="max-w-6xl mx-auto grid grid-cols-4 gap-10 text-center relative">
         {stats.map((stat, i) => (
           <motion.div
             key={i}
