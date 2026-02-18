@@ -74,6 +74,7 @@ def get_project_full(project_id: str):
                     'id': task['id'],
                     'title': f"{milestone['title']}: {task['task_id_slug']}",
                     'description': task['instruction_theory'],
+                    'codingRequirements': task.get('coding_requirements', []),
                     'hints': task.get('hints', []),
                     'starterCode': task.get('starter_code') or '# Write your code here\n',
                     'testSpec': task.get('test_specification', {}),
