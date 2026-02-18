@@ -794,7 +794,7 @@ function HowItWorksSection() {
           variants={sectionVariants}
           initial="hidden"
           animate={isInView ? 'visible' : 'hidden'}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">
             How It Works
@@ -826,14 +826,16 @@ function HowItWorksSection() {
               animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
               transition={{ delay: 0.3 + i * 0.2, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
               whileHover={{ y: -6, transition: { duration: 0.3 } }}
-              className="text-center relative bg-white rounded-2xl border border-gray-100 p-8 hover:shadow-xl transition-all duration-300"
+              className="text-center relative bg-white rounded-2xl border border-gray-100 p-10 hover:shadow-xl transition-all duration-300"
             >
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center mx-auto mb-6 shadow-lg`}>
-                <step.icon className="w-7 h-7 text-white" />
+              <div className="relative w-16 h-16 mx-auto mb-6">
+                <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-lg`}>
+                  <step.icon className="w-7 h-7 text-white" />
+                </div>
+                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-slate-700 shadow-sm">
+                  {step.number}
+                </span>
               </div>
-              <span className="text-6xl font-black" style={{ background: 'linear-gradient(135deg, #0d9488, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', opacity: 0.2 }}>
-                {step.number}
-              </span>
               <h3 className="text-xl font-bold text-slate-800 mt-2">{step.title}</h3>
               <p className="text-sm text-slate-500 mt-3 leading-relaxed">{step.description}</p>
             </motion.div>
@@ -859,7 +861,7 @@ function ForTeachersSection() {
   ];
 
   return (
-    <section id="for-teachers" ref={ref} className="py-16 px-6 lg:px-10">
+    <section id="for-teachers" ref={ref} className="py-16 px-6 lg:px-10" style={{ background: 'linear-gradient(180deg, #fffbeb 0%, #ffffff 50%, #ffffff 100%)' }}>
       <div className="w-full max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <motion.div
@@ -878,7 +880,7 @@ function ForTeachersSection() {
               </span>
             </h2>
             <p className="mt-4 text-lg text-slate-500 leading-relaxed">
-              Create classrooms, assign projects, and track every student's progress in real-time. Focus on teaching while AI handles the heavy lifting.
+              Create classrooms, assign projects, and track every student&apos;s progress in real-time. Focus on teaching while AI handles the heavy lifting.
             </p>
             <ul className="mt-8 space-y-4">
               {features.map((feature, i) => (
@@ -898,56 +900,85 @@ function ForTeachersSection() {
             </ul>
           </motion.div>
 
+          {/* Right - dashboard mockup */}
           <motion.div
-            initial={{ opacity: 0, x: 50 }}
+            initial={{ opacity: 0, x: 30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <div className="relative">
-              <div className="absolute -inset-6 bg-gradient-to-r from-teal-100/50 to-cyan-100/50 rounded-3xl blur-3xl" />
-              <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-teal-50 to-white">
+              <div className="absolute -inset-4 bg-gradient-to-br from-teal-200/30 to-amber-100/30 rounded-3xl blur-2xl" />
+              <div className="relative bg-white rounded-2xl shadow-xl border border-gray-200/60 overflow-hidden">
+                {/* Toolbar */}
+                <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-teal-50/80 to-white">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center">
                       <Users className="w-4 h-4 text-white" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-800">Python Fundamentals</p>
-                      <p className="text-xs text-slate-400">28 students enrolled</p>
+                      <p className="text-[11px] text-slate-400">28 students enrolled</p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-semibold">Active</span>
+                  <span className="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-600 text-[11px] font-semibold">Active</span>
                 </div>
-                <div className="p-5 space-y-3">
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-px bg-gray-100 border-b border-gray-100">
                   {[
-                    { name: 'Sarah K.', progress: 85, color: '#0d9488' },
-                    { name: 'James L.', progress: 72, color: '#f59e0b' },
-                    { name: 'Aisha M.', progress: 93, color: '#0d9488' },
-                    { name: 'Wei T.', progress: 58, color: '#f97316' },
+                    { label: 'Avg Progress', value: '77%', color: 'text-teal-600' },
+                    { label: 'Completed', value: '12/28', color: 'text-amber-600' },
+                    { label: 'This Week', value: '+8%', color: 'text-teal-600' },
+                  ].map((stat, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0 }}
+                      animate={isInView ? { opacity: 1 } : {}}
+                      transition={{ delay: 0.5 + i * 0.1 }}
+                      className="bg-white px-4 py-3 text-center"
+                    >
+                      <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{stat.label}</p>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Student list */}
+                <div className="p-4 space-y-2">
+                  {[
+                    { name: 'Sarah K.', progress: 85, color: '#0d9488', status: 'On Track' },
+                    { name: 'James L.', progress: 72, color: '#f59e0b', status: 'In Progress' },
+                    { name: 'Aisha M.', progress: 93, color: '#0d9488', status: 'Ahead' },
+                    { name: 'Wei T.', progress: 58, color: '#f97316', status: 'Needs Help' },
                   ].map((student, i) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, x: 20 }}
                       animate={isInView ? { opacity: 1, x: 0 } : {}}
-                      transition={{ delay: 0.6 + i * 0.12 }}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-teal-50/50 transition-colors"
+                      transition={{ delay: 0.6 + i * 0.1 }}
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors"
                     >
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-xs font-bold text-teal-700">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-[11px] font-bold text-teal-700">
                         {student.name.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-700">{student.name}</p>
-                        <div className="mt-1.5 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium text-slate-700">{student.name}</p>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: student.color + '15', color: student.color }}>
+                            {student.status}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                           <motion.div
                             className="h-full rounded-full"
                             style={{ backgroundColor: student.color }}
                             initial={{ width: 0 }}
                             animate={isInView ? { width: `${student.progress}%` } : { width: 0 }}
-                            transition={{ duration: 1.2, delay: 0.9 + i * 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            transition={{ duration: 1.2, delay: 0.8 + i * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
                           />
                         </div>
                       </div>
-                      <span className="text-xs font-semibold text-slate-500 tabular-nums">{student.progress}%</span>
+                      <span className="text-xs font-semibold text-slate-400 tabular-nums w-8 text-right">{student.progress}%</span>
                     </motion.div>
                   ))}
                 </div>
@@ -980,7 +1011,7 @@ function StatsSection() {
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-amber-400/5 rounded-full translate-x-1/3 translate-y-1/3 blur-[80px]" />
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center relative">
+      <div className="max-w-6xl mx-auto grid grid-cols-4 gap-10 text-center relative">
         {stats.map((stat, i) => (
           <motion.div
             key={i}
