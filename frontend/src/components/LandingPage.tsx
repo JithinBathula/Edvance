@@ -4,7 +4,8 @@ import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'fra
 import {
   Sparkles, Rocket, Brain, Users, Zap,
   Terminal, ArrowRight, CheckCircle2,
-  Star, Menu, X, BookOpen, Trophy
+  Star, Menu, X, BookOpen, Trophy,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { User } from '../App';
@@ -146,7 +147,7 @@ function HeroVisual() {
   return (
     <div className="relative w-full">
       <div className="absolute -inset-6 bg-gradient-to-r from-red-400/10 to-teal-400/15 rounded-3xl blur-3xl" />
-      <div className="relative flex flex-col gap-4">
+      <div className="relative flex flex-col gap-6">
         {/* Error terminal */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
@@ -465,7 +466,7 @@ function HeroSection({ user }: { user: User | null }) {
 
             <motion.h1
               variants={staggerItem}
-              className="text-5xl sm:text-6xl lg:text-[4rem] xl:text-[4.75rem] font-bold text-slate-800 leading-[1.08] tracking-tight"
+              className="text-[3.375rem] font-bold text-slate-800 leading-[1.08] tracking-tight"
             >
               Coding is hard.<br />
               <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -473,12 +474,12 @@ function HeroSection({ user }: { user: User | null }) {
               </span>
             </motion.h1>
 
-            <motion.p variants={staggerItem} className="mt-6 text-lg sm:text-xl text-slate-500 leading-relaxed max-w-xl">
+            <motion.p variants={staggerItem} className="mt-8 text-lg sm:text-xl text-slate-500 leading-relaxed max-w-xl">
               Don&apos;t struggle in silence. Edvance gives you an AI partner that helps you debug, plan,
               and learn in real-time. Turn &ldquo;I give up&rdquo; into &ldquo;I did it.&rdquo;
             </motion.p>
 
-            <motion.div variants={staggerItem} className="mt-10 flex flex-wrap gap-4">
+            <motion.div variants={staggerItem} className="mt-12 flex flex-wrap gap-4">
               {user ? (
                 <Button
                   size="lg"
@@ -508,7 +509,7 @@ function HeroSection({ user }: { user: User | null }) {
               )}
             </motion.div>
 
-            <motion.div variants={staggerItem} className="mt-10 flex items-center gap-8 text-sm text-slate-400">
+            <motion.div variants={staggerItem} className="mt-12 flex items-center gap-8 text-sm text-slate-400">
               <span className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
                   <Zap className="w-3.5 h-3.5 text-teal-600" />
@@ -589,7 +590,7 @@ function FeaturesSection() {
           variants={staggerContainer}
           initial="hidden"
           animate={isInView ? 'visible' : 'hidden'}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-7xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-6xl mx-auto"
         >
           {features.map((f, i) => {
             const c = colorMap[f.color];
@@ -598,13 +599,16 @@ function FeaturesSection() {
                 key={i}
                 variants={staggerItem}
                 whileHover={{ y: -8, transition: { duration: 0.3 } }}
-                className={`group bg-white rounded-2xl border border-gray-100 ${c.border} p-7 hover:shadow-xl hover:shadow-gray-100/80 transition-all duration-300 cursor-default`}
+                className={`group relative overflow-hidden bg-white rounded-2xl border border-gray-100 ${c.border} p-7 hover:shadow-xl hover:shadow-gray-100/80 transition-all duration-300 cursor-default`}
               >
-                <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <f.icon className={`w-6 h-6 ${c.icon}`} />
+                <div className={`absolute top-0 right-0 w-32 h-32 ${c.bg} rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-100 group-hover:w-44 group-hover:h-44 transition-all duration-300`} />
+                <div className="relative">
+                  <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                    <f.icon className={`w-6 h-6 ${c.icon}`} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">{f.title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{f.description}</p>
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">{f.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{f.description}</p>
               </motion.div>
             );
           })}
@@ -619,31 +623,18 @@ function FeaturesSection() {
 function StudentProjectsSection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.1 });
-  const scrollRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: scrollRef, offset: ["start end", "end start"] });
-  const x = useTransform(scrollYProgress, [0, 1], ['5%', '-5%']);
-  const xReverse = useTransform(scrollYProgress, [0, 1], ['-3%', '3%']);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const projects = [
     {
-      emoji: '🎮',
-      title: 'Terminal Hangman',
-      description: 'Build a classic word-guessing game where players try to reveal a hidden word one letter at a time.',
-      tags: ['Loops', 'Conditionals', 'Lists'],
-      xp: 140,
-      tasks: 14,
-      color: '#0d9488',
-      code: `word = random.choice(words)\nguesses = []\nlives = 6\n\nwhile lives > 0:\n  display = ""\n  for letter in word:\n    if letter in guesses:\n      display += letter\n    else:\n      display += "_"\n  print(display)`,
-    },
-    {
       emoji: '💰',
-      title: 'Terminal Expense Tracker',
+      title: 'Expense Tracker',
       description: 'Create a menu-driven app to track expenses with categories, totals, and spending analysis.',
       tags: ['Dictionaries', 'Functions', 'File I/O'],
       xp: 110,
       tasks: 11,
       color: '#f59e0b',
-      code: `expenses = []\n\ndef add_expense(name, amount, cat):\n  expenses.append({\n    "name": name,\n    "amount": amount,\n    "category": cat\n  })\n\ndef total_by_category(cat):\n  return sum(e["amount"]\n    for e in expenses\n    if e["category"] == cat)`,
+      image: '/projects/expense-tracker.png',
     },
     {
       emoji: '📊',
@@ -653,7 +644,7 @@ function StudentProjectsSection() {
       xp: 170,
       tasks: 17,
       color: '#7c3aed',
-      code: `def jaccard_similarity(a, b):\n  set_a = set(a.lower().split())\n  set_b = set(b.lower().split())\n  \n  intersection = set_a & set_b\n  union = set_a | set_b\n  \n  return len(intersection) /\\\n         len(union)\n\nscore = jaccard_similarity(\n  text1, text2)`,
+      image: '/projects/text-similarity.png',
     },
     {
       emoji: '🤖',
@@ -663,7 +654,17 @@ function StudentProjectsSection() {
       xp: 200,
       tasks: 20,
       color: '#0891b2',
-      code: `class Chatbot:\n  def __init__(self):\n    self.patterns = {\n      r"hello|hi": "Hey there!",\n      r"how are you": "I'm good!",\n      r"bye": "Goodbye!"\n    }\n\n  def respond(self, message):\n    for pattern, reply in\\\n        self.patterns.items():\n      if re.search(pattern, msg):\n        return reply`,
+      image: '/projects/ai-chatbot.png',
+    },
+        {
+      emoji: '🎮',
+      title: 'Terminal Hangman',
+      description: 'Build a classic word-guessing game where players try to reveal a hidden word one letter at a time.',
+      tags: ['Loops', 'Conditionals', 'Lists'],
+      xp: 140,
+      tasks: 14,
+      color: '#0d9488',
+      image: '/projects/hangman.png',
     },
     {
       emoji: '🎲',
@@ -673,7 +674,7 @@ function StudentProjectsSection() {
       xp: 130,
       tasks: 12,
       color: '#db2777',
-      code: `def ai_guess(low, high):\n  attempts = 0\n  while low <= high:\n    mid = (low + high) // 2\n    attempts += 1\n    print(f"Is it {mid}?")\n    \n    feedback = input()\n    if feedback == "correct":\n      return attempts\n    elif feedback == "higher":\n      low = mid + 1\n    else:\n      high = mid - 1`,
+      image: '/projects/number-guessing.png',
     },
     {
       emoji: '📈',
@@ -683,138 +684,92 @@ function StudentProjectsSection() {
       xp: 180,
       tasks: 16,
       color: '#059669',
-      code: `def moving_average(prices, n):\n  averages = []\n  for i in range(len(prices)):\n    if i < n - 1:\n      averages.append(None)\n    else:\n      window = prices[i-n+1:i+1]\n      avg = sum(window) / n\n      averages.append(avg)\n  return averages\n\nma_7 = moving_average(data, 7)`,
+      image: '/projects/stock-analyzer.png',
     },
   ];
 
+  const scroll = (dir: 'left' | 'right') => {
+    if (!scrollRef.current) return;
+    const amount = 400;
+    scrollRef.current.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' });
+  };
+
   return (
     <section id="projects" ref={ref} className="py-16 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%)' }}>
-      <div className="px-6 lg:px-10 mb-10">
+      <div className="px-6 lg:px-10 mb-10 max-w-6xl mx-auto">
         <motion.div
           variants={sectionVariants}
           initial="hidden"
           animate={isInView ? 'visible' : 'hidden'}
-          className="text-center max-w-3xl mx-auto"
         >
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-medium mb-4">
-            <Trophy className="w-3.5 h-3.5" />
-            Student Projects
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-bold text-slate-800">
-            Real Projects Built by{' '}
-            <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Our Students
-            </span>
-          </h2>
-          <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
-            From terminal games to AI-powered apps, see the kind of Python projects you'll build on Edvance.
-          </p>
+          <div className="flex items-end justify-between">
+            <div>
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-medium mb-4">
+                <Trophy className="w-3.5 h-3.5" />
+                Student Projects
+              </span>
+              <h2 className="text-4xl sm:text-5xl font-bold text-slate-800">
+                Real Projects Built by{' '}
+                <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  Our Students
+                </span>
+              </h2>
+              <p className="mt-4 text-lg text-slate-500 max-w-2xl">
+                From terminal games to AI-powered apps, see the kind of Python projects you&apos;ll build on Edvance.
+              </p>
+            </div>
+            <div className="hidden sm:flex gap-2">
+              <button onClick={() => scroll('left')} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-slate-500 hover:border-teal-400 hover:text-teal-600 transition-colors">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button onClick={() => scroll('right')} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-slate-500 hover:border-teal-400 hover:text-teal-600 transition-colors">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
         </motion.div>
       </div>
 
-      {/* Scrolling project cards */}
-      <div ref={scrollRef}>
-        <motion.div style={{ x }} className="flex gap-6 px-6 lg:px-10 pb-4">
-          {projects.map((project, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 40, rotate: 1 }}
-              animate={isInView ? { opacity: 1, y: 0, rotate: 0 } : {}}
-              transition={{ delay: i * 0.1, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-              whileHover={{ y: -10, rotate: 0, transition: { duration: 0.3 } }}
-              className="flex-shrink-0 w-[380px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-default"
-            >
-              {/* Code preview */}
-              <div className="bg-[#0f172a] p-4 relative overflow-hidden">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-                  <span className="ml-2 text-[10px] text-white/30 font-mono">main.py</span>
-                </div>
-                <pre className="font-mono text-[11px] leading-[1.6] text-white/70 overflow-hidden h-[154px]">
-                  <code>{project.code}</code>
-                </pre>
-                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0f172a] to-transparent" />
-              </div>
+      <div ref={scrollRef} className="flex gap-6 px-6 lg:px-10 pb-4 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-6xl mx-auto">
+        {projects.map((project, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 40 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: i * 0.1, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            whileHover={{ y: -8, transition: { duration: 0.3 } }}
+            className="flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-default"
+          >
+            {/* Image preview */}
+            <div className="h-[200px] bg-slate-100 overflow-hidden">
+              <img src={project.image} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            </div>
 
-              {/* Project info */}
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{project.emoji}</span>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-base">{project.title}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{project.tasks} tasks</p>
-                    </div>
+            {/* Project info */}
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{project.emoji}</span>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-base">{project.title}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{project.tasks} tasks</p>
                   </div>
-                  <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: project.color + '15', color: project.color }}>
-                    +{project.xp} XP
+                </div>
+                <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: project.color + '15', color: project.color }}>
+                  +{project.xp} XP
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 leading-relaxed mb-4">{project.description}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {project.tags.map(tag => (
+                  <span key={tag} className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">
+                    {tag}
                   </span>
-                </div>
-                <p className="text-sm text-slate-500 leading-relaxed mb-4">{project.description}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {project.tags.map(tag => (
-                    <span key={tag} className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                ))}
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-
-      {/* Second row scrolling opposite direction */}
-      <div className="mt-6">
-        <motion.div style={{ x: xReverse }} className="flex gap-6 px-6 lg:px-10 pb-4">
-          {[...projects].reverse().map((project, i) => (
-            <motion.div
-              key={`r-${i}`}
-              initial={{ opacity: 0, y: 40 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.3 + i * 0.1, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="flex-shrink-0 w-[380px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-default"
-            >
-              <div className="bg-[#0f172a] p-4 relative overflow-hidden">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-                  <span className="ml-2 text-[10px] text-white/30 font-mono">main.py</span>
-                </div>
-                <pre className="font-mono text-[11px] leading-[1.6] text-white/70 overflow-hidden h-[154px]">
-                  <code>{project.code}</code>
-                </pre>
-                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0f172a] to-transparent" />
-              </div>
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{project.emoji}</span>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-base">{project.title}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{project.tasks} tasks</p>
-                    </div>
-                  </div>
-                  <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: project.color + '15', color: project.color }}>
-                    +{project.xp} XP
-                  </span>
-                </div>
-                <p className="text-sm text-slate-500 leading-relaxed mb-4">{project.description}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {project.tags.map(tag => (
-                    <span key={tag} className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </section>
   );
