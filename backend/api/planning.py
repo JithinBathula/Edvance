@@ -1,3 +1,6 @@
+import logging
+import traceback
+
 from flask import Blueprint, jsonify, request, g
 from pydantic import ValidationError
 
@@ -7,6 +10,8 @@ from pydantic_classes.planning import CurriculumGenerationError, OutlineProject
 from db.supabase_client import (
     create_project, create_milestone, create_task,
 )
+
+logger = logging.getLogger(__name__)
 
 planning_bp = Blueprint("planning", __name__, url_prefix="/api/planning")
 planner = CurriculumPlanner()
@@ -229,8 +234,8 @@ def generate_curriculum():
                                     test_specification=task_item.test_specification.model_dump(),
                                 )
 
-                    except Exception:
-                        pass  # Background generation failure is non-critical
+                    except Exception as bg_exc:
+                        logger.error("Background milestone generation failed: %s\n%s", bg_exc, traceback.format_exc())
 
                 bg_thread = Thread(target=generate_remaining_in_background, daemon=True)
                 bg_thread.start()
@@ -241,4 +246,5 @@ def generate_curriculum():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
+        logger.error("Curriculum generation failed: %s\n%s", exc, traceback.format_exc())
         return jsonify({"error": f"Failed to generate curriculum: {exc}"}), 500
