@@ -204,21 +204,20 @@ function HeroVisual() {
           {/* Speech bubble arrow */}
           <div className="absolute -top-2 left-10 w-4 h-4 bg-white border-l border-t border-teal-200/60 rotate-45" />
 
-          <div className="relative flex gap-4">
-            {/* Cody mascot - bigger companion */}
-            <motion.div
-              animate={{ y: [0, -4, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="shrink-0 self-center"
-            >
-              <CodyMascot size={60} />
-            </motion.div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <motion.div
+                animate={{ y: [0, -4, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="shrink-0"
+              >
+                <CodyMascot size={40} />
+              </motion.div>
+              <span className="text-lg font-bold text-[#1B5E6B]">Cody</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 font-medium">AI Helper</span>
+            </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base font-bold text-[#1B5E6B]">Cody</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 font-medium">AI Helper</span>
-              </div>
+            <div>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -452,9 +451,9 @@ function HeroSection({ user }: { user: User | null }) {
       <FloatingCodeToken text="&&" className="text-amber-500/15 text-2xl top-[5%] left-[48%]" delay={2.8} />
       <FloatingCodeToken text="return" className="text-teal-700/15 text-lg top-[75%] right-[35%]" delay={3.2} />
 
-      {/* Content - full width */}
-      <motion.div style={{ y: textY }} className="relative w-full px-6 lg:px-10 py-12 pt-24">
-        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-12 lg:gap-16 items-center">
+      {/* Content - centered with max-width */}
+      <motion.div style={{ y: textY }} className="relative w-full px-6 lg:px-16 xl:px-24 py-12 pt-24">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
           {/* Left - Text */}
           <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
             <motion.div variants={staggerItem}>
@@ -466,9 +465,9 @@ function HeroSection({ user }: { user: User | null }) {
 
             <motion.h1
               variants={staggerItem}
-              className="text-5xl sm:text-6xl lg:text-[3.5rem] xl:text-[4rem] font-bold text-slate-800 leading-[1.08] tracking-tight whitespace-nowrap"
+              className="text-5xl sm:text-6xl lg:text-[4rem] xl:text-[4.75rem] font-bold text-slate-800 leading-[1.08] tracking-tight"
             >
-              Coding is hard.{' '}
+              Coding is hard.<br />
               <span style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 You shouldn&apos;t do it alone.
               </span>
