@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../App';
 import { BACKEND_URL } from '../../utils/constants';
+import edvanceLogoSrc from '../../assets/edvance-logo.svg';
 import {
-    Code2,
     Home,
     Users,
     BookOpen,
@@ -169,11 +169,9 @@ export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) 
                 className="w-52 shrink-0 flex flex-col px-3 py-5 rounded-r-2xl bg-gradient-to-b from-teal-900/95 to-teal-950/95"
             >
                 <div className="flex items-center gap-2 px-3 mb-7">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-300/90 to-teal-500/90 flex items-center justify-center">
-                        <Code2 className="w-4 h-4 text-teal-950" />
-                    </div>
+                    <img src={edvanceLogoSrc} alt="Edvance" width={32} height={32} className="object-contain" />
                     <div>
-                        <div className="text-white font-bold text-sm leading-tight">Edvance</div>
+                        <div className="text-white font-bold text-sm leading-tight">edvance</div>
                         <div className="text-teal-400/70 text-xs">Learning Platform</div>
                     </div>
                 </div>
