@@ -1,6 +1,7 @@
 .venv/
 .pnpm-store/
 
+edvance-backend.pem
 
 # Logs
 logs
@@ -146,3 +147,5 @@ vite.config.ts.timestamp-*
 
 # Internal workspace repos
 backend/repos/
+
+.claude/

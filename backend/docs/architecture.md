@@ -87,13 +87,7 @@ users
  │     └──< repo_files (project_id)
  │
  ├──< user_progress (user_id) >── tasks (task_id)
- ├──< code_versions (user_id) >── tasks (task_id)
- └──< user_course_progress (user_id) >── courses (course_id)
-
-courses
- └──< course_lessons (course_id)
-       ├──< course_lesson_tasks (lesson_id)
-       └──< course_lesson_highlights (lesson_id)
+ └──< code_versions (user_id) >── tasks (task_id)
 ```
 
 ### Key Tables

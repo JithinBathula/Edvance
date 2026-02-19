@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2, RotateCcw } from 'lucide-react';
 import { authFetch } from '../utils/authFetch';
 import ReactMarkdown from 'react-markdown';
@@ -30,7 +30,7 @@ type Props = {
 
 const DEFAULT_WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: "Hi! I'm your coding assistant. I can help you understand concepts, debug code, or provide hints. What would you like to know?",
+  content: "Heyyy! I'm Cody, your coding buddy! I'm SO excited to build stuff with you! Whether you're stuck, confused, or just want to chat about your code — I'm right here. Let's goooo! What are you working on?",
 };
 
 export function AIChatbot({
@@ -147,7 +147,7 @@ export function AIChatbot({
     setInput('');
   };
 
-  // Handle prefilled messages from "Ask AI Tutor" button
+  // Handle prefilled messages from "Ask Cody" button
   useEffect(() => {
     if (prefillMessage && !isLoading && prefillMessage !== prefillProcessedRef.current) {
       prefillProcessedRef.current = prefillMessage;
@@ -162,14 +162,14 @@ export function AIChatbot({
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200 shadow-xl">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50 flex items-center justify-between shrink-0">
+      <div className="p-4 border-b border-gray-200 bg-linear-to-r from-teal-50 to-cyan-50 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
-            <Sparkles className="w-4 h-4 text-blue-600" />
+          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center border border-teal-200">
+            <Sparkles className="w-4 h-4 text-teal-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800 text-sm">AI Tutor</h3>
-            <p className="text-xs text-gray-500">Always here to help</p>
+            <h3 className="font-semibold text-gray-800 text-sm">Cody</h3>
+            <p className="text-xs text-gray-500">Your coding buddy!</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -197,31 +197,31 @@ export function AIChatbot({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50/50" ref={scrollRef}>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 bg-gray-50/50" ref={scrollRef}>
         <div className="space-y-4">
           {isLoadingHistory ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+              <Loader2 className="w-6 h-6 text-teal-500 animate-spin" />
             </div>
           ) : messages.map((message, i) => (
             <div key={i} className="flex gap-3">
               <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border bg-white border-gray-200">
                 {message.role === 'assistant' ? (
-                  <Bot className="w-4 h-4 text-blue-600" />
+                  <Bot className="w-4 h-4 text-teal-600" />
                 ) : (
                   <User className="w-4 h-4 text-purple-600" />
                 )}
               </div>
               <div
-                className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user'
+                className={`rounded-2xl px-4 py-3 text-sm shadow-sm min-w-0 ${message.role === 'user'
                     ? 'bg-purple-100 text-purple-900 border border-purple-200'
                     : 'bg-white text-gray-700 border border-gray-100'
                   }`}
               >
                 {message.role === 'user' ? (
-                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">{message.content}</p>
                 ) : (
-                  <div className="prose prose-sm max-w-none">
+                  <div className="prose prose-sm max-w-none break-words [overflow-wrap:anywhere]">
                     <ReactMarkdown
                       components={{
                         p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
@@ -254,10 +254,10 @@ export function AIChatbot({
           {isLoading && (
             <div className="flex gap-3 justify-start">
               <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-4 h-4 text-blue-600" />
+                <Bot className="w-4 h-4 text-teal-600" />
               </div>
               <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-teal-500 animate-spin" />
                 <span className="text-xs text-gray-400">Thinking...</span>
               </div>
             </div>
@@ -274,20 +274,21 @@ export function AIChatbot({
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-        <div className="relative flex items-center gap-2">
-          <Input
+        <div className="relative flex items-end gap-2">
+          <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Ask me anything..."
             disabled={isLoading}
-            className="pr-10"
+            className="pr-10 min-h-[40px] max-h-[120px] resize-none overflow-y-auto break-words [overflow-wrap:anywhere]"
+            rows={1}
           />
           <Button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className="absolute right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+            className="absolute right-1 bottom-1 w-8 h-8 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-colors"
           >
             <Send className="w-4 h-4" />
           </Button>

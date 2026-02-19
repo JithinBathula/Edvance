@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "./utils/supabase/client";
@@ -8,13 +9,21 @@ import { LoginScreen } from "./components/LoginScreen";
 import { SignupScreen } from "./components/SignupScreen";
 import { AuthCallback } from "./components/AuthCallback";
 import { OnboardingScreen } from "./components/OnboardingScreen";
-import { LandingPage } from "./components/LandingPage";
-import { CoursePage } from "./components/CoursePage";
-import { ProjectList } from "./components/ProjectList";
 import { CustomProjectChat } from "./components/CustomProjectChat";
+import { StudentLayout } from "./components/student/StudentLayout";
 import { ProjectPlanning } from "./components/ProjectPlanning";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
-import { ProfilePage } from "./components/ProfilePage";
+import { TeacherDashboard } from "./components/teacher/TeacherDashboard";
+import { ClassroomDetail } from "./components/teacher/ClassroomDetail";
+import { StudentDetail } from "./components/teacher/StudentDetail";
+import { TeacherSettings } from "./components/teacher/TeacherSettings";
+import { AssignmentCreate } from "./components/teacher/AssignmentCreate";
+import { AssignmentDetail } from "./components/teacher/AssignmentDetail";
+import { StudentDashboard } from "./components/StudentDashboard";
+import { StudentClassesPanel } from "./components/student/StudentClassesPanel";
+import { StudentSettingsPanel } from "./components/StudentSettings";
+import { ProjectList } from "./components/ProjectList";
+import { LandingPage } from "./components/LandingPage";
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -22,6 +31,7 @@ export type OnboardingData = {
   pythonLevel: string;           // Level 1-5 skill assessment
   biggestChallenges: string[];   // Multiple: syntax, steps, bugs, want more
   learningMode: string;          // hold-my-hand, roadmap, challenge-me
+  theme?: string;                // Project theme: finance, gaming, etc.
 };
 
 export type User = {
@@ -33,6 +43,9 @@ export type User = {
   xp: number;
   completedProjects: string[];
   projects?: string[];
+  role: 'student' | 'teacher';
+  isAdmin?: boolean;
+  profilePictureUrl?: string;
 };
 
 export default function App() {
@@ -180,7 +193,7 @@ export default function App() {
       localStorage.removeItem('edvance_user');
       localStorage.removeItem('edvance_current_project');
       localStorage.removeItem('edvance_project_requirements');
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
     };
 
     window.addEventListener('edvance:auth-expired', handleAuthExpired as EventListener);
@@ -193,10 +206,12 @@ export default function App() {
     setUser(userData);
     localStorage.setItem('edvance_user', JSON.stringify(userData));
 
-    if (userData.onboarding) {
-      navigate("/dashboard");
-    } else {
+    if (!userData.onboarding) {
       navigate("/onboarding");
+    } else if (userData.role === 'teacher') {
+      navigate("/teacher/dashboard");
+    } else {
+      navigate("/student-dashboard");
     }
   };
 
@@ -221,16 +236,23 @@ export default function App() {
     setUser(null);
     setCurrentProject(null);
     setProjectRequirements(null);
-    navigate("/");
+    navigate("/login");
   };
 
-  const handleOnboardingComplete = (onboardingData: OnboardingData) => {
+  const handleOnboardingComplete = (onboardingData: OnboardingData, role?: 'student' | 'teacher') => {
     if (user) {
-      const updatedUser = { ...user, onboarding: onboardingData };
+      const updatedUser = { ...user, onboarding: onboardingData, role: role || user.role || 'student' };
       setUser(updatedUser);
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+
+      if (updatedUser.role === 'teacher') {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/student-dashboard");
+      }
+    } else {
+      navigate("/student-dashboard");
     }
-    navigate("/dashboard");
   };
 
   const handleRequirementsReady = (data: any) => {
@@ -259,7 +281,7 @@ export default function App() {
     setProjectRequirements(null);
     localStorage.removeItem('edvance_current_project');
     localStorage.removeItem('edvance_project_requirements');
-    navigate("/dashboard");
+    navigate("/student-dashboard");
   };
 
   const handleProfileUpdate = (onboardingData: OnboardingData) => {
@@ -268,10 +290,40 @@ export default function App() {
       setUser(updatedUser);
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }
-    navigate("/dashboard");
+  };
+
+  const handleTeacherUserUpdate = (fields: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...fields };
+      setUser(updatedUser);
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const handleProfilePictureUpdate = (profilePictureUrl: string) => {
+    if (user) {
+      const updatedUser = { ...user, profilePictureUrl };
+      setUser(updatedUser);
+      localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
+    }
   };
 
   const RequireUser = ({ children }: { children: React.ReactNode }) => {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
+          <div className="text-center">
+            <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+            <p className="text-slate-600 text-base">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    if (!user) return <Navigate to="/login" replace />;
+    return <>{children}</>;
+  };
+
+  const RequireTeacher = ({ children }: { children: React.ReactNode }) => {
     if (loading) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
@@ -282,17 +334,18 @@ export default function App() {
         </div>
       );
     }
-    if (!user) return <Navigate to="/" replace />;
+    if (!user) return <Navigate to="/login" replace />;
+    if (user.role !== 'teacher') return <Navigate to="/student-dashboard" replace />;
     return <>{children}</>;
   };
 
   // Show loading spinner while checking session
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+          <p className="text-slate-600 text-base">Loading...</p>
         </div>
       </div>
     );
@@ -304,9 +357,17 @@ export default function App() {
         <Routes>
           <Route
             path="/"
+            element={<LandingPage user={user} />}
+          />
+          <Route
+            path="/login"
             element={
               user ? (
-                <Navigate to={user.onboarding ? "/dashboard" : "/onboarding"} replace />
+                <Navigate to={
+                  !user.onboarding ? "/onboarding"
+                    : user.role === 'teacher' ? "/teacher/dashboard"
+                    : "/student-dashboard"
+                } replace />
               ) : (
                 <LoginScreen onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />
               )
@@ -318,7 +379,7 @@ export default function App() {
               user ? (
                 <Navigate to="/onboarding" replace />
               ) : (
-                <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/")} />
+                <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/login")} />
               )
             }
           />
@@ -335,49 +396,17 @@ export default function App() {
             }
           />
           <Route
-            path="/dashboard"
-            element={
-              <RequireUser>
-                <LandingPage
-                  user={user!}
-                  onStartCourse={() => navigate("/course")}
-                  onStartCustomProject={() => navigate("/projects")}
-                  onOpenProfile={() => navigate("/profile")}
-                  onLogout={handleLogout}
-                />
-              </RequireUser>
-            }
-          />
-          <Route
-            path="/course"
-            element={
-              <RequireUser>
-                <CoursePage user={user!} onBack={handleBackToLanding} />
-              </RequireUser>
-            }
-          />
-          <Route
-            path="/projects"
-            element={
-              <RequireUser>
-                <ProjectList
-                  user={user!}
-                  onSelectProject={handleProjectReady}
-                  onCreateNew={() => navigate("/custom-project")}
-                  onBack={handleBackToLanding}
-                />
-              </RequireUser>
-            }
-          />
-          <Route
             path="/custom-project"
             element={
               <RequireUser>
-                <CustomProjectChat
-                  user={user!}
-                  onProjectCreated={handleRequirementsReady}
-                  onBack={() => navigate("/projects")}
-                />
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <CustomProjectChat
+                    user={user!}
+                    onProjectCreated={handleRequirementsReady}
+                    onBack={() => navigate("/student-dashboard")}
+                    embedded
+                  />
+                </StudentLayout>
               </RequireUser>
             }
           />
@@ -386,12 +415,14 @@ export default function App() {
             element={
               <RequireUser>
                 {projectRequirements ? (
-                  <ProjectPlanning
-                    user={user!}
-                    requirements={projectRequirements}
-                    onProjectReady={handleProjectReady}
-                    onBack={() => navigate("/custom-project")}
-                  />
+                  <StudentLayout user={user!} onLogout={handleLogout}>
+                    <ProjectPlanning
+                      user={user!}
+                      requirements={projectRequirements}
+                      onProjectReady={handleProjectReady}
+                      onBack={() => navigate("/custom-project")}
+                    />
+                  </StudentLayout>
                 ) : (
                   <Navigate to="/custom-project" replace />
                 )}
@@ -410,20 +441,120 @@ export default function App() {
                     onComplete={handleBackToLanding}
                   />
                 ) : (
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to="/student-dashboard" replace />
                 )}
               </RequireUser>
             }
           />
           <Route
-            path="/profile"
+            path="/student-dashboard"
             element={
               <RequireUser>
-                <ProfilePage user={user!} onUpdate={handleProfileUpdate} onBack={handleBackToLanding} />
+                <StudentDashboard
+                  user={user!}
+                  onBack={handleBackToLanding}
+                  onSelectProject={handleProjectReady}
+                  onLogout={handleLogout}
+                />
               </RequireUser>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="/student/classes"
+            element={
+              <RequireUser>
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                    <StudentClassesPanel user={user!} onSelectProject={handleProjectReady} />
+                  </div>
+                </StudentLayout>
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/student/projects"
+            element={
+              <RequireUser>
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
+                    <ProjectList
+                      user={user!}
+                      onSelectProject={handleProjectReady}
+                      onCreateNew={() => navigate('/custom-project')}
+                      onBack={() => navigate('/student-dashboard')}
+                      embedded
+                    />
+                  </div>
+                </StudentLayout>
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/student/settings"
+            element={
+              <RequireUser>
+                <StudentLayout user={user!} onLogout={handleLogout}>
+                  <div className="px-6 py-5 flex-1 overflow-y-auto scrollbar-thin">
+                    <StudentSettingsPanel
+                      user={user!}
+                      onLogout={handleLogout}
+                      onProfilePictureUpdate={handleProfilePictureUpdate}
+                      onProfileUpdate={handleProfileUpdate}
+                    />
+                  </div>
+                </StudentLayout>
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/teacher/dashboard"
+            element={
+              <RequireTeacher>
+                <TeacherDashboard user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/settings"
+            element={
+              <RequireTeacher>
+                <TeacherSettings user={user!} onUserUpdate={handleTeacherUserUpdate} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:classroomId"
+            element={
+              <RequireTeacher>
+                <ClassroomDetail user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:classroomId/student/:studentId"
+            element={
+              <RequireTeacher>
+                <StudentDetail user={user!} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/create-assignment"
+            element={
+              <RequireTeacher>
+                <AssignmentCreate user={user!} onLogout={handleLogout} />
+              </RequireTeacher>
+            }
+          />
+          <Route
+            path="/teacher/classroom/:classroomId/assignment/:assignmentId"
+            element={
+              <RequireTeacher>
+                <AssignmentDetail user={user!} />
+              </RequireTeacher>
+            }
+          />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
       <Toaster />

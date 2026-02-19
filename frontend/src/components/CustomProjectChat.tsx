@@ -3,7 +3,7 @@ import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Check } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -23,25 +23,29 @@ type Props = {
   user: User;
   onProjectCreated: (requirementsData: any) => void;
   onBack: () => void;
+  embedded?: boolean;
 };
 
 // Helper function to generate technical prompt
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
   console.log("[System] Generating prompt to pass to LLM from user answers:", answers);
-  const { projectType, projectIdea, timeline, mainFeatures, objective } = answers;
+  const { startPath, description, timeline } = answers;
 
-  const formatAnswer = (answer: string | string[]) => {
-    return Array.isArray(answer) ? answer.join(', ') : answer;
-  };
+  const pathLabel = startPath === 'have_idea'
+    ? 'Student has a project idea'
+    : startPath === 'learn_concept'
+    ? 'Student wants to learn a Python concept through a project'
+    : 'Student wants a surprise project suggestion based on their level';
+
+  const descriptionLine = description
+    ? `- **Description:** ${description}`
+    : '- **Description:** (none provided — suggest something suitable)';
 
   const prompt = `
-    This is the scope for the project idea user wants to build:
-    
-    **User Choices:**
-    - **Type:** ${formatAnswer(projectType).toUpperCase()}
-    - **Idea:** ${projectIdea}
-    - **Main Features:** ${mainFeatures}
-    - **Objective:** ${objective}
+    ${pathLabel}
+
+    **Student Choices:**
+    ${descriptionLine}
     - **Timeline:** ${timeline}
     `;
 
@@ -106,7 +110,7 @@ async function streamChatResponse(
   }
 }
 
-export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
+export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: Props) {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -257,7 +261,13 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
   // 4. Helper to proceed to next step
   const proceedToNextStep = (answers: Record<string, string | string[]>, userVisual: string) => {
-    const nextStep = currentStep + 1;
+    let nextStep = currentStep + 1;
+
+    // Skip the "description" question (index 1) if user chose "surprise"
+    if (nextStep === 1 && answers['startPath'] === 'surprise') {
+      nextStep = 2; // jump to timeline
+    }
+
     setCurrentStep(nextStep);
 
     // update chat UI: add user answer
@@ -266,74 +276,31 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
     // add next guiding question or proceed to chat llm
     if (nextStep < GUIDING_QUESTIONS.length) {
       setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          id: `q-${nextStep}`, 
-          role: 'assistant', 
-          content: GUIDING_QUESTIONS[nextStep].text 
+        setMessages(prev => [...prev, {
+          id: `q-${nextStep}`,
+          role: 'assistant',
+          content: GUIDING_QUESTIONS[nextStep].text
         }]);
       }, 500);
     } else {
       console.log("[Guiding] Phase Complete! Initiating Chat LLM...");
       const systemPrompt = generateSystemPrompt(answers);
-      handleSendMessage(systemPrompt, { skipUserBubble: true });    
+      handleSendMessage(systemPrompt, { skipUserBubble: true });
     }
   };
 
-  // 5. Handle Guiding Phase Selections
+  // 5. Handle Guiding Phase Selections (all single-select or text input)
   const handleGuidingStep = (value: string, label?: string) => {
     const currentQ = GUIDING_QUESTIONS[currentStep];
 
     console.group(`[Guiding] Step ${currentStep + 1}: ${currentQ.key}`);
-    
-    // Logic for Multi-Select
-    if (currentQ.multiSelect) {
-      const currentAnswers = guidingAnswers[currentQ.key];
-      const answerArray = Array.isArray(currentAnswers) ? currentAnswers : [];
-      
-      let newAnswerArray: string[];
-      
-      // Toggle selection
-      if (answerArray.includes(value)) {
-        newAnswerArray = answerArray.filter(v => v !== value);
-      } else {
-        newAnswerArray = [...answerArray, value];
-      }
-      
-      const newAnswers = { ...guidingAnswers, [currentQ.key]: newAnswerArray };
-      setGuidingAnswers(newAnswers);
-      setInput(''); // Clear input for next question
-      
-      console.log("Updated Multi-Select Answers:", newAnswers);
-      console.groupEnd();
-      return; // Return early, do not auto-advance
-    } 
-    
-    // Logic for Single-Select (Auto-advance)
+
     const newAnswers = { ...guidingAnswers, [currentQ.key]: value };
     setGuidingAnswers(newAnswers);
-    setInput(''); // Clear input for next question
+    setInput('');
 
     proceedToNextStep(newAnswers, label || value);
     console.groupEnd();
-  };
-
-  // 6. Handle continue button for multi-select questions
-  const handleMultiSelectContinue = () => {
-    const currentQ = GUIDING_QUESTIONS[currentStep];
-    const selectedAnswers = guidingAnswers[currentQ.key];
-    
-    if (!selectedAnswers || (Array.isArray(selectedAnswers) && selectedAnswers.length === 0)) {
-      toast.error("Please select at least one option");
-      return;
-    }
-
-    const answerArray = Array.isArray(selectedAnswers) ? selectedAnswers : [selectedAnswers];
-    const labels = currentQ.options
-      ?.filter(opt => answerArray.includes(opt.value))
-      .map(opt => opt.label)
-      .join(', ') || '';
-
-    proceedToNextStep(guidingAnswers, labels);
   };
 
   // 7. Handoff to Planning Phase
@@ -368,7 +335,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack }: Props) {
 
         const outlineJson = await outlineRes.json();
 
-        toast.success("Plan Created!");
         onProjectCreated({
             session: backendSessionData,
             outline: outlineJson,
@@ -422,81 +388,23 @@ useEffect(() => {
   }
 }, [input]); // Runs every time 'input' changes
 
-  return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-purple-50 to-orange-50">      
-      {/* Header */}
-      <header className="border-b bg-white px-4 py-3 flex items-center gap-4 flex-shrink-0">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5 pointer-events-auto cursor-pointer" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-800 to-cyan-500 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Create Custom Project</h1>
-            <p className="text-sm text-gray-600">AI Project Architect</p>
-          </div>
-        </div>
-
-       <AlertDialog open={isRestartOpen} onOpenChange={setIsRestartOpen}>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="default"
-            size="lg"
-            className="ml-auto mr-4 hover:bg-gray-700 border-gray-200 transition-all duration-200 pointer-events-auto cursor-pointer"
-            type="button"
-          >
-            Restart
-          </Button>
-        </AlertDialogTrigger>
-
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Restart Chat?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will clear your current chat history and requirements. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel 
-            type="button"
-            variant="ghost"
-            size="lg"
-            className="font-semibold ml-auto text-cyan-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
-            >
-              CANCEL</AlertDialogCancel>
-            <AlertDialogAction
-              type="button"
-              variant="ghost"
-              size="lg"
-              onClick={handleRestart}
-              className="font-semibold text-cyan-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
-              
-            >
-              RESTART NOW
-            </AlertDialogAction>
-          </AlertDialogFooter> 
-        </AlertDialogContent>
-      </AlertDialog>
-      </header>
-
+  const chatContent = (
+    <>
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto space-y-6 pb-20">
+        <div className="max-w-3xl mx-auto space-y-5 w-full pb-20">
           {messages.map((msg) => {
             if (msg.role === 'assistant' && !msg.content) return null;
 
             return (
               <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-10 h-10 rounded-full bg-cyan-800 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center shrink-0 shadow-sm">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
                 
-                <Card className={`p-4 max-w-[85%] ${msg.role === 'user' ? 'bg-[#ffa200] text-white border-0' : 'bg-white'}`}>
+                <Card className={`p-4 max-w-[85%] rounded-2xl ${msg.role === 'user' ? 'bg-teal-600 text-white border-0 shadow-sm' : 'bg-white/90 border-slate-100 shadow-sm'}`}>
   
                   <div className={cn(
                     "prose prose-sm max-w-none break-words",
@@ -580,7 +488,7 @@ useEffect(() => {
 
                         // Blockquotes
                         blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-purple-500 pl-4 italic my-4">
+                          <blockquote className="border-l-4 border-teal-500 pl-4 italic my-4">
                             {children}
                           </blockquote>
                         ),
@@ -595,7 +503,7 @@ useEffect(() => {
                 </Card>
 
                 {msg.role === 'user' && (
-                  <div className="w-10 h-10 rounded-full bg-[#ffa200] flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">
                     <UserIcon className="w-5 h-5 text-white" />
                   </div>
                 )}
@@ -606,15 +514,15 @@ useEffect(() => {
           {/* Loading Indicator */}
           {(isLoading || isInitializingAI) && !isProcessingHandoff && (            
             <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-800 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-sm">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
-                <Card className="p-4 bg-white">
+                <Card className="p-4 bg-white/90 border-slate-100 rounded-2xl shadow-sm">
                   <div className="flex gap-2 items-center">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-cyan-800 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                     <span className="text-sm text-gray-600"></span>
                   </div>
@@ -624,9 +532,19 @@ useEffect(() => {
           
           {/* Handoff Spinner */}
           {isProcessingHandoff && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3 animate-in fade-in">
-              <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500 text-lg font-medium">Generating Project Blueprint...</p>
+            <div className="flex flex-col items-center justify-center py-10 gap-4 animate-in fade-in">
+              <div className="relative w-14 h-14">
+                <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
+                <div className="absolute inset-0 rounded-full border-4 border-teal-600 border-r-transparent border-b-transparent animate-spin" style={{ animationDuration: '0.9s' }} />
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <p className="text-gray-800 text-lg font-semibold">Generating Project Blueprint</p>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                </div>
+              </div>
             </div>
           )}
 
@@ -635,75 +553,29 @@ useEffect(() => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t bg-white/95 backdrop-blur-sm p-4 shrink-0 transition-all duration-300 ease-in-out">
-        <div className="max-w-4xl mx-auto">
+      <div className="p-4 shrink-0">
+        <div className="max-w-3xl mx-auto">
           {isGuidingPhase && (
             <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
-              <div className="flex justify-between items-center mb-3">
-                 <p className="text-sm text-gray-500 font-medium">
-                    {currentQuestion.multiSelect ? "Select one or more options:" 
-                    : currentQuestion.inputType === "text" ? "Type your answer below:" 
-                    : "Select an option:"}
-                 </p>
-              </div>
-
               {currentQuestion.options ? (
-                // Render Buttons
-                <div className="flex flex-col gap-4"> 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {currentQuestion.options.map(opt => {
-                      const isSelected = currentQuestion.multiSelect && 
-                        Array.isArray(guidingAnswers[currentQuestion.key]) &&
-                        (guidingAnswers[currentQuestion.key] as string[]).includes(opt.value);
-                        
-                  return (
-                    <Button 
-                      key={opt.id}  
-                      variant="user_multi_option"
-                      className={cn(
-                        "group border-4 border-invisible h-auto py-6 flex flex-col gap-2 whitespace-normal transition-all duration-200 resize-none pointer-events-auto cursor-pointer",
-                        isSelected 
-                          ? "bg-amber-400 shadow-md" 
-                          : "border-2 border-gray-200 bg-white transition-all duration-200 hover:border-blue-50 hover:border-4 hover:bg-gray-50"
-                      )}
-                      onClick={() => handleGuidingStep(opt.value, opt.label)}
-                    >
-                      <div className="flex items-center gap-2 justify-center w-full">
-                        {isSelected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
-                        <span className={cn(
-                          "font-semibold", 
-                          isSelected ? "text-white" : "text-gray-800"
-                        )}>
-                          {opt.label}
-                        </span>
-                      </div>
-                      
-                      <span className={cn(
-                        "text-xs font-normal px-4", 
-                        isSelected ? "text-white" : "text-gray-500"
-                      )}>
-                        {opt.desc}
-                      </span>
-                    </Button>
-                  );
-                })}
-              </div>
-              
-              {currentQuestion.multiSelect && (
-                <div className="flex border justify-end pb-2 animate-in fade-in slide-in-from-bottom-2">
-                  <Button 
-                    onClick={handleMultiSelectContinue}
-                        disabled={
-                          !(guidingAnswers[currentQuestion.key] && 
-                            Array.isArray(guidingAnswers[currentQuestion.key]) && 
-                            (guidingAnswers[currentQuestion.key] as string[]).length > 0)
-                        }
-                        className="whitespace-normal bg-white hover:border-blue-50 hover:border-4 hover:bg-gray-50 text-xs text-gray-500 font-normal border px-8 py-2 shadow-md z-10 pointer-events-auto cursor-pointer"
-                      >
-                        Confirm Selection 
-                      </Button>
-                    </div>
-                  )}
+                <div className={cn(
+                  "grid gap-3",
+                  currentQuestion.options.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"
+                )}>
+                  {currentQuestion.options.map(opt => (
+                  <button
+                    key={opt.id}
+                    className="group h-auto py-5 px-4 flex flex-col gap-1.5 whitespace-normal transition-all duration-200 pointer-events-auto cursor-pointer rounded-2xl border border-slate-200 bg-white hover:border-teal-300 hover:shadow-md hover:shadow-teal-100/50 text-left"
+                    onClick={() => handleGuidingStep(opt.value, opt.label)}
+                  >
+                    <span className="font-semibold text-sm text-slate-800 group-hover:text-teal-700 transition-colors">
+                      {opt.label}
+                    </span>
+                    <span className="text-xs font-normal text-slate-400 leading-relaxed">
+                      {opt.desc}
+                    </span>
+                  </button>
+                  ))}
                 </div>
               ) : (
                 // Render Text Input
@@ -730,7 +602,7 @@ useEffect(() => {
                     size="icon"
                     onClick={() => input.trim() && handleGuidingStep(input.trim())}
                     disabled={isInputDisabled || !input.trim()}
-                    className="absolute right-4 top-4 h-[42px] w-[42px] hover:backdrop-blur-sm hover:bg-gray-700 disabled:opacity-50 transition-all duration-200 pointer-events-auto cursor-pointer"
+                    className="absolute right-4 top-4 h-[42px] w-[42px] bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
                   > 
                     <Send className="w-4 h-4" />
                   </Button>
@@ -755,7 +627,7 @@ useEffect(() => {
                 size= "icon"
                  onClick={() => handleSendMessage(input)} 
                  disabled={isInputDisabled || !input.trim()}
-                className="absolute right-4 top-4 hover:backdrop-blur-sm hover:bg-gray-700 h-[60px] w-[60px] transition-all duration-200 pointer-events-auto cursor-pointer"
+                className="absolute right-4 top-4 bg-teal-600 hover:bg-teal-700 h-[60px] w-[60px] transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
                >
                  <Send className="w-4 h-4" />
                </Button>
@@ -763,6 +635,75 @@ useEffect(() => {
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex-1 min-h-0 flex flex-col">{chatContent}</div>;
+  }
+
+  return (
+    <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(to bottom right, #cffafe, #f0fdfa, #fef3c7)' }}>
+      {/* Header */}
+      <header className="border-b border-slate-100 bg-white/80 backdrop-blur-sm px-4 py-3 flex items-center gap-4 flex-shrink-0">
+        <Button variant="ghost" size="icon" onClick={onBack}>
+          <ArrowLeft className="w-5 h-5 pointer-events-auto cursor-pointer" />
+        </Button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-700 to-teal-500 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-slate-800">Create Custom Project</h1>
+            <p className="text-sm text-slate-500">AI Project Architect</p>
+          </div>
         </div>
+
+       <AlertDialog open={isRestartOpen} onOpenChange={setIsRestartOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="default"
+            size="lg"
+            className="ml-auto mr-4 bg-teal-600 hover:bg-teal-700 border-teal-500 transition-all duration-200 pointer-events-auto cursor-pointer"
+            type="button"
+          >
+            Restart
+          </Button>
+        </AlertDialogTrigger>
+
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restart Chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear your current chat history and requirements. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+            type="button"
+            variant="ghost"
+            size="lg"
+            onClick={() => setIsRestartOpen(false)}
+            className="font-semibold ml-auto text-teal-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+            >
+              CANCEL</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="ghost"
+              size="lg"
+              onClick={handleRestart}
+              className="font-semibold text-teal-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
+
+            >
+              RESTART NOW
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </header>
+
+      {chatContent}
+    </div>
   );
 }
