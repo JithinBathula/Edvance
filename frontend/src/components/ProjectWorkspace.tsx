@@ -34,9 +34,10 @@ import {
   Play,
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
+import { RunnableCodeBlock } from './RunnableCodeBlock';
 
 // Shared markdown components for task content rendering
-const markdownComponents = () => ({
+const markdownComponents = (interactive?: boolean) => ({
   h1: ({ children }: any) => (
     <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
       {children}
@@ -64,11 +65,21 @@ const markdownComponents = () => ({
   code: ({ children }: any) => (
     <code className="inline-code">{children}</code>
   ),
-  pre: ({ children }: any) => (
-    <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
-      {children}
-    </pre>
-  ),
+  pre: ({ children }: any) => {
+    // When interactive, detect Python code blocks and render RunnableCodeBlock
+    if (interactive && children?.props?.className) {
+      const className: string = children.props.className || '';
+      if (className.includes('python')) {
+        const codeText = String(children.props.children || '').replace(/\n$/, '');
+        return <RunnableCodeBlock code={codeText} />;
+      }
+    }
+    return (
+      <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
+        {children}
+      </pre>
+    );
+  },
   ul: ({ children }: any) => (
     <ul className="list-disc ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
       {children}
@@ -141,7 +152,8 @@ function CollapsiblePart({
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  const components = markdownComponents();
+  const isPartB = label === 'Part B';
+  const components = markdownComponents(isPartB);
 
   return (
     <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden">
@@ -470,6 +482,7 @@ export function ProjectWorkspace({
   // Determine the first uncompleted task index — users can only access completed tasks or this one
   const firstUncompletedIndex = tasks.findIndex((t) => !completedTasks.includes(t.id));
   const isTaskAccessible = (taskIndex: number) => {
+    if (user.isAdmin) return true;
     if (taskIndex < 0) return false;
     // Task is completed — always accessible
     if (completedTasks.includes(tasks[taskIndex]?.id)) return true;

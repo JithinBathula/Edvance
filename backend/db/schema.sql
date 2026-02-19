@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE,
     onboarding JSONB DEFAULT NULL,
     xp INTEGER DEFAULT 0,
+    is_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
