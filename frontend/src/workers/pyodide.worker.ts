@@ -18,6 +18,7 @@ type RunMessage = {
   type: 'run';
   files: Array<{ name: string; content: string }>;
   entryFile: string;
+  authToken?: string;
 };
 
 type InputResponseMessage = {
@@ -71,7 +72,7 @@ async function loadPyodideRuntime(): Promise<any> {
     await pyodide.loadPackage('micropip');
     await pyodide.runPythonAsync(`
 import micropip
-await micropip.install(['pyodide-http', 'requests'])
+await micropip.install(['pyodide-http', 'requests', 'openai'])
 import pyodide_http
 pyodide_http.patch_all()
 `);
@@ -88,7 +89,7 @@ pyodide_http.patch_all()
   }
 }
 
-async function runCode(files: Array<{ name: string; content: string }>, entryFile: string) {
+async function runCode(files: Array<{ name: string; content: string }>, entryFile: string, authToken?: string) {
   try {
     const py = await loadPyodideRuntime();
 
@@ -247,6 +248,13 @@ if '/' not in sys.path:
 if '' not in sys.path:
     sys.path.insert(0, '')
 `);
+    // Inject auth token as environment variable for AI proxy access
+    if (authToken) {
+      await py.runPythonAsync(`
+      import os
+      os.environ['AUTH_TOKEN'] = '''${authToken}'''
+      `);
+          }
 
     // Read the entry file and transform input() calls for async support
     const entry = entryFile.startsWith('/') ? entryFile : `/${entryFile}`;
@@ -285,7 +293,7 @@ self.onmessage = (event: MessageEvent<IncomingMessage>) => {
   const msg = event.data;
 
   if (msg.type === 'run') {
-    runCode(msg.files, msg.entryFile);
+    runCode(msg.files, msg.entryFile, msg.authToken);
   } else if (msg.type === 'inputResponse') {
     if (inputResolve) {
       inputResolve(msg.value);

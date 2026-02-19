@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, g
 
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks
+from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase
 from services.git_repo import read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
@@ -77,7 +77,7 @@ def evaluate_submission():
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
 
-        if not code and project_id:
+        if project_id:
             project = get_project_by_id(project_id)
             if project and str(project.get('user_id')) == str(user_id):
                 files = read_repo_files(project_id)
@@ -99,6 +99,14 @@ def evaluate_submission():
 
         try:
             if result.is_correct:
+                # Check if task was already completed before updating progress
+                already_completed = False
+                try:
+                    existing = supabase.table('user_progress').select('status').eq('user_id', user_id).eq('task_id', task_id).execute()
+                    already_completed = any(r.get('status') == 'completed' for r in (existing.data or []))
+                except Exception:
+                    pass
+
                 update_progress(
                     user_id=user_id,
                     task_id=task_id,
@@ -108,46 +116,18 @@ def evaluate_submission():
                     feedback={'message': result.feedback}
                 )
 
-                # Award XP for task completion (atomic increment)
-                try:
-                    new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
-                except Exception as xp_error:
-                    print(f"Warning: Failed to update XP: {xp_error}")
+                # Award XP only if task wasn't already completed
+                if not already_completed:
+                    try:
+                        current_user = supabase.table('users').select('xp').eq('id', user_id).single().execute()
+                        current_xp = current_user.data.get('xp', 0) if current_user.data else 0
+                        new_xp = current_xp + XP_PER_TASK
+                        supabase.table('users').update({
+                            'xp': new_xp
+                        }).eq('id', user_id).execute()
+                    except Exception as xp_error:
+                        print(f"Warning: Failed to update XP: {xp_error}")
 
-                # Check if this completes an assignment
-                try:
-                    if task_project and task_project.get("source_assignment_id"):
-                        # Check if all tasks in the project are completed
-                        all_milestones = get_project_milestones(task_project_id)
-                        all_task_ids = []
-                        for ms in all_milestones:
-                            tasks_in_ms = get_milestone_tasks(ms["id"])
-                            all_task_ids.extend(t["id"] for t in tasks_in_ms)
-
-                        if all_task_ids:
-                            progress_result = supabase.table("user_progress").select("task_id, status").eq(
-                                "user_id", user_id
-                            ).in_("task_id", all_task_ids).eq("status", "completed").execute()
-                            completed_ids = {p["task_id"] for p in (progress_result.data or [])}
-
-                            if len(completed_ids) >= len(all_task_ids):
-                                # All tasks completed — mark student_assignment as completed
-                                sa_result = supabase.table("student_assignments").select("id").eq(
-                                    "assignment_id", task_project["source_assignment_id"]
-                                ).eq("student_id", user_id).execute()
-                                if sa_result.data:
-                                    from datetime import datetime
-                                    supabase.table("student_assignments").update({
-                                        "status": "completed",
-                                        "completed_at": datetime.utcnow().isoformat(),
-                                    }).eq("id", sa_result.data[0]["id"]).execute()
-
-                                    # Also mark the project as completed
-                                    supabase.table("projects").update({
-                                        "status": "completed"
-                                    }).eq("id", task_project_id).execute()
-                except Exception:
-                    pass  # Non-critical: assignment status update failure
 
                 # Adaptive task generation for next task
                 try:

@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { usePyodide, type OutputLine } from '../hooks/usePyodide';
+import { getAccessToken } from '../utils/authFetch';
 
 // --- Utility functions (from CodeSandboxIDE, zero external deps) ---
 
@@ -457,7 +458,7 @@ export function EditorIDE({
 
     const pyFiles = filteredFiles.map((f) => ({ name: f.name, content: f.content }));
     const entry = pyFiles.find((f) => f.name === 'main.py')?.name || pyFiles[0]?.name || 'main.py';
-    runCode(pyFiles, entry);
+    runCode(pyFiles, entry, getAccessToken() || undefined);
   };
 
   const handleInputSubmit = (e: React.FormEvent) => {

@@ -234,8 +234,12 @@ def generate_curriculum():
 
                 bg_thread = Thread(target=generate_remaining_in_background, daemon=True)
                 bg_thread.start()
+        import json
+        with open("last_generated_curriculum.json", "w") as f:
+            json.dump(result, f, indent=2)
 
         return jsonify(result)
+        
     except (CurriculumGenerationError, ValidationError) as exc:
         return jsonify({"error": str(exc)}), 400
     except ValueError as exc:
