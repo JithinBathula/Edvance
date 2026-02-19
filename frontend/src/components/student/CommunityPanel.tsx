@@ -34,11 +34,20 @@ const STATUS_CONFIG: Record<ChallengeStatus, { label: string; color: string; bg:
   expired: { label: 'Expired', color: 'text-slate-400', bg: 'bg-slate-50' },
 };
 
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string; bg: string; xp: number }> = {
+  easy: { label: 'Easy', color: 'text-emerald-600', bg: 'bg-emerald-50', xp: 15 },
+  medium: { label: 'Medium', color: 'text-amber-600', bg: 'bg-amber-50', xp: 25 },
+  hard: { label: 'Hard', color: 'text-red-500', bg: 'bg-red-50', xp: 40 },
+};
+
 export function CommunityPanel({ user }: Props) {
   const navigate = useNavigate();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [sending, setSending] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const fetchRef = useRef(false);
@@ -67,7 +76,7 @@ export function CommunityPanel({ user }: Props) {
     try {
       const res = await authFetch('/challenges', {
         method: 'POST',
-        body: JSON.stringify({ opponent_email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ opponent_email: email.trim().toLowerCase(), difficulty }),
       });
       const data = await res.json();
       if (data.success) {
@@ -164,6 +173,31 @@ export function CommunityPanel({ user }: Props) {
                 <p className="text-sm text-slate-500">Enter their email to start a 1v1 coding duel</p>
               </div>
             </div>
+            {/* Difficulty Selector */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Difficulty</p>
+              <div className="flex gap-2">
+                {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => {
+                  const cfg = DIFFICULTY_CONFIG[d];
+                  const isSelected = difficulty === d;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setDifficulty(d)}
+                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all border-2 cursor-pointer ${
+                        isSelected
+                          ? `${cfg.bg} ${cfg.color} border-current`
+                          : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {cfg.label}
+                      <span className="block text-[10px] font-normal mt-0.5 opacity-70">+{cfg.xp} XP</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -188,11 +222,11 @@ export function CommunityPanel({ user }: Props) {
             <div className="flex items-center gap-2 mt-3">
               <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
                 <Zap className="w-3 h-3" />
-                Winner gets +20 XP bonus
+                Winner gets +{DIFFICULTY_CONFIG[difficulty].xp} XP bonus
               </div>
               <div className="flex items-center gap-1 text-xs text-teal-600 bg-teal-50 px-2 py-1 rounded-md">
                 <Trophy className="w-3 h-3" />
-                Same task, first to finish wins
+                Python puzzle, first to solve wins
               </div>
             </div>
           </div>
@@ -221,7 +255,14 @@ export function CommunityPanel({ user }: Props) {
                           {getOpponentInitial(c)}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-800">{getOpponentName(c)} challenged you!</p>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {getOpponentName(c)} challenged you!
+                            {(c as any).difficulty && (
+                              <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold ${DIFFICULTY_CONFIG[(c as any).difficulty as Difficulty]?.bg || ''} ${DIFFICULTY_CONFIG[(c as any).difficulty as Difficulty]?.color || ''}`}>
+                                {DIFFICULTY_CONFIG[(c as any).difficulty as Difficulty]?.label || (c as any).difficulty}
+                              </span>
+                            )}
+                          </p>
                           <p className="text-xs text-slate-500 flex items-center gap-1">
                             <Zap className="w-3 h-3 text-amber-500" />
                             +{c.xp_bonus} XP bonus for winner

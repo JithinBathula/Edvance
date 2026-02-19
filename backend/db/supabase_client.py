@@ -1207,12 +1207,15 @@ def increment_xp_atomic(user_id: str, amount: int) -> Optional[int]:
 
 # ─── CHALLENGE OPERATIONS ────────────────────────────────────────────────────
 
-def create_challenge(challenger_id: str, opponent_id: str, task_id: str, xp_bonus: int = 20) -> Dict[str, Any]:
+def create_challenge(challenger_id: str, opponent_id: str, difficulty: str = "medium",
+                     puzzle: dict = None, xp_bonus: int = 20) -> Dict[str, Any]:
     """Create a new challenge between two users."""
+    import json as _json
     data = {
         "challenger_id": challenger_id,
         "opponent_id": opponent_id,
-        "task_id": task_id,
+        "difficulty": difficulty,
+        "puzzle": _json.dumps(puzzle) if puzzle else None,
         "status": "pending",
         "xp_bonus": xp_bonus,
     }
@@ -1226,11 +1229,11 @@ def create_challenge(challenger_id: str, opponent_id: str, task_id: str, xp_bonu
 
 
 def get_challenge_by_id(challenge_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a challenge by ID with joined user and task data."""
+    """Fetch a challenge by ID with joined user data."""
     result = execute_with_retry(
         "get_challenge_by_id",
         lambda: supabase.table("challenges").select(
-            "*, challenger:challenger_id(id, name, email), opponent:opponent_id(id, name, email), task:task_id(id, instruction_theory, coding_requirements, hints, test_specification, starter_code)"
+            "*, challenger:challenger_id(id, name, email), opponent:opponent_id(id, name, email)"
         ).eq("id", challenge_id).execute(),
     )
     if result.data:

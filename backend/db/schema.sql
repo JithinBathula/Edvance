@@ -348,7 +348,11 @@ CREATE TABLE IF NOT EXISTS challenges (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     challenger_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     opponent_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+    difficulty TEXT NOT NULL DEFAULT 'medium' CHECK (
+        difficulty IN ('easy', 'medium', 'hard')
+    ),
+    puzzle JSONB,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (
         status IN ('pending', 'accepted', 'active', 'completed', 'declined', 'expired')
     ),

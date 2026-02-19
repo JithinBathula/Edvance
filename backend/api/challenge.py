@@ -2,15 +2,14 @@
 Community Challenge API routes.
 Handles 1v1 coding challenges between students.
 """
+import json
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request, jsonify, g
 
 from api.middleware import require_auth
-from agents.submission import SubmissionEvaluator
 from db.supabase_client import (
     get_user_by_email,
-    get_task_by_id,
     increment_xp_atomic,
     create_challenge,
     get_challenge_by_id,
@@ -18,13 +17,11 @@ from db.supabase_client import (
     update_challenge_status,
     upsert_challenge_progress,
     get_challenge_progress,
-    get_random_completed_task,
 )
+from prompts.puzzles import generate_puzzle, XP_BY_DIFFICULTY
 
 challenge_bp = Blueprint("challenge", __name__, url_prefix="/api/challenges")
 challenge_bp.strict_slashes = False
-
-evaluator = SubmissionEvaluator()
 
 # Pending challenges expire after 24 hours
 CHALLENGE_EXPIRY_HOURS = 24
@@ -52,17 +49,34 @@ def _expire_stale(challenges: list) -> list:
     return out
 
 
+def _run_puzzle_tests(user_code: str, test_code: str) -> dict:
+    """Run user code + test code in a sandboxed exec and return pass/fail + feedback."""
+    combined = user_code + "\n\n" + test_code
+    try:
+        exec_globals = {}
+        exec(combined, exec_globals)
+        return {"is_correct": True, "feedback": "All tests passed! Great job!"}
+    except AssertionError as e:
+        return {"is_correct": False, "feedback": f"Test failed: {str(e) or 'One of the assertions did not pass. Check your logic and try again.'}"}
+    except Exception as e:
+        return {"is_correct": False, "feedback": f"Error in your code: {type(e).__name__}: {str(e)}"}
+
+
 # ── POST / ── Create a challenge ──────────────────────────────────────────────
 
 @challenge_bp.route("/", methods=["POST"])
 @require_auth
 def create():
-    """Create a new challenge. Body: { opponent_email }."""
+    """Create a new challenge. Body: { opponent_email, difficulty }."""
     data = request.json or {}
     opponent_email = data.get("opponent_email", "").strip().lower()
+    difficulty = data.get("difficulty", "medium").strip().lower()
 
     if not opponent_email:
         return jsonify({"success": False, "error": "opponent_email is required"}), 400
+
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
 
     # Look up opponent
     opponent = get_user_by_email(opponent_email)
@@ -72,18 +86,20 @@ def create():
     if opponent["id"] == g.user_id:
         return jsonify({"success": False, "error": "You cannot challenge yourself"}), 400
 
-    # Pick a random task the challenger has completed
-    task = get_random_completed_task(g.user_id)
-    if not task:
-        return jsonify({
-            "success": False,
-            "error": "You need to complete at least one task before challenging someone",
-        }), 400
+    # Generate a puzzle via LLM for this difficulty
+    xp_bonus = XP_BY_DIFFICULTY.get(difficulty, 25)
+    try:
+        puzzle = generate_puzzle(difficulty)
+    except Exception as e:
+        print(f"[Challenge] Puzzle generation failed: {e}")
+        return jsonify({"success": False, "error": "Failed to generate puzzle. Please try again."}), 500
 
     challenge = create_challenge(
         challenger_id=g.user_id,
         opponent_id=opponent["id"],
-        task_id=task["id"],
+        difficulty=difficulty,
+        puzzle=puzzle,
+        xp_bonus=xp_bonus,
     )
 
     return jsonify({"success": True, "challenge": challenge}), 201
@@ -97,6 +113,16 @@ def list_challenges():
     """List all challenges for the current user."""
     challenges = get_user_challenges(g.user_id)
     challenges = _expire_stale(challenges)
+
+    # Strip test_code from puzzle data in list view (don't leak answers)
+    for c in challenges:
+        puzzle = c.get("puzzle")
+        if puzzle and isinstance(puzzle, dict):
+            c["puzzle"] = {
+                "title": puzzle.get("title", ""),
+                "difficulty": c.get("difficulty", "medium"),
+            }
+
     return jsonify({"success": True, "challenges": challenges}), 200
 
 
@@ -105,13 +131,36 @@ def list_challenges():
 @challenge_bp.route("/<challenge_id>", methods=["GET"])
 @require_auth
 def get_detail(challenge_id):
-    """Get full challenge details including task info."""
+    """Get full challenge details including puzzle info."""
     challenge = get_challenge_by_id(challenge_id)
     if not challenge:
         return jsonify({"success": False, "error": "Challenge not found"}), 404
 
     if g.user_id not in (challenge["challenger_id"], challenge["opponent_id"]):
         return jsonify({"success": False, "error": "Not authorized"}), 403
+
+    # Parse puzzle JSON — handle string encoding (single or double-encoded)
+    puzzle = challenge.get("puzzle")
+    for _ in range(3):  # unwrap up to 3 levels of string encoding
+        if isinstance(puzzle, str):
+            try:
+                puzzle = json.loads(puzzle)
+            except Exception:
+                break
+        else:
+            break
+    challenge["puzzle"] = puzzle
+
+    # Strip test_code from response (don't send answers to client)
+    puzzle = challenge.get("puzzle")
+    if puzzle and isinstance(puzzle, dict):
+        challenge["puzzle"] = {
+            "title": puzzle.get("title", ""),
+            "description": puzzle.get("description", ""),
+            "starter_code": puzzle.get("starter_code", ""),
+        }
+    else:
+        print(f"[Challenge] WARNING: puzzle data missing or invalid for challenge {challenge_id}, type={type(puzzle)}, value={repr(puzzle)[:200]}")
 
     return jsonify({"success": True, "challenge": challenge}), 200
 
@@ -216,7 +265,7 @@ def get_progress(challenge_id):
 @challenge_bp.route("/<challenge_id>/submit", methods=["POST"])
 @require_auth
 def submit(challenge_id):
-    """Submit code for a challenge. Reuses SubmissionEvaluator."""
+    """Submit code for a challenge. Runs puzzle test_code against user code."""
     data = request.json or {}
     code = data.get("code", "")
 
@@ -244,33 +293,31 @@ def submit(challenge_id):
     # Mark as submitted
     upsert_challenge_progress(challenge_id, g.user_id, line_count=len(code.split("\n")), status="submitted")
 
-    # Get task details
-    task = challenge.get("task")
-    if not task:
-        task = get_task_by_id(challenge["task_id"])
-    if not task:
-        return jsonify({"success": False, "error": "Task not found"}), 404
+    # Get puzzle data (unwrap string encoding if needed)
+    puzzle = challenge.get("puzzle")
+    for _ in range(3):
+        if isinstance(puzzle, str):
+            try:
+                puzzle = json.loads(puzzle)
+            except Exception:
+                break
+        else:
+            break
 
-    # Evaluate using the same evaluator as normal submissions
-    try:
-        result = evaluator.evaluate(
-            user_code=code,
-            instructions=task.get("instruction_theory", ""),
-            test_specification=task.get("test_specification", {}),
-            coding_requirements=task.get("coding_requirements", []),
-        )
-    except Exception as e:
-        upsert_challenge_progress(challenge_id, g.user_id, line_count=len(code.split("\n")), status="coding")
-        return jsonify({"success": False, "error": f"Evaluation error: {str(e)}"}), 500
+    if not puzzle or not isinstance(puzzle, dict) or not puzzle.get("test_code"):
+        return jsonify({"success": False, "error": "Puzzle data not found"}), 404
 
-    if result.is_correct:
+    # Run the tests
+    result = _run_puzzle_tests(code, puzzle["test_code"])
+
+    if result["is_correct"]:
         # Double-check the challenge is still active (race condition guard)
         fresh = get_challenge_by_id(challenge_id)
         if fresh and fresh["status"] == "completed":
             return jsonify({
                 "success": True,
                 "is_correct": True,
-                "feedback": result.feedback,
+                "feedback": result["feedback"],
                 "won": False,
                 "winner_id": fresh.get("winner_id"),
             }), 200
@@ -283,16 +330,16 @@ def submit(challenge_id):
         # Award XP bonus
         new_xp = None
         try:
-            new_xp = increment_xp_atomic(g.user_id, challenge.get("xp_bonus", 20))
+            new_xp = increment_xp_atomic(g.user_id, challenge.get("xp_bonus", 25))
         except Exception as e:
             print(f"Warning: Failed to award challenge XP: {e}")
 
         return jsonify({
             "success": True,
             "is_correct": True,
-            "feedback": result.feedback,
+            "feedback": result["feedback"],
             "won": True,
-            "xp_bonus": challenge.get("xp_bonus", 20),
+            "xp_bonus": challenge.get("xp_bonus", 25),
             "new_xp": new_xp,
         }), 200
     else:
@@ -301,5 +348,5 @@ def submit(challenge_id):
         return jsonify({
             "success": True,
             "is_correct": False,
-            "feedback": result.feedback,
+            "feedback": result["feedback"],
         }), 200

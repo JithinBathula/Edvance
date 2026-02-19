@@ -18,10 +18,8 @@ import {
   Loader2,
   Send,
   XCircle,
-  Lightbulb,
-  ChevronDown,
 } from 'lucide-react';
-import type { ChallengeDetail, OpponentProgress } from '../types/challenge';
+import type { ChallengeDetail } from '../types/challenge';
 
 type Props = {
   user: User;
@@ -45,8 +43,6 @@ export function ChallengeWorkspace({ user, onBack }: Props) {
     challenge_status: 'active',
     winner_id: null,
   });
-  const [hintsOpen, setHintsOpen] = useState(false);
-
   const filesRef = useRef(files);
   filesRef.current = files;
 
@@ -59,15 +55,22 @@ export function ChallengeWorkspace({ user, onBack }: Props) {
         const data = await res.json();
         if (data.success && data.challenge) {
           const c = data.challenge as ChallengeDetail;
+
+          // Parse puzzle if it came back as a string (double-encoded JSON)
+          if (typeof c.puzzle === 'string') {
+            try {
+              c.puzzle = JSON.parse(c.puzzle);
+            } catch { /* ignore */ }
+          }
+
           setChallenge(c);
 
-          // Set up initial files from starter code
-          const starterCode = c.task?.starter_code || '';
-          const isPython = starterCode.includes('def ') || starterCode.includes('print(') || !starterCode.includes('<');
+          // Set up initial files from puzzle starter code
+          const starterCode = c.puzzle?.starter_code || 'def solution():\n    # Your code here\n    pass\n';
           setFiles([{
-            name: isPython ? 'main.py' : 'index.js',
+            name: 'main.py',
             content: starterCode,
-            language: isPython ? 'python' : 'javascript',
+            language: 'python',
           }]);
         } else {
           toast.error('Failed to load challenge');
@@ -186,7 +189,7 @@ export function ChallengeWorkspace({ user, onBack }: Props) {
     );
   }
 
-  const task = challenge.task;
+  const puzzle = challenge.puzzle;
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -206,11 +209,18 @@ export function ChallengeWorkspace({ user, onBack }: Props) {
             <Swords className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-800">
+            <h1 className="text-base font-bold text-slate-800 flex items-center gap-2">
               Challenge vs {getOpponentName()}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                challenge.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-600' :
+                challenge.difficulty === 'hard' ? 'bg-red-50 text-red-500' :
+                'bg-amber-50 text-amber-600'
+              }`}>
+                {challenge.difficulty?.charAt(0).toUpperCase() + challenge.difficulty?.slice(1)}
+              </span>
             </h1>
             <p className="text-xs text-slate-400">
-              {result === 'won' ? 'You won!' : result === 'lost' ? 'Challenge over' : 'First to complete wins'}
+              {result === 'won' ? 'You won!' : result === 'lost' ? 'Challenge over' : puzzle?.title || 'First to solve wins'}
             </p>
           </div>
         </div>
@@ -274,8 +284,21 @@ export function ChallengeWorkspace({ user, onBack }: Props) {
                 <h2 className="text-sm font-semibold text-slate-700">Task</h2>
               </div>
               <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
-                {task && (
+                {puzzle && (
                   <div className="prose prose-sm max-w-none text-slate-700">
+                    {/* Puzzle title */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <h2 className="text-lg font-bold text-slate-800 mb-0">{puzzle.title}</h2>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                        challenge.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-600' :
+                        challenge.difficulty === 'hard' ? 'bg-red-50 text-red-500' :
+                        'bg-amber-50 text-amber-600'
+                      }`}>
+                        {challenge.difficulty?.charAt(0).toUpperCase() + challenge.difficulty?.slice(1)}
+                      </span>
+                    </div>
+
+                    {/* Puzzle description (markdown) */}
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -299,43 +322,8 @@ export function ChallengeWorkspace({ user, onBack }: Props) {
                         h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
                       }}
                     >
-                      {task.instruction_theory || ''}
+                      {puzzle.description || ''}
                     </ReactMarkdown>
-
-                    {/* Coding Requirements */}
-                    {task.coding_requirements && task.coding_requirements.length > 0 && (
-                      <div className="mt-4 p-3 bg-teal-50 rounded-lg border border-teal-100">
-                        <h4 className="text-sm font-semibold text-teal-800 mb-2">Requirements</h4>
-                        <ul className="list-disc pl-4 space-y-1">
-                          {task.coding_requirements.map((req: string, i: number) => (
-                            <li key={i} className="text-sm text-teal-700">{req}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Hints */}
-                    {task.hints && task.hints.length > 0 && (
-                      <div className="mt-4">
-                        <button
-                          onClick={() => setHintsOpen(!hintsOpen)}
-                          className="flex items-center gap-2 text-sm text-cyan-600 font-medium hover:text-cyan-700 bg-transparent border-none cursor-pointer p-0"
-                        >
-                          <Lightbulb className="w-4 h-4" />
-                          {hintsOpen ? 'Hide Hints' : 'Show Hints'}
-                          <ChevronDown className={`w-3 h-3 transition-transform ${hintsOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {hintsOpen && (
-                          <div className="mt-2 p-3 bg-cyan-50 rounded-lg border border-cyan-100 space-y-1">
-                            {task.hints.map((hint: string, i: number) => (
-                              <p key={i} className="text-sm text-cyan-700">
-                                <span className="font-semibold">Hint {i + 1}:</span> {hint}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
 

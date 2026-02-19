@@ -1,9 +1,16 @@
 export type ChallengeStatus = 'pending' | 'accepted' | 'active' | 'completed' | 'declined' | 'expired';
+export type ChallengeDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface ChallengeUser {
   id: string;
   name: string;
   email: string;
+}
+
+export interface ChallengePuzzle {
+  title: string;
+  description: string;
+  starter_code: string;
 }
 
 export interface Challenge {
@@ -12,7 +19,8 @@ export interface Challenge {
   opponent_id: string;
   challenger: ChallengeUser;
   opponent: ChallengeUser;
-  task_id: string;
+  difficulty: ChallengeDifficulty;
+  puzzle?: ChallengePuzzle | { title: string };
   status: ChallengeStatus;
   winner_id: string | null;
   xp_bonus: number;
@@ -21,20 +29,8 @@ export interface Challenge {
   completed_at: string | null;
 }
 
-export interface ChallengeTask {
-  id: string;
-  instruction_theory: string;
-  coding_requirements: string[];
-  hints: string[];
-  test_specification: {
-    expected_state?: string;
-    verification_code?: string;
-  };
-  starter_code: string | null;
-}
-
 export interface ChallengeDetail extends Challenge {
-  task: ChallengeTask;
+  puzzle: ChallengePuzzle;
 }
 
 export interface OpponentProgress {
