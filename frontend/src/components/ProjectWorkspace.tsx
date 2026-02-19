@@ -37,7 +37,7 @@ import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
 
 // Shared markdown components for task content rendering
-const markdownComponents = (interactive?: boolean) => ({
+const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
   h1: ({ children }: any) => (
     <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
       {children}
@@ -71,7 +71,7 @@ const markdownComponents = (interactive?: boolean) => ({
       const className: string = children.props.className || '';
       if (className.includes('python')) {
         const codeText = String(children.props.children || '').replace(/\n$/, '');
-        return <RunnableCodeBlock code={codeText} />;
+        return <RunnableCodeBlock code={codeText} contextCode={contextCode} />;
       }
     }
     return (
@@ -144,6 +144,7 @@ function CollapsiblePart({
   content,
   isOpen,
   onToggle,
+  contextCode,
 }: {
   label: string;
   title: string;
@@ -151,9 +152,10 @@ function CollapsiblePart({
   content: string;
   isOpen: boolean;
   onToggle: () => void;
+  contextCode?: string;
 }) {
   const isPartB = label === 'Part B';
-  const components = markdownComponents(isPartB);
+  const components = markdownComponents(isPartB, isPartB ? contextCode : undefined);
 
   return (
     <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden">
@@ -186,8 +188,10 @@ function CollapsiblePart({
 // code highlighting, and structured Learn → Try → Do content
 function FormattedDescription({
   text,
+  contextCode,
 }: {
   text: string;
+  contextCode?: string;
 }) {
   const { intro, parts } = splitIntoParts(text);
 
@@ -255,6 +259,7 @@ function FormattedDescription({
               content={part.content}
               isOpen={openParts.has(index)}
               onToggle={() => togglePart(index)}
+              contextCode={contextCode}
             />
           ))}
         </div>
@@ -1095,7 +1100,7 @@ export function ProjectWorkspace({
               <>
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
               <div ref={taskContentRef} className="max-w-none mb-6 relative">
-                <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} />
+                <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} contextCode={projectFiles.map(f => f.content || '').join('\n')} />
               </div>
 
               {/* Persistent Feedback Banner — visible after modal is closed */}

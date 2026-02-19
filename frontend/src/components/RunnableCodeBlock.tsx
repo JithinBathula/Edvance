@@ -8,7 +8,23 @@ const MIN_HEIGHT = 60;
 const DEFAULT_HEIGHT = 120;
 const MAX_HEIGHT = 400;
 
-export function RunnableCodeBlock({ code }: { code: string }) {
+function buildCode(snippet: string, contextCode?: string): string {
+  if (!contextCode?.trim()) return snippet;
+  const encoded = btoa(unescape(encodeURIComponent(contextCode)));
+  return `import sys as __ctx_s, io as __ctx_i, base64 as __ctx_b
+__ctx_sv = (__ctx_s.stdout, __ctx_s.stderr, input)
+__ctx_s.stdout, __ctx_s.stderr = __ctx_i.StringIO(), __ctx_i.StringIO()
+input = lambda *a, **k: ''
+try:
+    exec(__ctx_b.b64decode('${encoded}').decode(), globals())
+except Exception:
+    pass
+__ctx_s.stdout, __ctx_s.stderr, input = __ctx_sv
+del __ctx_s, __ctx_i, __ctx_b, __ctx_sv
+${snippet}`;
+}
+
+export function RunnableCodeBlock({ code, contextCode }: { code: string; contextCode?: string }) {
   const { runCode, stopCode, output, isRunning, status, inputPrompt, submitInput } = usePyodide();
   const [inputValue, setInputValue] = useState('');
   const [hasRun, setHasRun] = useState(false);
@@ -32,8 +48,8 @@ export function RunnableCodeBlock({ code }: { code: string }) {
 
   const handleRun = useCallback(() => {
     setHasRun(true);
-    runCode([{ name: 'snippet.py', content: code }], 'snippet.py');
-  }, [runCode, code]);
+    runCode([{ name: 'snippet.py', content: buildCode(code, contextCode) }], 'snippet.py');
+  }, [runCode, code, contextCode]);
 
   const handleInputSubmit = useCallback(() => {
     submitInput(inputValue);
