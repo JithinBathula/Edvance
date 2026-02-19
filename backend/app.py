@@ -11,6 +11,7 @@ from api import register_blueprints
 load_dotenv()
 
 app = Flask(__name__)
+app.url_map.strict_slashes = False
 
 # CORS configuration - restrict origins in production via ALLOWED_ORIGINS env var
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")

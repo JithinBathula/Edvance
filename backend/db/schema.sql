@@ -338,3 +338,52 @@ CREATE TABLE IF NOT EXISTS student_assignments (
 
 CREATE INDEX IF NOT EXISTS idx_student_assignments_student ON student_assignments(student_id);
 CREATE INDEX IF NOT EXISTS idx_student_assignments_assignment ON student_assignments(assignment_id);
+
+-- =============================================================================
+-- COMMUNITY CHALLENGES TABLES
+-- Students can challenge each other to coding duels on the same task.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS challenges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    challenger_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    opponent_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'accepted', 'active', 'completed', 'declined', 'expired')
+    ),
+    winner_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    xp_bonus INTEGER NOT NULL DEFAULT 20,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_challenges_challenger ON challenges(challenger_id);
+CREATE INDEX IF NOT EXISTS idx_challenges_opponent ON challenges(opponent_id);
+CREATE INDEX IF NOT EXISTS idx_challenges_status ON challenges(status);
+
+CREATE TRIGGER update_challenges_updated_at
+    BEFORE UPDATE ON challenges
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS challenge_progress (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    challenge_id UUID NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    line_count INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'coding' CHECK (
+        status IN ('coding', 'submitted', 'completed')
+    ),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(challenge_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_challenge_progress_challenge ON challenge_progress(challenge_id);
+
+CREATE TRIGGER update_challenge_progress_updated_at
+    BEFORE UPDATE ON challenge_progress
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

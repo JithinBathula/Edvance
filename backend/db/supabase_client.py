@@ -1203,3 +1203,105 @@ def increment_xp_atomic(user_id: str, amount: int) -> Optional[int]:
         new_xp = current_xp + amount
         supabase.table('users').update({'xp': new_xp}).eq('id', user_id).execute()
         return new_xp
+
+
+# ─── CHALLENGE OPERATIONS ────────────────────────────────────────────────────
+
+def create_challenge(challenger_id: str, opponent_id: str, task_id: str, xp_bonus: int = 20) -> Dict[str, Any]:
+    """Create a new challenge between two users."""
+    data = {
+        "challenger_id": challenger_id,
+        "opponent_id": opponent_id,
+        "task_id": task_id,
+        "status": "pending",
+        "xp_bonus": xp_bonus,
+    }
+    result = execute_with_retry(
+        "create_challenge",
+        lambda: supabase.table("challenges").insert(data).execute(),
+    )
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to create challenge")
+
+
+def get_challenge_by_id(challenge_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch a challenge by ID with joined user and task data."""
+    result = execute_with_retry(
+        "get_challenge_by_id",
+        lambda: supabase.table("challenges").select(
+            "*, challenger:challenger_id(id, name, email), opponent:opponent_id(id, name, email), task:task_id(id, instruction_theory, coding_requirements, hints, test_specification, starter_code)"
+        ).eq("id", challenge_id).execute(),
+    )
+    if result.data:
+        return result.data[0]
+    return None
+
+
+def get_user_challenges(user_id: str) -> List[Dict[str, Any]]:
+    """Get all challenges where user is challenger or opponent."""
+    result = execute_with_retry(
+        "get_user_challenges",
+        lambda: supabase.table("challenges").select(
+            "*, challenger:challenger_id(id, name, email), opponent:opponent_id(id, name, email)"
+        ).or_(f"challenger_id.eq.{user_id},opponent_id.eq.{user_id}")
+        .order("created_at", desc=True).limit(50).execute(),
+    )
+    return result.data or []
+
+
+def update_challenge_status(challenge_id: str, status: str, **kwargs) -> Dict[str, Any]:
+    """Update challenge status and optional extra fields."""
+    data = {"status": status, **kwargs}
+    result = execute_with_retry(
+        "update_challenge_status",
+        lambda: supabase.table("challenges").update(data).eq("id", challenge_id).execute(),
+    )
+    if result.data:
+        return result.data[0]
+    raise Exception(f"Failed to update challenge {challenge_id}")
+
+
+def upsert_challenge_progress(challenge_id: str, user_id: str, line_count: int = 0, status: str = "coding") -> Dict[str, Any]:
+    """Upsert progress for a user in a challenge."""
+    data = {
+        "challenge_id": challenge_id,
+        "user_id": user_id,
+        "line_count": line_count,
+        "status": status,
+    }
+    result = execute_with_retry(
+        "upsert_challenge_progress",
+        lambda: supabase.table("challenge_progress").upsert(
+            data, on_conflict="challenge_id,user_id"
+        ).execute(),
+    )
+    if result.data:
+        return result.data[0]
+    raise Exception("Failed to upsert challenge progress")
+
+
+def get_challenge_progress(challenge_id: str) -> List[Dict[str, Any]]:
+    """Get progress for all participants in a challenge."""
+    result = execute_with_retry(
+        "get_challenge_progress",
+        lambda: supabase.table("challenge_progress").select("*").eq(
+            "challenge_id", challenge_id
+        ).execute(),
+    )
+    return result.data or []
+
+
+def get_random_completed_task(user_id: str) -> Optional[Dict[str, Any]]:
+    """Pick a random task that this user has completed."""
+    import random as _random
+    completed = execute_with_retry(
+        "get_random_completed_task",
+        lambda: supabase.table("user_progress").select("task_id").eq(
+            "user_id", user_id
+        ).eq("status", "completed").execute(),
+    )
+    if not completed.data:
+        return None
+    task_id = _random.choice(completed.data)["task_id"]
+    return get_task_by_id(task_id)

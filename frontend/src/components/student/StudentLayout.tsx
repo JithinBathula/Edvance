@@ -7,7 +7,7 @@ import edvanceLogoSrc from '../../assets/edvance-logo.svg';
 import {
     Home,
     Users,
-    BookOpen,
+    Swords,
     Settings,
     LogOut,
     Flame,
@@ -16,7 +16,7 @@ import {
     ArrowLeft,
 } from 'lucide-react';
 
-type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
+type NavTab = 'Home' | 'Classes' | 'Community' | 'Settings';
 
 interface StudentLayoutProps {
     children: ReactNode;
@@ -33,7 +33,7 @@ type LightStats = {
 const navItems: { icon: typeof Home; label: NavTab }[] = [
     { icon: Home, label: 'Home' },
     { icon: Users, label: 'Classes' },
-    { icon: BookOpen, label: 'Projects' },
+    { icon: Swords, label: 'Community' },
 ];
 
 export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) {
@@ -45,7 +45,7 @@ export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) 
         const p = location.pathname;
         if (p === '/student-dashboard') return 'Home';
         if (p === '/student/classes') return 'Classes';
-        if (p === '/student/projects') return 'Projects';
+        if (p === '/student/community') return 'Community';
         if (p === '/student/settings') return 'Settings';
         return null;
     })();
@@ -132,7 +132,7 @@ export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) 
     const navRoutes: Record<NavTab, string> = {
         Home: '/student-dashboard',
         Classes: '/student/classes',
-        Projects: '/student/projects',
+        Community: '/student/community',
         Settings: '/student/settings',
     };
 

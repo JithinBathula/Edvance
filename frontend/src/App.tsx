@@ -23,6 +23,8 @@ import { StudentDashboard } from "./components/StudentDashboard";
 import { StudentClassesPanel } from "./components/student/StudentClassesPanel";
 import { StudentSettingsPanel } from "./components/StudentSettings";
 import { ProjectList } from "./components/ProjectList";
+import { CommunityPanel } from "./components/student/CommunityPanel";
+import { ChallengeWorkspace } from "./components/ChallengeWorkspace";
 import { LandingPage } from "./components/LandingPage";
 
 export type OnboardingData = {
@@ -471,20 +473,25 @@ export default function App() {
             }
           />
           <Route
-            path="/student/projects"
+            path="/student/community"
             element={
               <RequireUser>
                 <StudentLayout user={user!} onLogout={handleLogout}>
                   <div className="px-6 py-5 max-w-7xl mx-auto flex-1 overflow-y-auto scrollbar-thin">
-                    <ProjectList
-                      user={user!}
-                      onSelectProject={handleProjectReady}
-                      onCreateNew={() => navigate('/custom-project')}
-                      onBack={() => navigate('/student-dashboard')}
-                      embedded
-                    />
+                    <CommunityPanel user={user!} />
                   </div>
                 </StudentLayout>
+              </RequireUser>
+            }
+          />
+          <Route
+            path="/challenge/:challengeId"
+            element={
+              <RequireUser>
+                <ChallengeWorkspace
+                  user={user!}
+                  onBack={() => navigate('/student/community')}
+                />
               </RequireUser>
             }
           />
