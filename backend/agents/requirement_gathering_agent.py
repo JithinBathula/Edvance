@@ -163,6 +163,51 @@ class RequirementGatheringAgent:
             if not isinstance(snapshot.get(k), str):
                 return f"Snapshot field '{k}' must be a string"
         return None
+
+#----------------
+# MULTIMODAL MESSAGE BUILDER
+#-----------------    
+    def _build_user_content(self, message: str, files: List[Dict[str, Any]]):
+        """
+        Build the 'content' value for the user message.
+
+        - No files → plain string (cheaper, faster).
+        - With files → list of content parts (OpenAI multimodal format):
+              {"type": "text", "text": "..."}
+              {"type": "image_url", "image_url": {"url": "data:...;base64,..."}}
+        """
+        if not files:
+            return message
+
+        parts: List[Dict[str, Any]] = []
+
+        # Lead with the user's text message
+        if message:
+            parts.append({"type": "text", "text": message})
+
+        for f in files:
+            fname = f.get('filename', 'file')
+
+            if f['type'] == 'image':
+                # Vision: inline base64 image
+                data_url = f"data:{f['media_type']};base64,{f['base64_data']}"
+                parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": data_url, "detail": "auto"},
+                })
+                parts.append({
+                    "type": "text",
+                    "text": f"[Attached image: {fname}]",
+                })
+
+            elif f['type'] == 'text':
+                # Text / code / PDF content
+                parts.append({
+                    "type": "text",
+                    "text": f"--- Content of {fname} ---\n{f['text_content']}\n--- End of {fname} ---",
+                })
+
+        return parts
         
 #----------------
 # TOOL DISPATCH
@@ -274,7 +319,8 @@ class RequirementGatheringAgent:
         message: str,
         conversation_history: List[Dict[str, str]],
         user_profile: Dict[str, Any],
-        session_id: str = 'default'
+        session_id: str = 'default',
+        files: Optional[List[Dict[str, Any]]] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """Process message and stream responses.
         
@@ -284,6 +330,10 @@ class RequirementGatheringAgent:
         3. LLM calls mark_ready_to_plan when done
         4. Backend yields handoff signal
         5. Frontend reacts to handoff and moves to planning phase
+
+        ``files`` – list of processed file dicts from chat.py, each with:
+            type='image' → media_type, base64_data
+            type='text'  → text_content
         """
 
         active_user_profile = user_profile if user_profile else DEFAULT_USER_SKILLS
@@ -297,7 +347,10 @@ class RequirementGatheringAgent:
         system_prompt = self._build_system_prompt(active_user_profile, session)
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         messages.extend(conversation_history)
-        messages.append({"role": "user", "content": message})
+
+        # Build the user message — multimodal when files are present
+        user_content_parts = self._build_user_content(message, files or [])
+        messages.append({"role": "user", "content": user_content_parts})
         
         # Optional hint for first-time idea analysis
         if session.get("project_idea") == message and not session["tool_context"]["tech_analysis_history"]:
