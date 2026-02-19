@@ -452,22 +452,27 @@ useEffect(() => {
                         ),
 
                         // Inline code
-                        code: ({ inline, children, ...props }: any) =>
-                          inline ? (
-                            <code 
+                        code: ({ className, children, ...props }: any) => {
+                          const codeText = String(children ?? "");
+                          const isInlineCode = !className && !codeText.includes("\n");
+                          return isInlineCode ? (
+                            <code
                               className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono"
                               {...props}
                             >
                               {children}
                             </code>
                           ) : (
-                            <code 
-                              className="block bg-gray-900 text-gray-100 p-3 rounded text-sm font-mono overflow-x-auto mb-4"
-                              {...props}
-                            >
+                            <code className="text-sm font-mono" {...props}>
                               {children}
                             </code>
-                          ),
+                          );
+                        },
+                        pre: ({ children }) => (
+                          <pre className="bg-teal-50 text-teal-900 border border-teal-100 p-3 rounded text-sm font-mono overflow-x-auto mb-4">
+                            {children}
+                          </pre>
+                        ),
 
                         // Headings
                         h1: ({ children }) => (

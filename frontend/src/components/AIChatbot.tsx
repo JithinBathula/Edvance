@@ -229,16 +229,22 @@ export function AIChatbot({
                         ol: ({ children }) => <ol className="list-decimal pl-4 mb-3 space-y-1">{children}</ol>,
                         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
                         strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                        code: ({ inline, children }: any) =>
-                          inline ? (
+                        code: ({ className, children }: any) => {
+                          const codeText = String(children ?? "");
+                          const isInlineCode = !className && !codeText.includes("\n");
+                          return isInlineCode ? (
                             <code className="bg-gray-100 text-pink-600 px-1 py-0.5 rounded text-xs font-mono">
                               {children}
                             </code>
                           ) : (
-                            <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap mb-3">
-                              <code>{children}</code>
-                            </pre>
-                          ),
+                            <code className="text-xs font-mono">{children}</code>
+                          );
+                        },
+                        pre: ({ children }) => (
+                          <pre className="bg-teal-50 text-teal-900 border border-teal-100 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap mb-3 overflow-x-auto">
+                            {children}
+                          </pre>
+                        ),
                         h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
                         h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
                         h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
