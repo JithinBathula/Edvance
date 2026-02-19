@@ -684,6 +684,7 @@ useEffect(() => {
             type="button"
             variant="ghost"
             size="lg"
+            onClick={() => setIsRestartOpen(false)}
             className="font-semibold ml-auto text-teal-700 hover:text-accent hover:bg-gray-100 pointer-events-auto cursor-pointer"
             >
               CANCEL</AlertDialogCancel>

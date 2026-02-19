@@ -162,10 +162,10 @@ export function AIChatbot({
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200 shadow-xl">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50 flex items-center justify-between shrink-0">
+      <div className="p-4 border-b border-gray-200 bg-linear-to-r from-teal-50 to-cyan-50 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
-            <Sparkles className="w-4 h-4 text-blue-600" />
+          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center border border-teal-200">
+            <Sparkles className="w-4 h-4 text-teal-600" />
           </div>
           <div>
             <h3 className="font-semibold text-gray-800 text-sm">Cody</h3>
@@ -201,13 +201,13 @@ export function AIChatbot({
         <div className="space-y-4">
           {isLoadingHistory ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+              <Loader2 className="w-6 h-6 text-teal-500 animate-spin" />
             </div>
           ) : messages.map((message, i) => (
             <div key={i} className="flex gap-3">
               <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border bg-white border-gray-200">
                 {message.role === 'assistant' ? (
-                  <Bot className="w-4 h-4 text-blue-600" />
+                  <Bot className="w-4 h-4 text-teal-600" />
                 ) : (
                   <User className="w-4 h-4 text-purple-600" />
                 )}
@@ -254,10 +254,10 @@ export function AIChatbot({
           {isLoading && (
             <div className="flex gap-3 justify-start">
               <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-4 h-4 text-blue-600" />
+                <Bot className="w-4 h-4 text-teal-600" />
               </div>
               <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-teal-500 animate-spin" />
                 <span className="text-xs text-gray-400">Thinking...</span>
               </div>
             </div>
@@ -288,7 +288,7 @@ export function AIChatbot({
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className="absolute right-1 bottom-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+            className="absolute right-1 bottom-1 w-8 h-8 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-colors"
           >
             <Send className="w-4 h-4" />
           </Button>
