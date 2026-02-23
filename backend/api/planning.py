@@ -1,3 +1,6 @@
+import logging
+import traceback
+
 from flask import Blueprint, jsonify, request, g
 from pydantic import ValidationError
 
@@ -7,6 +10,8 @@ from pydantic_classes.planning import CurriculumGenerationError, OutlineProject
 from db.supabase_client import (
     create_project, create_milestone, create_task,
 )
+
+logger = logging.getLogger(__name__)
 
 planning_bp = Blueprint("planning", __name__, url_prefix="/api/planning")
 planner = CurriculumPlanner()
@@ -66,6 +71,7 @@ def generate_curriculum():
     experience_level = user_profile.get("pythonLevel", "level-1")
     outline_payload = payload.get("outline")
     vm_type = payload.get("vm_type")
+    content_type = payload.get("content_type", "custom_project")
     first_milestone_only = payload.get("first_milestone_only", True)
 
     if (
@@ -114,6 +120,7 @@ def generate_curriculum():
                 tech_stack=stack_list,
                 experience_level=experience_level,
                 vm_type=vm_type,
+                content_type=content_type,
             )
             result["project_id"] = project["id"]
             result["outline"] = outline_payload
@@ -227,8 +234,8 @@ def generate_curriculum():
                                     test_specification=task_item.test_specification.model_dump(),
                                 )
 
-                    except Exception:
-                        pass  # Background generation failure is non-critical
+                    except Exception as bg_exc:
+                        logger.error("Background milestone generation failed: %s\n%s", bg_exc, traceback.format_exc())
 
                 bg_thread = Thread(target=generate_remaining_in_background, daemon=True)
                 bg_thread.start()
@@ -239,4 +246,5 @@ def generate_curriculum():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
+        logger.error("Curriculum generation failed: %s\n%s", exc, traceback.format_exc())
         return jsonify({"error": f"Failed to generate curriculum: {exc}"}), 500

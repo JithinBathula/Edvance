@@ -6,24 +6,32 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
-import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Sparkles, GraduationCap, BookOpen } from 'lucide-react';
 import { authFetch } from '../utils/authFetch';
 
 type Props = {
   user: User;
-  onComplete: (data: OnboardingData) => void;
+  onComplete: (data: OnboardingData, role?: 'student' | 'teacher') => void;
 };
 
 export function OnboardingScreen({ user, onComplete }: Props) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Step 0 = role selection
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [answers, setAnswers] = useState<Partial<OnboardingData>>({});
 
-  const totalSteps = 5;
-  const progress = (step / totalSteps) * 100;
+  const totalSteps = role === 'teacher' ? 1 : 6; // Role step + 5 student steps
+  const progress = ((step + 1) / totalSteps) * 100;
 
   const handleNext = () => {
-    if (step < totalSteps) {
+    // Step 0 = role selection
+    if (step === 0 && role === 'teacher') {
+      // Teachers skip student-specific steps
+      handleSubmit();
+      return;
+    }
+    const maxStep = role === 'teacher' ? 0 : 5;
+    if (step < maxStep) {
       setStep(step + 1);
     } else {
       handleSubmit();
@@ -31,7 +39,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
   };
 
   const handleBack = () => {
-    if (step > 1) {
+    if (step > 0) {
       setStep(step - 1);
     }
   };
@@ -45,13 +53,18 @@ export function OnboardingScreen({ user, onComplete }: Props) {
       return;
     }
 
+    const onboardingData = role === 'teacher'
+      ? { educationLevel: 'teacher', schoolExperience: 'teacher', pythonLevel: 'teacher', biggestChallenges: [], learningMode: 'teacher' }
+      : answers;
+
     try {
       const response = await authFetch(
         '/users/onboarding',
         {
           method: 'POST',
           body: JSON.stringify({
-            onboardingData: answers,
+            onboardingData,
+            role,
           }),
         }
       );
@@ -59,7 +72,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
       const data = await response.json();
 
       if (data.success) {
-        onComplete(answers as OnboardingData);
+        onComplete(onboardingData as OnboardingData, role);
       } else {
         console.error('Backend failed to save onboarding data:', data.error || 'Unknown error');
       }
@@ -72,6 +85,8 @@ export function OnboardingScreen({ user, onComplete }: Props) {
 
   const isStepComplete = () => {
     switch (step) {
+      case 0:
+        return !!role;
       case 1:
         return !!answers.educationLevel;
       case 2:
@@ -96,20 +111,62 @@ export function OnboardingScreen({ user, onComplete }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 p-4 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-amber-50 p-4 flex items-center justify-center">
       <div className="w-full max-w-2xl">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your learning</h1>
+            <h1 className="text-3xl">Hello, {user.name}! Let's personalize your experience</h1>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Sparkles className="w-4 h-4" />
-              Step {step} of {totalSteps}
+              Step {step + 1} of {totalSteps}
             </div>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
 
         <Card className="p-8 bg-white shadow-xl border-gray-100">
+          {/* Step 0: Role Selection */}
+          {step === 0 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl mb-2">I am a...</h2>
+                <p className="text-gray-600">Choose your role to get the right experience</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setRole('student')}
+                  className={`p-6 rounded-xl border-2 transition-all text-left ${
+                    role === 'student'
+                      ? 'border-teal-500 bg-teal-50 shadow-md'
+                      : 'border-gray-200 hover:border-teal-500'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center mb-3">
+                    <GraduationCap className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">Student</h3>
+                  <p className="text-sm text-gray-500">Learn to code through guided projects</p>
+                </button>
+
+                <button
+                  onClick={() => setRole('teacher')}
+                  className={`p-6 rounded-xl border-2 transition-all text-left ${
+                    role === 'teacher'
+                      ? 'border-amber-500 bg-amber-50 shadow-md'
+                      : 'border-gray-200 hover:border-amber-500'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-3">
+                    <BookOpen className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">Teacher</h3>
+                  <p className="text-sm text-gray-500">Create classrooms and track student progress</p>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Step 1: Educational Level */}
           {step === 1 && (
             <div className="space-y-6">
@@ -131,7 +188,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -168,7 +225,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -206,7 +263,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -242,7 +299,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                     <label
                       key={option.value}
                       className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                        isChecked ? 'border-[#7622e5] bg-purple-50' : 'border-gray-200 hover:border-[#7622e5]'
+                        isChecked ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-500'
                       }`}
                     >
                       <Checkbox
@@ -284,7 +341,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-[#7622e5] cursor-pointer transition-colors"
+                      className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"
                     >
                       <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                       <div className="flex-1">
@@ -304,7 +361,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
             <Button
               onClick={handleBack}
               variant="ghost"
-              disabled={step === 1}
+              disabled={step === 0}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
@@ -313,10 +370,12 @@ export function OnboardingScreen({ user, onComplete }: Props) {
             <Button
               onClick={handleNext}
               disabled={!isStepComplete() || loading}
-              className="bg-gradient-to-r from-[#7622e5] to-[#b480f8] hover:from-[#6518d0] hover:to-[#a070e8]"
+              className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700"
             >
-              {step === totalSteps ? (loading ? 'Saving...' : 'Complete') : 'Next'}
-              {step < totalSteps && <ArrowRight className="w-4 h-4 ml-2" />}
+              {(step === 0 && role === 'teacher') || step === 5
+                ? (loading ? 'Saving...' : 'Complete')
+                : 'Next'}
+              {!((step === 0 && role === 'teacher') || step === 5) && <ArrowRight className="w-4 h-4 ml-2" />}
             </Button>
           </div>
         </Card>

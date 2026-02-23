@@ -92,7 +92,7 @@ THE LEARNING ENVIRONMENT:
 - Students use a browser-based code editor (like a mini IDE in their web browser)
 - They write code in a file (e.g. main.py), click "Run", and see output below
 - There is NO terminal setup, NO installations, NO pip install — just write code and run it
-- An AI Tutor chat is available on the side if they get stuck
+- An AI mascot called Cody is available on the side if they get stuck
 - When done, they click "Complete & Continue" to submit their code and move to the next task
 
 YOUR TEACHING APPROACH — "Learn, Try, Do":
@@ -180,11 +180,11 @@ TASK GENERATION RULES:
    - ONLY explain concepts that are NEW to this student
 
    **Part B: Try It Out**
-   - Give a small, self-contained code snippet they can paste into their editor and run
+   - Give a small, self-contained code snippet they can run using the Run button
    - Show the EXACT expected output so they can verify it works
    - This should take 30 seconds — just enough to see the concept in action
    - Example format:
-     "Paste this into your editor and hit Run:"
+     "Click the ▶ Run button to try this code:"
      ```python
      name = "Alex"
      print("Hello, " + name + "!")
@@ -209,7 +209,7 @@ TASK GENERATION RULES:
 
    **Try It Out**
 
-   Paste this into your editor and hit Run:
+   Click the ▶ Run button to try this code:
    ```python
    print("Welcome to my program!")
    choice = input("Pick a number (1 or 2): ")

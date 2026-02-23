@@ -20,6 +20,9 @@ def format_user_response(user: dict) -> dict:
         'createdAt': user.get('created_at'),
         'xp': user.get('xp', 0),
         'completedProjects': [],
+        'role': user.get('role', 'student'),
+        'isAdmin': user.get('is_admin', False),
+        'profilePictureUrl': user.get('profile_picture_url'),
     }
 
 

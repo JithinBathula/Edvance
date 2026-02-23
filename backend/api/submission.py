@@ -6,7 +6,24 @@ from flask import Blueprint, request, jsonify, g
 
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase
+from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks
+
+
+def _merge_feedback(user_id: str, task_id: str, new_message: str) -> dict:
+    """Build feedback dict preserving any existing teacher_feedback fields."""
+    new_feedback = {'message': new_message}
+    try:
+        existing = supabase.table('user_progress').select('feedback').eq(
+            'user_id', user_id
+        ).eq('task_id', task_id).execute()
+        if existing.data and existing.data[0].get('feedback'):
+            old = existing.data[0]['feedback']
+            for key in ('teacher_feedback', 'teacher_feedback_at', 'teacher_name'):
+                if key in old:
+                    new_feedback[key] = old[key]
+    except Exception:
+        pass
+    return new_feedback
 from services.git_repo import read_repo_files
 
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
@@ -76,6 +93,7 @@ def evaluate_submission():
 
         task_instructions = task.get('instruction_theory', '')
         test_specification = task.get('test_specification', {})
+        coding_requirements = task.get('coding_requirements', None)
 
         if not code and project_id:
             project = get_project_by_id(project_id)
@@ -90,19 +108,75 @@ def evaluate_submission():
         result = evaluator.evaluate(
             user_code=code,
             task_instructions=task_instructions,
-            test_specification=test_specification
+            test_specification=test_specification,
+            coding_requirements=coding_requirements
         )
+
+        # Define XP reward constant 
+        XP_PER_TASK = 10
+        new_xp = None
 
         try:
             if result.is_correct:
+                # Check if task was already completed (prevent double XP)
+                already_completed = False
+                try:
+                    existing = supabase.table("user_progress").select("status").eq(
+                        "user_id", user_id).eq("task_id", task_id).maybe_single().execute()
+                    already_completed = existing.data and existing.data.get("status") == "completed"
+                except Exception:
+                    pass
+
                 update_progress(
                     user_id=user_id,
                     task_id=task_id,
                     status='completed',
                     submitted_code=code,
                     passed=True,
-                    feedback={'message': result.feedback}
+                    feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
+
+                # Award XP only on first completion
+                if not already_completed:
+                    try:
+                        new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
+                    except Exception as xp_error:
+                        print(f"Warning: Failed to update XP: {xp_error}")
+
+                # Check if this completes an assignment
+                try:
+                    if task_project and task_project.get("source_assignment_id"):
+                        # Check if all tasks in the project are completed
+                        all_milestones = get_project_milestones(task_project_id)
+                        all_task_ids = []
+                        for ms in all_milestones:
+                            tasks_in_ms = get_milestone_tasks(ms["id"])
+                            all_task_ids.extend(t["id"] for t in tasks_in_ms)
+
+                        if all_task_ids:
+                            progress_result = supabase.table("user_progress").select("task_id, status").eq(
+                                "user_id", user_id
+                            ).in_("task_id", all_task_ids).eq("status", "completed").execute()
+                            completed_ids = {p["task_id"] for p in (progress_result.data or [])}
+
+                            if len(completed_ids) >= len(all_task_ids):
+                                # All tasks completed — mark student_assignment as completed
+                                sa_result = supabase.table("student_assignments").select("id").eq(
+                                    "assignment_id", task_project["source_assignment_id"]
+                                ).eq("student_id", user_id).execute()
+                                if sa_result.data:
+                                    from datetime import datetime
+                                    supabase.table("student_assignments").update({
+                                        "status": "completed",
+                                        "completed_at": datetime.utcnow().isoformat(),
+                                    }).eq("id", sa_result.data[0]["id"]).execute()
+
+                                    # Also mark the project as completed
+                                    supabase.table("projects").update({
+                                        "status": "completed"
+                                    }).eq("id", task_project_id).execute()
+                except Exception:
+                    pass  # Non-critical: assignment status update failure
 
                 # Adaptive task generation for next task
                 try:
@@ -174,7 +248,9 @@ def evaluate_submission():
                             adapted_next_task = {
                                 **adapted_task,
                                 "id": next_task_data["id"],
-                                "position": next_task_data["position"]
+                                "position": next_task_data["position"],
+                                "description": adapted_task.get("instruction_theory", ""),
+                                "testSpec": adapted_task.get("test_specification", {}),
                             }
 
                 except Exception:
@@ -187,7 +263,7 @@ def evaluate_submission():
                     status='in_progress',
                     submitted_code=code,
                     passed=False,
-                    feedback={'message': result.feedback}
+                    feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
         except Exception:
             pass  # Non-critical: progress update failure doesn't affect response
@@ -195,7 +271,9 @@ def evaluate_submission():
         response_data = {
             'success': True,
             'is_correct': result.is_correct,
-            'feedback': result.feedback
+            'feedback': result.feedback,
+            'xp_earned': XP_PER_TASK if result.is_correct else 0,
+            'total_xp': new_xp if new_xp is not None else None
         }
 
         if adapted_next_task:
