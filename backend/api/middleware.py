@@ -15,7 +15,11 @@ SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 if not SUPABASE_URL:
     raise RuntimeError("SUPABASE_URL environment variable is required")
 
-jwks_client = PyJWKClient(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json")
+jwks_client = PyJWKClient(
+    f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json",
+    cache_keys=True,
+    lifespan=3600,  # Cache JWKS keys for 1 hour
+)
 logger = logging.getLogger(__name__)
 
 
