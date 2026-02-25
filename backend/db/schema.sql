@@ -339,3 +339,29 @@ CREATE TABLE IF NOT EXISTS student_assignments (
 
 CREATE INDEX IF NOT EXISTS idx_student_assignments_student ON student_assignments(student_id);
 CREATE INDEX IF NOT EXISTS idx_student_assignments_assignment ON student_assignments(assignment_id);
+
+-- =============================================================================
+-- WAITLIST TABLE
+-- Collects email + phone from the waitlist landing page (waitlist.edvance.fun)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.waitlist (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Prevent duplicate email signups
+ALTER TABLE public.waitlist ADD CONSTRAINT waitlist_email_unique UNIQUE (email);
+
+-- Index for chronological queries
+CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON public.waitlist (created_at DESC);
+
+-- Enable RLS: allow anonymous inserts only (frontend uses anon key)
+ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous inserts" ON public.waitlist
+    FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "Service role can read all" ON public.waitlist
+    FOR SELECT TO service_role USING (true);
