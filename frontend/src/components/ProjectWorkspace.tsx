@@ -666,9 +666,6 @@ export function ProjectWorkspace({
         }),
       });
       const data = await response.json();
-      if (data.success) {
-        toast.success('Saved');
-      }
     } catch (err) {
       console.error('Error saving files:', err);
       toast.error('Failed to save files');

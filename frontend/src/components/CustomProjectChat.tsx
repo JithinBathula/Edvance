@@ -37,6 +37,7 @@ type Props = {
   onProjectCreated: (requirementsData: any) => void;
   onBack: () => void;
   embedded?: boolean;
+  onRegisterRestart?: (fn: (() => void) | null) => void;
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -165,7 +166,7 @@ async function readSSEStream(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: Props) {
+export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, onRegisterRestart }: Props) {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -183,6 +184,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // --- Derived ---
   const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
@@ -330,6 +332,10 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
     const history = messages.map(m => ({ role: m.role, content: m.content }));
     const { onContent, onHandoff, onDone, onError } = makeStreamHandlers(assistantId);
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       let response: Response;
 
@@ -343,7 +349,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
         formData.append('guiding_complete', String(!!options.skipUserBubble));
         filesToSend.forEach(file => formData.append('files', file));
 
-        response = await authFetch('/chat/', { method: 'POST', body: formData });
+        response = await authFetch('/chat/', { method: 'POST', body: formData, signal: controller.signal });
       } else {
         // JSON — text only
         response = await authFetch('/chat/', {
@@ -356,12 +362,14 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
             user_profile: userProfile,
             guiding_complete: !!options.skipUserBubble,
           }),
+          signal: controller.signal,
         });
       }
 
       await readSSEStream(response, onContent, onHandoff);
       onDone();
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error('[Chat] Stream Error:', error);
       onError();
     }
@@ -445,17 +453,27 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
   // ─── Restart ─────────────────────────────────────────────────────────────────
 
   const handleRestart = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setMessages([]);
     setCurrentStep(0);
     setGuidingAnswers({});
     setInput('');
     setAttachedFiles([]);
+    setIsLoading(false);
+    setIsInitializingAI(false);
+    setIsProcessingHandoff(false);
     const newId = crypto.randomUUID();
     setChatSessionId(newId);
     hasInitializedChat.current = null;
-    toast.success('Session reset!');
     setIsRestartOpen(false);
   }, []);
+
+  // Register restart callback for parent (StudentLayout) to invoke
+  useEffect(() => {
+    onRegisterRestart?.(handleRestart);
+    return () => onRegisterRestart?.(null);
+  }, [handleRestart, onRegisterRestart]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
@@ -86,6 +86,14 @@ export default function App() {
     const saved = localStorage.getItem('edvance_current_project');
     return saved ? JSON.parse(saved) : null;
   });
+
+  const chatRestartRef = useRef<(() => void) | null>(null);
+  const handleRegisterRestart = useCallback((fn: (() => void) | null) => {
+    chatRestartRef.current = fn;
+  }, []);
+  const handleChatRestart = useCallback(() => {
+    chatRestartRef.current?.();
+  }, []);
 
   // Fetch profile from backend and set user state
   const fetchAndSetProfile = async ({ timeoutMs = 8000 }: { timeoutMs?: number } = {}): Promise<User | null> => {
@@ -399,12 +407,13 @@ export default function App() {
             path="/custom-project"
             element={
               <RequireUser>
-                <StudentLayout user={user!} onLogout={handleLogout}>
+                <StudentLayout user={user!} onLogout={handleLogout} onRestart={handleChatRestart}>
                   <CustomProjectChat
                     user={user!}
                     onProjectCreated={handleRequirementsReady}
                     onBack={() => navigate("/student-dashboard")}
                     embedded
+                    onRegisterRestart={handleRegisterRestart}
                   />
                 </StudentLayout>
               </RequireUser>
