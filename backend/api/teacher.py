@@ -36,6 +36,7 @@ from db.supabase_client import (
     remove_student_from_classroom,
     get_assignments_for_classroom,
     get_student_assignments_for_assignment,
+    get_student_assignments_for_user,
     supabase,
 )
 
@@ -875,6 +876,26 @@ def get_student_progress(classroom_id: str, student_id: str):
             'created_at': proj.get('created_at'),
             'milestones': milestone_details,
         })
+
+    # ── Include unstarted assignments as placeholder projects ──
+    student_assignments = get_student_assignments_for_user(student_id)
+    existing_project_ids = {p['id'] for p in projects_detail}
+    for sa in student_assignments:
+        if sa.get('status') == 'not_started':
+            a = sa.get('assignments', {})
+            projects_detail.append({
+                'id': None,
+                'title': a.get('title', 'Untitled Assignment'),
+                'status': 'not_started',
+                'progress': 0,
+                'tasks_completed': 0,
+                'tasks_total': 0,
+                'vm_type': None,
+                'created_at': sa.get('created_at'),
+                'milestones': [],
+                'assignment_id': a.get('id'),
+                'due_date': a.get('due_date'),
+            })
 
     # AI tutor usage: count chat messages per project, split by role
     project_ids = [p['id'] for p in projects_raw]
