@@ -485,26 +485,31 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
                 )}>
                   {/* File attachment previews */}
                   {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
+                    <div className="flex flex-col gap-3 mb-3">
                       {msg.attachments.map((att, i) =>
                         att.isImage ? (
-                          <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+                          <div key={i} className="w-fit">
+                            <a href={att.url} target="_blank" rel="noopener noreferrer">
                             <img
                               src={att.url}
                               alt={att.name}
                               className="max-h-[300px] max-w-[300px] rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
                             />
-                          </a>
+                            </a>
+                          </div>
                         ) : (
                           <a
                             key={i}
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center border-2 gap-2 bg-white/80 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-white/30 transition-colors cursor-pointer no-underline"
+                            className="flex w-fit h-fit items-center border-2 gap-3 bg-white/80 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-white/30 hover:text-teal-600 transition-colors cursor-pointer no-underline"
                           >
-                            <FileText className="w-4 h-4 shrink-0 text-teal" />
-                            <span className="truncate max-w-[150px]">{att.name}</span>
+                            <FileText className="flex flex-col leading-tight pr-2 text-teal" />
+                            <span className="font-medium truncate max-w-[180px]">{att.name}</span>
+                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                              {att.name.split('.').pop()}
+                            </span>
                           </a>
                         ),
                       )}
@@ -627,92 +632,103 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
           )}
 
           {/* Free-chat phase with drag-and-drop */}
-          {!isGuidingPhase && !isProcessingHandoff && (
-            <div className="w-full relative">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={VALID_EXTENSIONS.join(',')}
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
+        {!isGuidingPhase && !isProcessingHandoff && (
+          <div className="w-full relative px-4 pb-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={VALID_EXTENSIONS.join(',')}
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
 
-              {isDragging && (
-                <div className="absolute inset-0 bg-purple-100 bg-opacity-50 border-4 border-dashed border-purple-400 rounded-lg flex flex-col items-center justify-center pointer-events-none animate-pulse z-50">
-                  <p className="text-cyan-700 font-semibold">Drop files here to attach</p>
+            {isDragging && (
+              <div className="absolute inset-0 bg-teal-100 bg-opacity-50 border-4 border-dashed border-teal-600 rounded-lg flex flex-col items-center justify-center pointer-events-none animate-pulse z-50">
+                <p className="text-cyan-700 font-semibold">Drop files here to attach</p>
+              </div>
+            )}
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={cn(
+                'relative flex flex-col border rounded-2xl bg-white shadow-sm transition-all overflow-hidden',
+                isDragging ? 'ring-2 ring-cyan-500 border-transparent' : 'border-gray-200',
+              )}
+            >
+              {/* 1. Attached file chips (Top Section) */}
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 border-b bg-gray-50/50">
+                  {attachedFiles.map((file, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 pl-2 pr-1 py-1 rounded-lg text-xs shadow-sm group">
+                      {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3 text-gray-400" /> : <FileText className="w-3 h-3 text-gray-400" />}
+                      <span className="truncate max-w-[120px] text-gray-700">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={cn(
-                  'relative flex flex-col border rounded-xl bg-white shadow-sm transition-all',
-                  isDragging ? 'ring-2 ring-cyan-500 border-transparent' : 'border-gray-200',
-                )}
-              >
-                {/* Attached file chips */}
-                {attachedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 p-3 border-b bg-gray-50/50">
-                    {attachedFiles.map((file, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 pl-2 pr-1 py-1 rounded-lg text-xs shadow-sm group">
-                        {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3 text-gray-400" /> : <FileText className="w-3 h-3 text-gray-400" />}
-                        <span className="truncate max-w-[120px] text-gray-700">{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(i)}
-                          className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* 2. Textarea Section (Middle Section - Full Width) */}
+              <div className="px-2 pt-2">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask questions or drop a file..."
+                  disabled={isInputDisabled}
+                  className="w-full min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (input.trim() || attachedFiles.length > 0) handleSendMessage();
+                    }
+                  }}
+                />
+              </div>
 
-                {/* Text input + buttons */}
-                <div className="relative flex items-end p-2 gap-2">
+              {/* 3. Action Toolbar (Bottom Section) */}
+              <div className="flex items-center justify-between p-2 mt-1 bg-white">
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 text-gray-500 hover:text-cyan-700 hover:bg-cyan-50"
+                    className="shrink-0 border-0 text-gray-500 hover:text-white hover:bg-teal-600 h-10 w-10 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Paperclip className="w-5 h-5" />
                   </Button>
-
-                  <Textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask questions or drop a file..."
-                    disabled={isInputDisabled}
-                    className="flex-1 min-h-[50px] max-h-[120px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        if (input.trim() || attachedFiles.length > 0) handleSendMessage();
-                      }
-                    }}
-                  />
-
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="icon"
-                    onClick={() => handleSendMessage()}
-                    disabled={isInputDisabled || (!input.trim() && attachedFiles.length === 0)}
-                    className="absolute right-4 top-4 bg-teal-600 hover:bg-teal-700 h-[60px] w-[60px] transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                  
+                  {attachedFiles.length > 0 && (
+                    <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">
+                      {attachedFiles.length} File{attachedFiles.length > 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon"
+                  onClick={() => handleSendMessage()}
+                  disabled={isInputDisabled || (!input.trim() && attachedFiles.length === 0)}
+                  className="shrink-0 bg-teal-600 hover:bg-teal-700 h-10 w-10 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </>

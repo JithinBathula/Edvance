@@ -66,11 +66,13 @@ html {
     --color-amber-600: oklch(.666 .179 58.318);
     --color-amber-700: oklch(.555 .163 48.998);
     --color-cyan-50: oklch(.984 .019 200.873);
-    --color-cyan-100: oklch(.956 .045 203.388);
+    --color-cyan-100: oklch(85.033% 0.02491 203.26);
     --color-cyan-400: oklch(.789 .154 211.53);
     --color-cyan-500: oklch(.715 .143 215.221);
     --color-cyan-600: oklch(.609 .126 221.723);
     --color-cyan-700: oklch(.52 .105 223.128);
+    --color-teal-100: oklch(92.311% 0.01929 189.114);
+    --color-teal-600: oklch(.609 .118 184.704);
     --color-blue-50: #8aaDF3;
     --color-gray-50: oklch(.985 .002 247.839);
     --color-gray-100: oklch(.967 .003 264.542);
@@ -1254,6 +1256,10 @@ ol, ul, menu {
     background-color: var(--color-gray-900);
   }
 
+  .bg-teal-100 {
+    background-color: var(--color-teal-100);
+  }
+
   .bg-input-background {
     background-color: var(--input-background);
   }
@@ -1297,6 +1303,11 @@ ol, ul, menu {
     .hover\:bg-gray-700:hover {
     background-color: var(--color-gray-700);
   }
+
+  .hover\:bg-teal-600:hover {
+    background-color: var(--color-teal-600) /* oklch(60% 0.118 184.704) */;
+  }
+
 
   .hover\:bg-white\/30:hover {
     background-color: #ffffff4d;
