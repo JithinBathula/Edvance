@@ -145,11 +145,37 @@ def get_assignment_detail(assignment_id: str):
 
     classroom = get_classroom_by_id(assignment["classroom_id"])
 
+    # Include template project structure (milestones + tasks)
+    template = get_project_full_detail(assignment["template_project_id"])
+    template_project = None
+    if template:
+        template_project = {
+            "id": template["id"],
+            "title": template.get("title", ""),
+            "vm_type": template.get("vm_type", "python"),
+            "milestones": [
+                {
+                    "title": ms.get("title", ""),
+                    "tasks": [
+                        {
+                            "task_id_slug": t.get("task_id_slug", ""),
+                            "instruction_theory": t.get("instruction_theory"),
+                            "coding_requirements": t.get("coding_requirements"),
+                            "hints": t.get("hints"),
+                        }
+                        for t in ms.get("tasks", [])
+                    ],
+                }
+                for ms in template.get("milestones", [])
+            ],
+        }
+
     return jsonify({
         "success": True,
         "assignment": assignment,
         "classroom_name": classroom.get("name", "") if classroom else "",
         "students": students,
+        "template_project": template_project,
     }), 200
 
 

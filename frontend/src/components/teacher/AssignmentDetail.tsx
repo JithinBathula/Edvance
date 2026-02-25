@@ -5,7 +5,9 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { ArrowLeft, Calendar, Users, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Clock, ChevronDown, ChevronRight, BookOpen, Code, Lightbulb } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { User } from '../../App';
 
@@ -20,6 +22,25 @@ interface Assignment {
   due_date: string | null;
   is_active: boolean;
   created_at: string;
+}
+
+interface TemplateTask {
+  task_id_slug: string;
+  instruction_theory: string | null;
+  coding_requirements: string | string[] | null;
+  hints: string | string[] | null;
+}
+
+interface TemplateMilestone {
+  title: string;
+  tasks: TemplateTask[];
+}
+
+interface TemplateProject {
+  id: string;
+  title: string;
+  vm_type: string;
+  milestones: TemplateMilestone[];
 }
 
 interface StudentProgress {
@@ -42,6 +63,10 @@ export function AssignmentDetail({ user }: AssignmentDetailProps) {
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [classroomName, setClassroomName] = useState('');
   const [students, setStudents] = useState<StudentProgress[]>([]);
+  const [templateProject, setTemplateProject] = useState<TemplateProject | null>(null);
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<number>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchAssignmentDetail();
@@ -57,6 +82,7 @@ export function AssignmentDetail({ user }: AssignmentDetailProps) {
         setAssignment(data.assignment);
         setClassroomName(data.classroom_name);
         setStudents(data.students);
+        setTemplateProject(data.template_project || null);
       } else {
         toast.error('Failed to load assignment');
       }
@@ -113,6 +139,30 @@ export function AssignmentDetail({ user }: AssignmentDetailProps) {
       </div>
     );
   }
+
+  const toggleMilestone = (idx: number) => {
+    setExpandedMilestones(prev => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleTask = (key: string) => {
+    setExpandedTasks(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const toggleSection = (key: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
 
   const notStarted = students.filter(s => s.status === 'not_started').length;
   const inProgress = students.filter(s => s.status === 'in_progress').length;
@@ -238,6 +288,102 @@ export function AssignmentDetail({ user }: AssignmentDetailProps) {
             </Table>
           </CardContent>
         </Card>
+        {/* Template Project Overview */}
+        {templateProject && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Assignment Content — {templateProject.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {templateProject.milestones.map((milestone, mIdx) => (
+                  <div key={mIdx} className="border rounded-lg overflow-hidden">
+                    <button
+                      className="w-full flex items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 text-left font-semibold"
+                      onClick={() => toggleMilestone(mIdx)}
+                    >
+                      {expandedMilestones.has(mIdx) ? (
+                        <ChevronDown className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" />
+                      )}
+                      {milestone.title}
+                      <Badge variant="outline" className="ml-auto">{milestone.tasks.length} tasks</Badge>
+                    </button>
+
+                    {expandedMilestones.has(mIdx) && (
+                      <div className="divide-y">
+                        {milestone.tasks.map((task, tIdx) => {
+                          const taskKey = `${mIdx}-${tIdx}`;
+                          return (
+                            <div key={tIdx} className="px-4">
+                              <button
+                                className="w-full flex items-center gap-2 py-3 text-left text-sm font-medium hover:text-teal-700"
+                                onClick={() => toggleTask(taskKey)}
+                              >
+                                {expandedTasks.has(taskKey) ? (
+                                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                                )}
+                                {task.task_id_slug}
+                              </button>
+
+                              {expandedTasks.has(taskKey) && (
+                                <div className="pb-4 pl-6 space-y-2 text-sm">
+                                  {([
+                                    { key: 'theory', label: 'Theory', icon: <BookOpen className="h-3.5 w-3.5" />, content: task.instruction_theory },
+                                    { key: 'requirements', label: 'Requirements', icon: <Code className="h-3.5 w-3.5" />, content: task.coding_requirements },
+                                    { key: 'hints', label: 'Hints', icon: <Lightbulb className="h-3.5 w-3.5" />, content: task.hints },
+                                  ] as const).filter(s => s.content).map(section => {
+                                    const sectionKey = `${taskKey}-${section.key}`;
+                                    return (
+                                      <div key={section.key} className="border rounded-md overflow-hidden">
+                                        <button
+                                          className="w-full flex items-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-medium text-gray-700"
+                                          onClick={() => toggleSection(sectionKey)}
+                                        >
+                                          {expandedSections.has(sectionKey) ? (
+                                            <ChevronDown className="h-3 w-3 shrink-0" />
+                                          ) : (
+                                            <ChevronRight className="h-3 w-3 shrink-0" />
+                                          )}
+                                          {section.icon}
+                                          {section.label}
+                                        </button>
+                                        {expandedSections.has(sectionKey) && (
+                                          <div className="px-4 py-3 prose prose-sm prose-gray max-w-none prose-headings:mt-5 prose-headings:mb-2 prose-p:my-2 prose-pre:my-3 prose-ul:my-2 prose-ol:my-2">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                              {typeof section.content === 'string'
+                                                ? section.content
+                                                : Array.isArray(section.content)
+                                                  ? (section.content as string[]).map((item, i) => `${i + 1}. ${item}`).join('\n')
+                                                  : JSON.stringify(section.content, null, 2)}
+                                            </ReactMarkdown>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  {!task.instruction_theory && !task.coding_requirements && !task.hints && (
+                                    <p className="text-gray-400 italic">No content for this task</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
