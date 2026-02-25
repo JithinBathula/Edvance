@@ -17,6 +17,7 @@ type Props = {
   userId?: string;
   projectId?: string;
   userCode?: string;
+  getLatestCode?: () => string;
   taskDescription?: string;
   testSpec?: {
     expected_state?: string;
@@ -40,6 +41,7 @@ export function AIChatbot({
   userId,
   projectId,
   userCode,
+  getLatestCode,
   taskDescription,
   testSpec,
   onClose,
@@ -110,7 +112,7 @@ export function AIChatbot({
           message: userMessage,
           task_id: taskId,
           project_id: projectId,
-          code: userCode || '',
+          code: (getLatestCode ? getLatestCode() : userCode) || '',
           history: messages.slice(-10).map(m => ({
             role: m.role,
             content: m.content

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "../App";
 import { authFetch } from "../utils/authFetch";
-import { EditorIDE } from "./EditorIDE";
+import { EditorIDE, type EditorIDEHandle } from "./EditorIDE";
 import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
@@ -341,6 +341,7 @@ export function ProjectWorkspace({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const filesLoaded = useRef(false);
   const lastProjectSignature = useRef<string>('');
+  const editorRef = useRef<EditorIDEHandle>(null);
   const taskListPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Try-out phase state
@@ -474,6 +475,11 @@ export function ProjectWorkspace({
       }, 1000);
     });
   }, []);
+
+  const getLatestCode = useCallback(() => {
+    const files = editorRef.current?.getLatestFiles() ?? projectFiles;
+    return files.map(f => `# === ${f.name} ===\n${f.content || ''}`).join('\n\n');
+  }, [projectFiles]);
 
   const tasks: Task[] = project.tasks || [];
   const totalXpEarned = tasks.length * 10;
@@ -1289,6 +1295,7 @@ export function ProjectWorkspace({
                 </div>
               ) : (
                 <EditorIDE
+                  ref={editorRef}
                   files={projectFiles}
                   onFilesChange={setProjectFiles}
                   onSave={saveFiles}
@@ -1315,6 +1322,7 @@ export function ProjectWorkspace({
                   userId={user.id}
                   projectId={project.id}
                   userCode={projectFiles.map(f => `# === ${f.name} ===\n${f.content || ''}`).join('\n\n')}
+                  getLatestCode={getLatestCode}
                   taskDescription={safeCurrentTask.description}
                   testSpec={safeCurrentTask.testSpec}
                   onClose={() => setIsChatOpen(false)}
