@@ -306,6 +306,11 @@ export function ProjectWorkspace({
   onBack,
   onComplete,
 }: Props) {
+  const SIDEBAR_COLLAPSED_SIZE = 4;
+  const SIDEBAR_DEFAULT_SIZE = 18;
+  const SIDEBAR_MIN_SIZE = 14;
+  const SIDEBAR_MAX_SIZE = 28;
+
   const [filesLoading, setFilesLoading] = useState(true);
   // State for fresh project data from API
   const [project, setProject] = useState(initialProject);
@@ -333,7 +338,7 @@ export function ProjectWorkspace({
   const [showHints, setShowHints] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const filesLoaded = useRef(false);
   const lastProjectSignature = useRef<string>('');
   const taskListPanelRef = useRef<ImperativePanelHandle>(null);
@@ -342,7 +347,7 @@ export function ProjectWorkspace({
   const [isTryOutPhase, setIsTryOutPhase] = useState(false);
 
   // Chat State
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatPrefill, setChatPrefill] = useState<string | null>(null);
 
   // Text selection "Ask Cody" popup — uses refs + direct DOM to avoid re-renders that kill selection
@@ -759,6 +764,18 @@ export function ProjectWorkspace({
     setShowCompletion(true);
   };
 
+  const handleSidebarToggle = useCallback(() => {
+    const panel = taskListPanelRef.current;
+    if (!panel) return;
+
+    if (sidebarCollapsed) {
+      panel.expand();
+      return;
+    }
+
+    panel.collapse();
+  }, [sidebarCollapsed]);
+
   if (showCompletion) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f0fdfa 0%, #fff7ed 50%, #ecfdf5 100%)' }}>
@@ -863,11 +880,11 @@ export function ProjectWorkspace({
           id="task-list"
           order={1}
           ref={taskListPanelRef}
-          defaultSize={15}
-          minSize={3}
-          maxSize={25}
+          defaultSize={SIDEBAR_COLLAPSED_SIZE}
+          minSize={SIDEBAR_MIN_SIZE}
+          maxSize={SIDEBAR_MAX_SIZE}
           collapsible
-          collapsedSize={3}
+          collapsedSize={SIDEBAR_COLLAPSED_SIZE}
           onCollapse={() => setSidebarCollapsed(true)}
           onExpand={() => setSidebarCollapsed(false)}
         >
@@ -875,21 +892,42 @@ export function ProjectWorkspace({
             <div className="px-3 py-3 flex items-center justify-between border-b border-gray-200 bg-white">
               {!sidebarCollapsed && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tasks</span>}
               <button
-                onClick={() => {
-                  const panel = taskListPanelRef.current;
-                  if (panel) {
-                    if (sidebarCollapsed) {
-                      panel.expand();
-                    } else {
-                      panel.collapse();
-                    }
-                  }
-                }}
+                onClick={handleSidebarToggle}
                 className="p-1 hover:bg-gray-100 rounded transition-colors"
               >
                 {sidebarCollapsed ? <PanelLeft className="w-4 h-4 text-gray-500" /> : <PanelLeftClose className="w-4 h-4 text-gray-500" />}
               </button>
             </div>
+            {sidebarCollapsed && (
+              <div className="flex-1 overflow-y-auto py-1">
+                {tasks.map((_task, idx) => {
+                  const accessible = isTaskAccessible(idx);
+                  const isActive = idx === currentTaskIndex && !isTryOutPhase;
+                  const isCompleted = completedTasks.includes(_task.id);
+                  return (
+                    <button
+                      key={_task.id}
+                      disabled={!accessible}
+                      onClick={() => {
+                        if (accessible) {
+                          setCurrentTaskIndex(idx);
+                          setShowHints(false);
+                          setIsTryOutPhase(false);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-center py-1.5 text-[11px] font-semibold rounded transition-colors ${
+                        !accessible ? 'text-gray-300 cursor-not-allowed' :
+                        isActive ? 'text-orange-600 bg-orange-50' :
+                        isCompleted ? 'text-emerald-600' :
+                        'text-gray-500 hover:bg-gray-100 cursor-pointer'
+                      }`}
+                    >
+                      {_task.title.match(/(\d+\.\d+)/)?.[1] || idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {!sidebarCollapsed && (
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2">
@@ -1063,7 +1101,7 @@ export function ProjectWorkspace({
         <ResizableHandle />
 
         {/* Pane 2: Task Details */}
-        <ResizablePanel id="task-details" order={2} defaultSize={isChatOpen ? 25 : 43} minSize={15} maxSize={50}>
+        <ResizablePanel id="task-details" order={2} defaultSize={43} minSize={15} maxSize={50}>
           <div className="h-full overflow-hidden border-r border-gray-200 flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
             <div className="flex-1 overflow-y-auto p-6">
               {isTryOutPhase ? (
@@ -1242,7 +1280,7 @@ export function ProjectWorkspace({
         <ResizableHandle />
 
         {/* Pane 3: IDE */}
-        <ResizablePanel id="ide" order={3} defaultSize={isChatOpen ? 40 : 42} minSize={20}>
+        <ResizablePanel id="ide" order={3} defaultSize={42} minSize={20}>
           <div className="h-full overflow-hidden flex flex-col bg-white">
             <div className="flex-1 p-3">
               {filesLoading ? (

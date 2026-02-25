@@ -712,6 +712,19 @@ def get_classroom_students(classroom_id: str) -> List[Dict[str, Any]]:
     return result.data or []
 
 
+def get_all_classroom_students(classroom_ids: List[str]) -> List[Dict[str, Any]]:
+    """Get all students across multiple classrooms in a single query."""
+    if not classroom_ids:
+        return []
+    result = execute_with_retry(
+        "get_all_classroom_students",
+        lambda: supabase.table("classroom_members").select(
+            "classroom_id, *, users:student_id(id, name, email, xp, onboarding, created_at)"
+        ).in_("classroom_id", classroom_ids).execute(),
+    )
+    return result.data or []
+
+
 def get_classroom_student_count(classroom_id: str) -> int:
     """Get student count for a classroom."""
     result = execute_with_retry(
@@ -870,35 +883,25 @@ def get_total_tasks_for_projects(project_ids: List[str]) -> Dict[str, int]:
     """
     Get the true total task count for each project by joining
     projects → milestones → tasks.  Returns {project_id: task_count}.
+    Uses a single query with nested select to avoid sequential round-trips.
     """
     if not project_ids:
         return {}
     milestones_result = execute_with_retry(
-        "get_total_tasks_for_projects.milestones",
+        "get_total_tasks_for_projects",
         lambda: supabase.table("milestones").select(
-            "id, project_id"
+            "id, project_id, tasks(id)"
         ).in_("project_id", project_ids).execute(),
     )
     milestones = milestones_result.data or []
     if not milestones:
         return {}
 
-    milestone_to_project = {m['id']: m['project_id'] for m in milestones}
-    milestone_ids = list(milestone_to_project.keys())
-
-    tasks_result = execute_with_retry(
-        "get_total_tasks_for_projects.tasks",
-        lambda: supabase.table("tasks").select(
-            "id, milestone_id"
-        ).in_("milestone_id", milestone_ids).execute(),
-    )
-    tasks = tasks_result.data or []
-
     counts: Dict[str, int] = {}
-    for t in tasks:
-        pid = milestone_to_project.get(t['milestone_id'])
-        if pid:
-            counts[pid] = counts.get(pid, 0) + 1
+    for m in milestones:
+        pid = m['project_id']
+        task_count = len(m.get('tasks') or [])
+        counts[pid] = counts.get(pid, 0) + task_count
     return counts
 
 

@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Sparkles, Rocket, Zap, Terminal, ArrowRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { HeroSectionProps } from './types';
@@ -67,6 +67,43 @@ function CodyMascot({ size = 48 }: { size?: number }) {
 }
 
 function HeroVisual() {
+  const [activeResponse, setActiveResponse] = useState<'none' | 'explain' | 'hint'>('none');
+  const [streamedResponse, setStreamedResponse] = useState('');
+  const responseId = useId();
+  const responseContent =
+    activeResponse === 'explain'
+      ? 'This error happens because Python needs commas between list items. In your list, the numbers run together without separators, so Python cannot parse it as a valid list.'
+      : activeResponse === 'hint'
+        ? 'Check what character should go between each number in a Python list. It appears after each item except the last one.'
+        : '';
+
+  useEffect(() => {
+    if (activeResponse === 'none') {
+      setStreamedResponse('');
+      return;
+    }
+
+    setStreamedResponse('');
+    let i = 0;
+    const timer = window.setInterval(() => {
+      i += 1;
+      setStreamedResponse(responseContent.slice(0, i));
+      if (i >= responseContent.length) {
+        window.clearInterval(timer);
+      }
+    }, 14);
+
+    return () => window.clearInterval(timer);
+  }, [activeResponse, responseContent]);
+
+  const handleExplainClick = () => {
+    setActiveResponse((prev) => (prev === 'explain' ? 'none' : 'explain'));
+  };
+
+  const handleHintClick = () => {
+    setActiveResponse((prev) => (prev === 'hint' ? 'none' : 'hint'));
+  };
+
   return (
     <div className="relative w-full">
       <div className="absolute -inset-6 bg-gradient-to-r from-red-400/10 to-teal-400/15 rounded-3xl blur-3xl" />
@@ -140,27 +177,54 @@ function HeroVisual() {
               >
                 Take a look at <span className="font-semibold text-teal-700">line 12</span> - the error says &quot;invalid syntax.&quot; What do you think is missing between those numbers in the list?
               </motion.p>
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                transition={{ delay: 3.3, duration: 0.4 }}
-                className="mt-2.5 bg-slate-50 rounded-lg px-3 py-2 text-xs text-slate-500 italic border border-slate-100"
-              >
-                Hint: Python lists separate items with a specific character...
-              </motion.div>
+              <AnimatePresence initial={false}>
+                {activeResponse !== 'none' && (
+                  <motion.div
+                    id={responseId}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="mt-2.5 bg-slate-50 rounded-lg px-3 py-2 text-xs text-slate-500 italic border border-slate-100 overflow-hidden"
+                  >
+                    {activeResponse === 'explain' ? 'Explanation: ' : 'Hint: '}
+                    {streamedResponse}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 3.8, duration: 0.4 }}
-                className="mt-3 flex gap-2"
+                className="mt-3 flex flex-wrap gap-2"
               >
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500 text-white text-xs font-medium cursor-default shadow-sm">
+                <button
+                  type="button"
+                  onClick={handleExplainClick}
+                  aria-pressed={activeResponse === 'explain'}
+                  aria-controls={responseId}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 ${
+                    activeResponse === 'explain'
+                      ? 'bg-teal-500 text-white shadow-sm'
+                      : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                  }`}
+                >
                   <Zap className="w-3 h-3" />
                   Explain this error
-                </span>
-                <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium cursor-default">
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHintClick}
+                  aria-pressed={activeResponse === 'hint'}
+                  aria-controls={responseId}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 ${
+                    activeResponse === 'hint'
+                      ? 'bg-slate-700 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
                   Give me a hint
-                </span>
+                </button>
               </motion.div>
             </div>
           </div>
