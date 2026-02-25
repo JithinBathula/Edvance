@@ -4,6 +4,7 @@ All endpoints require teacher role.
 """
 import csv
 import io
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, g, Response
 
@@ -13,6 +14,7 @@ from db.supabase_client import (
     get_teacher_classrooms,
     get_classroom_by_id,
     get_classroom_students,
+    get_all_classroom_students,
     get_classroom_student_count,
     deactivate_classroom,
     regenerate_classroom_join_code,
@@ -104,13 +106,18 @@ def update_settings():
 @require_teacher
 def get_dashboard():
     classrooms = get_teacher_classrooms(g.user_id)
+    classroom_ids = [c['id'] for c in classrooms]
+
+    # ── Single bulk query replaces N per-classroom queries ──
+    all_members = get_all_classroom_students(classroom_ids)
+    members_by_classroom = _group_by(all_members, 'classroom_id')
 
     total_students = 0
     classroom_summaries = []
     all_student_ids = []
 
     for c in classrooms:
-        students = get_classroom_students(c['id'])
+        students = members_by_classroom.get(c['id'], [])
         count = len(students)
         total_students += count
 
@@ -131,14 +138,26 @@ def get_dashboard():
     unique_student_ids = list(set(all_student_ids))
     seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
 
-    # ── Bulk fetch all progress and projects ──
-    all_progress = get_bulk_student_progress(unique_student_ids)
-    all_projects = get_bulk_student_projects(unique_student_ids)
+    # ── Parallel bulk fetch: progress, projects, and activity feeds ──
+    results = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(get_bulk_student_progress, unique_student_ids): 'progress',
+            executor.submit(get_bulk_student_projects, unique_student_ids): 'projects',
+            executor.submit(get_students_recent_activity, unique_student_ids, 10): 'completions',
+            executor.submit(get_students_recent_activity_all, unique_student_ids, 10): 'starts',
+            executor.submit(get_students_recent_projects, unique_student_ids, 10): 'recent_projects',
+        }
+        for future in as_completed(futures):
+            results[futures[future]] = future.result()
+
+    all_progress = results['progress']
+    all_projects = results['projects']
 
     progress_by_user = _group_by(all_progress, 'user_id')
     projects_by_user = _group_by(all_projects, 'user_id')
 
-    # Get true task counts for all projects
+    # Get true task counts (uses single nested query internally)
     all_project_ids = [p['id'] for p in all_projects]
     project_task_counts = get_total_tasks_for_projects(all_project_ids)
 
@@ -165,14 +184,10 @@ def get_dashboard():
 
     avg_completion = round(sum(completion_rates) / len(completion_rates), 1) if completion_rates else 0
 
-    # ── Expanded activity feed ──
-    recent_completions = get_students_recent_activity(unique_student_ids, limit=10)
-    recent_starts = get_students_recent_activity_all(unique_student_ids, limit=10)
-    recent_projects = get_students_recent_projects(unique_student_ids, limit=10)
-
+    # ── Build activity feed from parallel results ──
     activity_items = []
 
-    for a in recent_completions:
+    for a in results['completions']:
         activity_items.append({
             'student_name': a.get('users', {}).get('name', 'Unknown'),
             'action': 'completed_task',
@@ -180,7 +195,7 @@ def get_dashboard():
             'timestamp': a.get('completed_at'),
         })
 
-    for a in recent_starts:
+    for a in results['starts']:
         if a.get('status') == 'in_progress' and a.get('started_at'):
             activity_items.append({
                 'student_name': a.get('users', {}).get('name', 'Unknown'),
@@ -189,7 +204,7 @@ def get_dashboard():
                 'timestamp': a.get('started_at'),
             })
 
-    for p in recent_projects:
+    for p in results['recent_projects']:
         activity_items.append({
             'student_name': p.get('users', {}).get('name', 'Unknown'),
             'action': 'started_project',

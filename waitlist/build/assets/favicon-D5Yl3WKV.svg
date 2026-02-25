@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Bottom-left block -->
+  <rect x="4" y="38" width="18" height="18" rx="3" fill="#5AB4C5"/>
+  <rect x="4" y="38" width="18" height="6" rx="3" fill="#3A9DB0"/>
+
+  <!-- Bottom-right block -->
+  <rect x="24" y="38" width="18" height="18" rx="3" fill="#F5C542"/>
+  <rect x="24" y="38" width="18" height="6" rx="3" fill="#E0AD2B"/>
+
+  <!-- Middle-right block -->
+  <rect x="24" y="20" width="18" height="18" rx="3" fill="#5DBB57"/>
+  <rect x="24" y="20" width="18" height="6" rx="3" fill="#45A03F"/>
+
+  <!-- Top block -->
+  <rect x="44" y="20" width="18" height="18" rx="3" fill="#3A9DB0"/>
+  <rect x="44" y="20" width="18" height="6" rx="3" fill="#2B8799"/>
+
+  <!-- Top-top block with graduation cap -->
+  <rect x="44" y="2" width="18" height="18" rx="3" fill="#1B5E6B"/>
+  <rect x="44" y="2" width="18" height="6" rx="3" fill="#134E4A"/>
+
+  <!-- Bottom-far-right block -->
+  <rect x="44" y="38" width="18" height="18" rx="3" fill="#F5C542"/>
+  <rect x="44" y="38" width="18" height="6" rx="3" fill="#E0AD2B"/>
+
+  <!-- Code braces -->
+  <text x="53" y="16" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#cffafe">{_}</text>
+</svg>

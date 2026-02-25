@@ -44,6 +44,7 @@ export type User = {
   completedProjects: string[];
   projects?: string[];
   role: 'student' | 'teacher';
+  isAdmin?: boolean;
   profilePictureUrl?: string;
 };
 

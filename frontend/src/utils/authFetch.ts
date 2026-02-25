@@ -27,8 +27,7 @@ export async function authFetch(path: string, options: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${_accessToken}`)
   }
 
-  // Always set Content-Type for POST/PUT/PATCH requests with body
-  if (options.body && !headers.has('Content-Type')) {
+  if (!headers.has('Content-Type') && options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
 

@@ -3,7 +3,7 @@ import { User } from '../App';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,12 +11,25 @@ import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
 import { cn } from './ui/utils';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from './ui/alert-dialog';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface FileAttachment {
+  name: string;
+  type: string;
+  url: string;        // object URL – always set for click-to-open
+  isImage: boolean;
+}
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'tool';
   content: string;
+  attachments?: FileAttachment[];
 }
 
 type Props = {
@@ -26,7 +39,72 @@ type Props = {
   embedded?: boolean;
 };
 
-// Helper function to generate technical prompt
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const VALID_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain', 'text/x-python', 'application/javascript'];
+const VALID_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.txt', '.py', '.js'];
+
+const MARKDOWN_COMPONENTS = {
+  p: ({ children }: any) => <p className="mb-4 last:mb-0 leading-relaxed whitespace-pre-wrap">{children}</p>,
+  ul: ({ children }: any) => <ul className="list-disc list-outside ml-6 mb-4 space-y-1.5">{children}</ul>,
+  ol: ({ children }: any) => <ol className="list-decimal list-outside ml-6 mb-4 space-y-1.5">{children}</ol>,
+  li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+  strong: ({ children }: any) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }: any) => <em className="italic">{children}</em>,
+  code: ({ inline, children, ...props }: any) =>
+    inline ? (
+      <code className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>{children}</code>
+    ) : (
+      <code className="block bg-gray-900 text-gray-100 p-3 rounded text-sm font-mono overflow-x-auto mb-4" {...props}>{children}</code>
+    ),
+  h1: ({ children }: any) => <h1 className="text-2xl font-bold mb-3 mt-6 first:mt-0">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-xl font-bold mb-3 mt-5 first:mt-0">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0">{children}</h3>,
+  blockquote: ({ children }: any) => <blockquote className="border-l-4 border-teal-500 pl-4 italic my-4">{children}</blockquote>,
+  br: () => <br className="my-2" />,
+};
+
+const LEVEL_LABELS: Record<string, string> = {
+  'level-1': 'Level 1 (Basics)',
+  'level-2': 'Level 2 (Conditions)',
+  'level-3': 'Level 3 (Loops)',
+  'level-4': 'Level 4 (Functions & Data)',
+  'level-5': 'Level 5 (Advanced)',
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function buildUserProfile(user: User) {
+  return {
+    educationLevel: user.onboarding?.educationLevel || 'primary',
+    schoolExperience: user.onboarding?.schoolExperience || 'beginner',
+    pythonLevel: user.onboarding?.pythonLevel || 'level-1',
+    biggestChallenges: user.onboarding?.biggestChallenges || 'planning',
+    learningMode: user.onboarding?.learningMode || 'guided',
+  };
+}
+
+function cleanStreamContent(raw: string): string {
+  let clean = raw.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '  ');
+  clean = clean.replace(/([^\n])\n(\s*[\*\-\d+\.])/g, '$1\n\n$2');
+  if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1);
+  return clean;
+}
+
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB 
+
+function isValidFile(file: File): boolean {
+  if (file.size > MAX_FILE_SIZE) {
+    toast.error(`${file.name} is too large (max 100MB)`);
+    return false;
+  }
+  return VALID_MIME_TYPES.includes(file.type) || VALID_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+}
+
+function filterValidFiles(files: File[]): File[] {
+  return files.filter(isValidFile);
+}
+
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
   console.log("[System] Generating prompt to pass to LLM from user answers:", answers);
   const { startPath, description, timeline } = answers;
@@ -47,68 +125,45 @@ const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
     **Student Choices:**
     ${descriptionLine}
     - **Timeline:** ${timeline}
-    `;
+  `;
 
-    console.log("[System] Generated system prompt:", prompt);
-    return prompt;
-};
+  console.log("[System] Generated system prompt:", prompt);
+  return prompt;
+}
 
-// Helper function to handle stream
-async function streamChatResponse(
-  payload: any,
-  onChunk: (text: string) => void,
-  onDone: () => void,
-  onError: (err: string) => void
-) {
-  try {
-    const response = await authFetch('/chat/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+/** Read an SSE stream and fire callbacks for content / handoff / done. */
+async function readSSEStream(
+  response: Response,
+  onContent: (content: string) => void,
+  onHandoff: () => void,
+): Promise<void> {
+  if (!response.ok || !response.body) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
 
-    if (!response.ok || !response.body) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let finished = false;
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let streamFinished = false;
+  while (!finished) {
+    const { value, done } = await reader.read();
+    if (done) break;
 
-    while (!streamFinished) {
-      const { value, done } = await reader.read();
-      if (done) {
-        streamFinished = true;
-        break;
-      }
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const dataString = line.substring(6);
-            const data = JSON.parse(dataString);
-
-            onChunk(data);
-
-            if (data.done) {
-              streamFinished = true;
-            }
-          } catch (e) {
-            console.error("Failed to parse JSON chunk:", e, line);
-          }
-        }
+    for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const data = JSON.parse(line.substring(6));
+        if (data.content) onContent(data.content);
+        if (data.handoff) onHandoff();
+        if (data.done) finished = true;
+      } catch {
+        // skip malformed chunks
       }
     }
-
-    onDone();
-  } catch (error) {
-    console.error("Chat streaming error:", error);
-    onError("Connection failed. Please ensure the backend is running.");
   }
 }
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: Props) {
   const [input, setInput] = useState('');
@@ -116,150 +171,204 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingHandoff, setIsProcessingHandoff] = useState(false);
   const [isInitializingAI, setIsInitializingAI] = useState(false);
-
-  const hasInitializedChat = useRef<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const [currentStep, setCurrentStep] = useState(0);
   const [guidingAnswers, setGuidingAnswers] = useState<Record<string, string | string[]>>({});
-
   const [chatSessionId, setChatSessionId] = useState(crypto.randomUUID());
-  const [isRestartOpen, setIsRestartOpen] = useState(false); 
+  const [isRestartOpen, setIsRestartOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
+  // --- Refs ---
+  const hasInitializedChat = useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 1. Initialization 
+  // --- Derived ---
+  const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
+  const currentQuestion = GUIDING_QUESTIONS[currentStep];
+  const isInputDisabled = isLoading || isInitializingAI || isProcessingHandoff || (isGuidingPhase && !currentQuestion?.inputType);
+  const userProfile = buildUserProfile(user);
+
+  // ─── Effects ─────────────────────────────────────────────────────────────────
+
+  // Initialise welcome messages
   useEffect(() => {
     if (hasInitializedChat.current === chatSessionId) return;
     hasInitializedChat.current = chatSessionId;
 
-    console.log("Chat Initialized for session:", chatSessionId);
-                    
     if (messages.length === 0) {
-      // Map pythonLevel to friendly display text
-      const levelLabels: Record<string, string> = {
-        'level-1': 'Level 1 (Basics)',
-        'level-2': 'Level 2 (Conditions)',
-        'level-3': 'Level 3 (Loops)',
-        'level-4': 'Level 4 (Functions & Data)',
-        'level-5': 'Level 5 (Advanced)',
-      };
-      const skillLevel = levelLabels[user.onboarding?.pythonLevel || ''] || 'beginner';
-    
-    setMessages([
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: `Hi ${user.name}! 👋 I'm here to help you create a custom project tailored to your **${skillLevel}** skill level. Let's start with a few questions to scope your project first!`,
-      },
-      {
-        id: 'q1',
-        role: 'assistant',
-        content: GUIDING_QUESTIONS[0].text,
-      },
-    ]);
-  }
-} 
-,[user.name, user.onboarding?.pythonLevel, messages.length, chatSessionId]);
-  
+      const skillLevel = LEVEL_LABELS[user.onboarding?.pythonLevel || ''] || 'beginner';
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'assistant',
+          content: `Hi ${user.name}! 👋 I'm here to help you create a custom project tailored to your **${skillLevel}** skill level. Let's start with a few questions to scope your project first!`,
+        },
+        { id: 'q1', role: 'assistant', content: GUIDING_QUESTIONS[0].text },
+      ]);
+    }
+  }, [user.name, user.onboarding?.pythonLevel, messages.length, chatSessionId]);
 
-  // 2. Auto-scroll
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading, currentStep]);
 
-  // 3. Handle chat (main loop)
-  const handleSendMessage = useCallback(async (systemPrompt?: string, options: {skipUserBubble?: boolean} = {}) => {
-    const textToBackend = typeof systemPrompt === 'string' ? systemPrompt : input.trim();
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    }
+  }, [input]);
 
-    if (!textToBackend || isLoading) return;
+  // Revoke object URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      messages.forEach(msg =>
+        msg.attachments?.forEach(att => {
+          URL.revokeObjectURL(att.url);
+        }),
+      );
+    };
+  }, []);
+
+  // ─── File handlers ───────────────────────────────────────────────────────────
+
+  const addValidFiles = useCallback((files: File[]) => {
+    const valid = filterValidFiles(files);
+    if (valid.length > 0) {
+      setAttachedFiles(prev => [...prev, ...valid]);
+      toast.success(`Added ${valid.length} file${valid.length > 1 ? 's' : ''}`);
+    } else if (files.length > 0) {
+      toast.error('No valid files. Accepted: images, PDFs, .txt, .py, .js');
+    }
+  }, []);
+
+  const removeFile = useCallback((index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    addValidFiles(Array.from(e.dataTransfer.files));
+  }, [addValidFiles]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addValidFiles(Array.from(e.target.files));
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [addValidFiles]);
+
+  // ─── Stream response helper ──────────────────────────────────────────────────
+
+  /** Shared callback that appends streamed content to the assistant message. */
+  const makeStreamHandlers = useCallback((assistantId: string) => {
+    const onContent = (content: string) => {
+      setMessages(prev => prev.map(msg => {
+        if (msg.id !== assistantId) return msg;
+        return { ...msg, content: cleanStreamContent((msg.content || '') + content) };
+      }));
+    };
+    const onHandoff = () => triggerHandoff();
+    const onDone = () => { setIsLoading(false); setIsInitializingAI(false); };
+    const onError = () => { setIsLoading(false); setIsInitializingAI(false); toast.error('Connection error'); };
+    return { onContent, onHandoff, onDone, onError };
+  }, []);
+
+  // ─── Send message ────────────────────────────────────────────────────────────
+
+  const handleSendMessage = useCallback(async (systemPrompt?: string, options: { skipUserBubble?: boolean } = {}) => {
+    const textToBackend = typeof systemPrompt === 'string' ? systemPrompt : input.trim();
+    const hasFiles = attachedFiles.length > 0;
+
+    if ((!textToBackend && !hasFiles) || isLoading) return;
 
     setInput('');
     setIsLoading(true);
-    
-    console.group("[Chat] handleSendMessage Triggered");
-    console.log("Current Guiding Answers State:", guidingAnswers);
-    console.log("Sending to Backend:", textToBackend);
-  
+
+    const filesToSend = [...attachedFiles];
+    setAttachedFiles([]);
+
+    // Show user bubble
     if (!options.skipUserBubble) {
-      const newUserMessage: ChatMessage = {
+      const attachments: FileAttachment[] = filesToSend.map(f => ({
+        name: f.name,
+        type: f.type,
+        url: URL.createObjectURL(f),
+        isImage: f.type.startsWith('image/'),
+      }));
+      setMessages(prev => [...prev, {
         id: Date.now().toString() + '-user',
         role: 'user',
-        content: textToBackend, 
-      };
-      setMessages(prev => [...prev, newUserMessage]);
+        content: textToBackend || '',
+        attachments: attachments.length > 0 ? attachments : undefined,
+      }]);
     }
 
+    // Placeholder assistant message
     const assistantId = Date.now().toString() + '-assistant';
     setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
 
     const history = messages.map(m => ({ role: m.role, content: m.content }));
-    
-    await streamChatResponse(
-      {
-        message: textToBackend,
-        history: history,
-        session_id: chatSessionId,
-        user_profile: {
-          educationLevel: user.onboarding?.educationLevel || 'primary',
-          schoolExperience: user.onboarding?.schoolExperience || 'beginner',
-          pythonLevel: user.onboarding?.pythonLevel || 'level-1',
-          biggestChallenges: user.onboarding?.biggestChallenges || 'planning',
-          learningMode: user.onboarding?.learningMode || 'guided',
-        },
-        guiding_complete: !!options.skipUserBubble,      
-      },
-      (data: any) => { 
-      
-      // 1. Handle Text Content - cleaning data from streaming
-      if (data.content) {
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === assistantId) {
-            let updatedContent = (msg.content || '') + data.content;
+    const { onContent, onHandoff, onDone, onError } = makeStreamHandlers(assistantId);
 
-            // Convert literal escaped strings to real characters
-            let clean = updatedContent
-              .replace(/\\n/g, '\n') 
-              .replace(/\\"/g, '"')
-              .replace(/\\t/g, '  ');
+    try {
+      let response: Response;
 
-            // Markdown List 
-            // Ensure there is a newline before any bullet point or numbered list 
-            // if it follows text, otherwise it won't trigger the list parser.
-            clean = clean.replace(/([^\n])\n(\s*[\*\-\d+\.])/g, '$1\n\n$2');
+      if (filesToSend.length > 0) {
+        // Multipart — file upload
+        const formData = new FormData();
+        formData.append('message', textToBackend || 'Attached files');
+        formData.append('history', JSON.stringify(history));
+        formData.append('session_id', chatSessionId);
+        formData.append('user_profile', JSON.stringify(userProfile));
+        formData.append('guiding_complete', String(!!options.skipUserBubble));
+        filesToSend.forEach(file => formData.append('files', file));
 
-            // Strip wrapping quotes if the whole message is wrapped
-            if (clean.startsWith('"') && clean.endsWith('"')) {
-              clean = clean.slice(1, -1);
-            }
-
-            return { ...msg, content: clean };
-          }
-          return msg;
-        }));
+        response = await authFetch('/chat/', { method: 'POST', body: formData });
+      } else {
+        // JSON — text only
+        response = await authFetch('/chat/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: textToBackend,
+            history,
+            session_id: chatSessionId,
+            user_profile: userProfile,
+            guiding_complete: !!options.skipUserBubble,
+          }),
+        });
       }
 
-      // 2. Handle Backend-Driven Handoff Trigger
-      if (data.handoff && data.session_data) {
-        console.log("[Handoff] Backend signaled ready. Data received:", data.session_data);
-        triggerHandoff(data.session_data);
-      }
-    },
-      () => {
-        console.log("[Chat] Stream Finished");
-        setIsLoading(false);
-        setIsInitializingAI(false);
-      },
-      (err) => {
-        console.error("[Chat] Stream Error:", err);
-        setIsLoading(false);
-        setIsInitializingAI(false);
-        toast.error("Connection error");
-      }
-    );
-    console.groupEnd();
-  }, [isLoading, messages, user, guidingAnswers, chatSessionId]);
+      await readSSEStream(response, onContent, onHandoff);
+      onDone();
+    } catch (error) {
+      console.error('[Chat] Stream Error:', error);
+      onError();
+    }
+  }, [isLoading, messages, user, chatSessionId, attachedFiles, input, makeStreamHandlers, userProfile]);
 
-  // 4. Helper to proceed to next step
+  // ─── Guiding questions ───────────────────────────────────────────────────────
+
   const proceedToNextStep = (answers: Record<string, string | string[]>, userVisual: string) => {
     let nextStep = currentStep + 1;
 
@@ -269,11 +378,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
     }
 
     setCurrentStep(nextStep);
-
-    // update chat UI: add user answer
     setMessages(prev => [...prev, { id: `ans-${currentStep}`, role: 'user', content: userVisual }]);
 
-    // add next guiding question or proceed to chat llm
     if (nextStep < GUIDING_QUESTIONS.length) {
       setTimeout(() => {
         setMessages(prev => [...prev, {
@@ -289,7 +395,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
     }
   };
 
-  // 5. Handle Guiding Phase Selections (all single-select or text input)
   const handleGuidingStep = (value: string, label?: string) => {
     const currentQ = GUIDING_QUESTIONS[currentStep];
 
@@ -303,90 +408,56 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded }: 
     console.groupEnd();
   };
 
-  // 7. Handoff to Planning Phase
-  const triggerHandoff = async (backendSessionData: any) => {
-    console.log("[Handoff] Triggering project planning handoff...");
+  // ─── Handoff ─────────────────────────────────────────────────────────────────
+
+  const triggerHandoff = async () => {
+    console.log('Triggering handoff');
+
     if (isProcessingHandoff) return;
     setIsProcessingHandoff(true);
 
     setTimeout(async () => {
       try {
+        // Fetch the canonical/validated session data from the backend
         const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
         const reqJson = await reqRes.json();
-        if (!reqRes.ok || reqJson.status !== 'success') throw new Error("Failed to get requirements");
+        if (!reqRes.ok || reqJson.status !== 'success') throw new Error('Failed to get requirements');
 
         const sessionData = reqJson.requirements.session_data;
-        const userProfile = {
-              educationLevel: user.onboarding?.educationLevel || 'primary',
-              schoolExperience: user.onboarding?.schoolExperience || 'none',
-              pythonLevel: user.onboarding?.pythonLevel || 'level-1',
-              biggestChallenges: user.onboarding?.biggestChallenges || [],
-              learningMode: user.onboarding?.learningMode || 'guided',
-        };
 
-        const outlineRes = await fetch(`${BACKEND_URL}/planning/outline`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              session: backendSessionData,
-              user_profile: userProfile,
-            }),
+        const outlineRes = await authFetch('/planning/outline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session: sessionData, user_profile: userProfile }),
         });
-
         const outlineJson = await outlineRes.json();
 
-        onProjectCreated({
-            session: backendSessionData,
-            outline: outlineJson,
-            userProfile,
-        });
-
+        toast.success('Plan Created!');
+        onProjectCreated({ session: sessionData, outline: outlineJson, userProfile });
       } catch (e) {
         console.error(e);
-        toast.error("Failed to generate plan");
+        toast.error('Failed to generate plan');
         setIsProcessingHandoff(false);
       }
     }, 2000);
   };
 
+  // ─── Restart ─────────────────────────────────────────────────────────────────
+
   const handleRestart = useCallback(() => {
-  try {
     setMessages([]);
     setCurrentStep(0);
     setGuidingAnswers({});
     setInput('');
-
+    setAttachedFiles([]);
     const newId = crypto.randomUUID();
     setChatSessionId(newId);
-    console.log("[Chat] Restarted session. New session ID:", newId);
-
-    hasInitializedChat.current = null; 
-      
-    toast.success("Session reset!");
+    hasInitializedChat.current = null;
+    toast.success('Session reset!');
     setIsRestartOpen(false);
-    console.log("[Chat] Restart confirmed by user.");
-  } catch (err) {
-    console.error("Failed to reset session:", err);
-    setIsRestartOpen(false);
-  }
-}, [setChatSessionId, setMessages, setCurrentStep, setGuidingAnswers, setInput, setIsRestartOpen]);
+  }, []);
 
-  // --- Render ---
-  const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
-  const currentQuestion = GUIDING_QUESTIONS[currentStep];
-  const isInputDisabled = isLoading || isInitializingAI || isProcessingHandoff || (isGuidingPhase && !currentQuestion.inputType);
-
-  // ... inside your component
-const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-// This effect adjusts the height of the textarea based on content
-useEffect(() => {
-  const textarea = textareaRef.current;
-  if (textarea) {
-    textarea.style.height = "auto"; // Reset height to recalculate
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`; // Set to scrollHeight up to max
-  }
-}, [input]); // Runs every time 'input' changes
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   const chatContent = (
     <>
@@ -403,103 +474,54 @@ useEffect(() => {
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
-                
-                <Card className={`p-4 max-w-[85%] rounded-2xl ${msg.role === 'user' ? 'bg-teal-600 text-white border-0 shadow-sm' : 'bg-white/90 border-slate-100 shadow-sm'}`}>
-  
-                  <div className={cn(
-                    "prose prose-sm max-w-none break-words",
-                    msg.role === 'user' 
-                      ? "prose-invert" 
-                      : "prose-gray"
-                  )}>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        // Paragraphs with spacing
-                        p: ({ children }) => (
-                          <p className="mb-4 last:mb-0 leading-relaxed whitespace-pre-wrap">
-                            {children}
-                          </p>
+              
+                <Card className={cn(
+                  'p-4 max-w-[85%] rounded-2xl',
+                  msg.role === 'user'
+                    ? msg.attachments?.length
+                      ? 'bg-transparent border-0 shadow-none'
+                      : 'bg-teal-600 text-white border-0 shadow-sm'
+                    : 'bg-white/90 border-slate-100 shadow-sm',
+                )}>
+                  {/* File attachment previews */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="flex flex-col gap-3 mb-3">
+                      {msg.attachments.map((att, i) =>
+                        att.isImage ? (
+                          <div key={i} className="w-fit">
+                            <a href={att.url} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={att.url}
+                              alt={att.name}
+                              className="max-h-[300px] max-w-[300px] rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            />
+                            </a>
+                          </div>
+                        ) : (
+                          <a
+                            key={i}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex w-fit h-fit items-center border-2 gap-3 bg-white/80 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-white/30 hover:text-teal-600 transition-colors cursor-pointer no-underline"
+                          >
+                            <FileText className="flex flex-col leading-tight pr-2 text-teal" />
+                            <span className="font-medium truncate max-w-[180px]">{att.name}</span>
+                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                              {att.name.split('.').pop()}
+                            </span>
+                          </a>
                         ),
-
-                        // Unordered lists 
-                        ul: ({ children }) => (
-                          <ul className="list-disc list-outside ml-6 mb-4 space-y-1.5">
-                            {children}
-                          </ul>
-                        ),
-
-                        // Ordered lists 
-                        ol: ({ children }) => (
-                          <ol className="list-decimal list-outside ml-6 mb-4 space-y-1.5">
-                            {children}
-                          </ol>
-                        ),
-
-                        // List items
-                        li: ({ children }) => (
-                          <li className="leading-relaxed">{children}</li>
-                        ),
-
-                        // Bold text
-                        strong: ({ children }) => (
-                          <strong className="font-semibold">{children}</strong>
-                        ),
-
-                        // Italic text
-                        em: ({ children }) => (
-                          <em className="italic">{children}</em>
-                        ),
-
-                        // Inline code
-                        code: ({ inline, children, ...props }: any) =>
-                          inline ? (
-                            <code 
-                              className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono"
-                              {...props}
-                            >
-                              {children}
-                            </code>
-                          ) : (
-                            <code 
-                              className="block bg-gray-900 text-gray-100 p-3 rounded text-sm font-mono overflow-x-auto mb-4"
-                              {...props}
-                            >
-                              {children}
-                            </code>
-                          ),
-
-                        // Headings
-                        h1: ({ children }) => (
-                          <h1 className="text-2xl font-bold mb-3 mt-6 first:mt-0">
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-xl font-bold mb-3 mt-5 first:mt-0">
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0">
-                            {children}
-                          </h3>
-                        ),
-
-                        // Blockquotes
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-teal-500 pl-4 italic my-4">
-                            {children}
-                          </blockquote>
-                        ),
-
-                        // Line breaks
-                        br: () => <br className="my-2" />,
-                      }}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
-                  </div>
+                      )}
+                    </div>
+                  )}
+                  {msg.content && (
+                    <div className={cn('prose prose-sm max-w-none break-words', msg.role === 'user' ? 'prose-invert' : 'prose-gray')}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </Card>
 
                 {msg.role === 'user' && (
@@ -508,11 +530,11 @@ useEffect(() => {
                   </div>
                 )}
               </div>
-            )
+            );
           })}
 
-          {/* Loading Indicator */}
-          {(isLoading || isInitializingAI) && !isProcessingHandoff && (            
+          {/* Loading indicator */}
+          {(isLoading || isInitializingAI) && !isProcessingHandoff && (
             <div className="flex gap-4">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-sm">
                   <Bot className="w-5 h-5 text-white" />
@@ -529,8 +551,8 @@ useEffect(() => {
                 </Card>
               </div>
           )}
-          
-          {/* Handoff Spinner */}
+
+          {/* Handoff spinner */}
           {isProcessingHandoff && (
             <div className="flex flex-col items-center justify-center py-10 gap-4 animate-in fade-in">
               <div className="relative w-14 h-14">
@@ -578,24 +600,22 @@ useEffect(() => {
                   ))}
                 </div>
               ) : (
-                // Render Text Input
                 <div className="relative w-full flex items-end">
                   <Textarea
-                    className="w-full min-h-[60px] max-h-[120px] resize-none pr-16 pb-14 pt-4 break-words overflow-y-auto" 
+                    ref={textareaRef}
+                    className="w-full min-h-[60px] max-h-[120px] resize-none pr-16 pb-14 pt-4 break-words overflow-y-auto"
                     placeholder={currentQuestion.placeholder}
                     value={input}
                     disabled={isInputDisabled}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
-                      // common chat behavior: Enter sends, Shift+Enter makes newline
-                      if (e.key === "Enter" && !e.shiftKey) {
+                      if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         if (input.trim()) handleGuidingStep(input.trim());
                       }
                     }}
                     autoFocus
                   />
-
                   <Button
                     type="button"
                     variant="default"
@@ -611,28 +631,104 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Normal Chat Input */}
-          {!isGuidingPhase && !isProcessingHandoff && (
-            <div className="relative w-full">
-               <Textarea
-                 value={input}
-                 onChange={e => setInput(e.target.value)}
-                 placeholder="Ask questions or refine the idea..."
-                 disabled={isInputDisabled}
-                className="w-full min-h-[50px] max-h-[120px] resize-none pr-14" 
-                 onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(input); }}}
-               />
-               <Button 
-                variant="default"
-                size= "icon"
-                 onClick={() => handleSendMessage(input)} 
-                 disabled={isInputDisabled || !input.trim()}
-                className="absolute right-4 top-4 bg-teal-600 hover:bg-teal-700 h-[60px] w-[60px] transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
-               >
-                 <Send className="w-4 h-4" />
-               </Button>
+          {/* Free-chat phase with drag-and-drop */}
+        {!isGuidingPhase && !isProcessingHandoff && (
+          <div className="w-full relative px-4 pb-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={VALID_EXTENSIONS.join(',')}
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+
+            {isDragging && (
+              <div className="absolute inset-0 bg-teal-100 bg-opacity-50 border-4 border-dashed border-teal-600 rounded-lg flex flex-col items-center justify-center pointer-events-none animate-pulse z-50">
+                <p className="text-cyan-700 font-semibold">Drop files here to attach</p>
+              </div>
+            )}
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={cn(
+                'relative flex flex-col border rounded-2xl bg-white shadow-sm transition-all overflow-hidden',
+                isDragging ? 'ring-2 ring-cyan-500 border-transparent' : 'border-gray-200',
+              )}
+            >
+              {/* 1. Attached file chips (Top Section) */}
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 border-b bg-gray-50/50">
+                  {attachedFiles.map((file, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 pl-2 pr-1 py-1 rounded-lg text-xs shadow-sm group">
+                      {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3 text-gray-400" /> : <FileText className="w-3 h-3 text-gray-400" />}
+                      <span className="truncate max-w-[120px] text-gray-700">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 2. Textarea Section (Middle Section - Full Width) */}
+              <div className="px-2 pt-2">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask questions or drop a file..."
+                  disabled={isInputDisabled}
+                  className="w-full min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (input.trim() || attachedFiles.length > 0) handleSendMessage();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* 3. Action Toolbar (Bottom Section) */}
+              <div className="flex items-center justify-between p-2 mt-1 bg-white">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 border-0 text-gray-500 hover:text-white hover:bg-teal-600 h-10 w-10 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </Button>
+                  
+                  {attachedFiles.length > 0 && (
+                    <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">
+                      {attachedFiles.length} File{attachedFiles.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon"
+                  onClick={() => handleSendMessage()}
+                  disabled={isInputDisabled || (!input.trim() && attachedFiles.length === 0)}
+                  className="shrink-0 bg-teal-600 hover:bg-teal-700 h-10 w-10 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </>
