@@ -8,6 +8,7 @@
  * NOTE: Vite creates this as a module worker ({ type: 'module' }),
  * so importScripts() is NOT available. We use dynamic import() instead.
  */
+import { openaiShimCode } from './openaimod';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -72,10 +73,13 @@ async function loadPyodideRuntime(): Promise<any> {
     await pyodide.loadPackage('micropip');
     await pyodide.runPythonAsync(`
 import micropip
-await micropip.install(['pyodide-http', 'requests', 'openai'])
+await micropip.install(['pyodide-http', 'requests'])
 import pyodide_http
 pyodide_http.patch_all()
 `);
+
+// Inject fake openai module that uses requests instead of httpx
+await pyodide.runPythonAsync(openaiShimCode);
 
     postStatus('ready');
     return pyodide;
@@ -250,9 +254,11 @@ if '' not in sys.path:
 `);
     // Inject auth token as environment variable for AI proxy access
     if (authToken) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       await py.runPythonAsync(`
       import os
       os.environ['AUTH_TOKEN'] = '''${authToken}'''
+      os.environ['PROXY_URL'] = '''${apiUrl}'''
       `);
           }
 
