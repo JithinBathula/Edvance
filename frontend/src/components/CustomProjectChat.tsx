@@ -759,7 +759,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   return (
     <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(to bottom right, #cffafe, #f0fdfa, #fef3c7)' }}>
       {/* Header */}
-      <header className="border-b border-slate-100 bg-white/80 backdrop-blur-sm px-4 py-3 flex items-center gap-4 flex-shrink-0">
+      <header className="border-b border-slate-100 bg-white/95 px-4 py-3 flex items-center gap-4 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="w-5 h-5 pointer-events-auto cursor-pointer" />
         </Button>

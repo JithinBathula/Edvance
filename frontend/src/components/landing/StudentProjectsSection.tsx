@@ -117,7 +117,7 @@ export function StudentProjectsSection() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: i * 0.08, duration: 0.55, ease: LANDING_EASE }}
             whileHover={{ y: -6 }}
-            className="flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-[transform,box-shadow,opacity] duration-300 group cursor-default transform-gpu [will-change:transform] [backface-visibility:hidden]"
+            className="flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-[transform,box-shadow,opacity] duration-300 group cursor-default transform-gpu [backface-visibility:hidden] hover:[will-change:transform]"
           >
             <div className="h-[200px] bg-slate-100 overflow-hidden">
               <img

@@ -60,7 +60,7 @@ export function FeaturesSection() {
                 variants={staggerItem}
                 whileHover={{ y: -6 }}
                 transition={{ duration: 0.24 }}
-                className={`group relative overflow-hidden bg-white rounded-2xl border border-gray-100 ${c.border} p-7 hover:shadow-xl hover:shadow-gray-100/80 transition-[transform,box-shadow,border-color,opacity] duration-300 cursor-default transform-gpu [will-change:transform] [backface-visibility:hidden]`}
+                className={`group relative overflow-hidden bg-white rounded-2xl border border-gray-100 ${c.border} p-7 hover:shadow-xl hover:shadow-gray-100/80 transition-[transform,box-shadow,border-color,opacity] duration-300 cursor-default transform-gpu [backface-visibility:hidden] hover:[will-change:transform]`}
               >
                 <div className={`absolute top-0 right-0 w-32 h-32 ${c.bg} rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300`} />
                 <div className="relative">

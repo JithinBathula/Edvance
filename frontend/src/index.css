@@ -2434,23 +2434,26 @@ body {
   color: var(--foreground);
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+@keyframes shimmer-slide {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
 .gradient-border-active {
   padding: 5px;
   background: linear-gradient(135deg, #ff8f05, #fcd34d, #fef3c7);
-  background-size: 200% 200%;
-  animation: shimmer 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-border-active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  animation: shimmer-slide 2s ease-in-out infinite;
+  transform: translateX(-100%);
 }
 
 /* ============================================

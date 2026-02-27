@@ -84,16 +84,24 @@ function HeroVisual() {
     }
 
     setStreamedResponse('');
-    let i = 0;
-    const timer = window.setInterval(() => {
-      i += 1;
-      setStreamedResponse(responseContent.slice(0, i));
-      if (i >= responseContent.length) {
-        window.clearInterval(timer);
-      }
-    }, 14);
+    let startTime: number | null = null;
+    let rafId: number;
+    const charsPerSecond = 71; // matches original ~14ms per char
 
-    return () => window.clearInterval(timer);
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const charIndex = Math.min(
+        Math.floor(((timestamp - startTime) * charsPerSecond) / 1000),
+        responseContent.length
+      );
+      setStreamedResponse(responseContent.slice(0, charIndex));
+      if (charIndex < responseContent.length) {
+        rafId = requestAnimationFrame(step);
+      }
+    };
+    rafId = requestAnimationFrame(step);
+
+    return () => cancelAnimationFrame(rafId);
   }, [activeResponse, responseContent]);
 
   const handleExplainClick = () => {
@@ -244,8 +252,7 @@ export function HeroSection({ user }: HeroSectionProps) {
   const prefersReducedMotion = useReducedMotion();
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
-  const bgY = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? 0 : 90]);
-  const textY = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? 0 : 45]);
+  const textY = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? 0 : 20]);
 
   const floatingTokens = [
     { text: '{ }', className: 'hidden lg:block text-teal-600/25 text-4xl top-[10%] left-[5%]', delay: 0 },
@@ -253,35 +260,33 @@ export function HeroSection({ user }: HeroSectionProps) {
     { text: 'def', className: 'hidden lg:block text-teal-700/20 text-2xl bottom-[32%] left-[3%]', delay: 0.8 },
     { text: '=>', className: 'hidden lg:block text-teal-500/20 text-3xl bottom-[15%] right-[5%]', delay: 2 },
     { text: '( )', className: 'hidden xl:block text-amber-500/18 text-2xl top-[52%] left-[10%]', delay: 1.2 },
-    { text: '[ ]', className: 'hidden md:block text-teal-600/22 text-3xl top-[6%] right-[20%]', delay: 0.5 },
-    { text: 'print', className: 'hidden xl:block text-teal-700/15 text-xl bottom-[22%] right-[28%]', delay: 1.8 },
-    { text: '#', className: 'hidden lg:block text-teal-500/20 text-4xl top-[40%] left-[2%]', delay: 0.3 },
-    { text: 'if', className: 'hidden md:block text-amber-600/18 text-2xl top-[70%] left-[8%]', delay: 2.5 },
-    { text: 'return', className: 'hidden xl:block text-teal-700/15 text-lg top-[75%] right-[35%]', delay: 3.2 },
   ];
 
   return (
     <section ref={ref} className="relative min-h-screen flex items-center overflow-hidden">
-      <motion.div style={{ y: bgY }} className="absolute inset-0 transform-gpu">
+      <div className="absolute inset-0">
         <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #cffafe 0%, #f0fdfa 35%, #ffffff 60%, #fef3c7 100%)' }} />
-      </motion.div>
+      </div>
 
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #0d9488 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
       <motion.div
-        animate={prefersReducedMotion ? undefined : { y: [0, -14, 0], opacity: [0.18, 0.25, 0.18] }}
+        animate={prefersReducedMotion ? undefined : { opacity: [0.18, 0.25, 0.18] }}
         transition={prefersReducedMotion ? undefined : { duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-0 -left-40 w-[460px] h-[460px] bg-teal-400/16 rounded-full blur-[72px]"
+        className="absolute top-0 -left-40 w-[460px] h-[460px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(45,212,191,0.16) 0%, rgba(45,212,191,0) 70%)' }}
       />
       <motion.div
-        animate={prefersReducedMotion ? undefined : { y: [0, 12, 0], opacity: [0.12, 0.2, 0.12] }}
+        animate={prefersReducedMotion ? undefined : { opacity: [0.12, 0.2, 0.12] }}
         transition={prefersReducedMotion ? undefined : { duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-        className="absolute -bottom-20 -right-40 w-[520px] h-[520px] bg-amber-300/12 rounded-full blur-[72px]"
+        className="absolute -bottom-20 -right-40 w-[520px] h-[520px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(252,211,77,0.12) 0%, rgba(252,211,77,0) 70%)' }}
       />
       <motion.div
-        animate={prefersReducedMotion ? undefined : { y: [0, -10, 0], opacity: [0.1, 0.16, 0.1] }}
+        animate={prefersReducedMotion ? undefined : { opacity: [0.1, 0.16, 0.1] }}
         transition={prefersReducedMotion ? undefined : { duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        className="absolute top-1/3 right-1/4 w-[360px] h-[360px] bg-teal-500/8 rounded-full blur-[56px]"
+        className="absolute top-1/3 right-1/4 w-[360px] h-[360px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(20,184,166,0.08) 0%, rgba(20,184,166,0) 70%)' }}
       />
 
       {!prefersReducedMotion &&

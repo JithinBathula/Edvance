@@ -436,12 +436,11 @@ export function ProjectWorkspace({
   const triggerCelebrationConfetti = useCallback(() => {
     import('canvas-confetti').then((confetti) => {
       const brandColors = ['#0d9488', '#14b8a6', '#ffa200', '#f59e0b', '#10b981'];
-      // Continuous side confetti for 4 seconds
-      const duration = 4000;
+      const duration = 2000;
       const end = Date.now() + duration;
       const frame = () => {
         confetti.default({
-          particleCount: 3,
+          particleCount: 2,
           angle: 60,
           spread: 55,
           origin: { x: 0, y: 0.6 },
@@ -449,7 +448,7 @@ export function ProjectWorkspace({
           zIndex: 9999,
         });
         confetti.default({
-          particleCount: 3,
+          particleCount: 2,
           angle: 120,
           spread: 55,
           origin: { x: 1, y: 0.6 },
@@ -460,19 +459,12 @@ export function ProjectWorkspace({
       };
       frame();
 
-      // Three staggered large bursts
       setTimeout(() => {
-        confetti.default({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: brandColors, zIndex: 9999 });
+        confetti.default({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: brandColors, zIndex: 9999 });
       }, 0);
       setTimeout(() => {
-        confetti.default({ particleCount: 100, spread: 120, origin: { y: 0.5 }, colors: brandColors, zIndex: 9999 });
+        confetti.default({ particleCount: 80, spread: 120, origin: { y: 0.5 }, colors: brandColors, zIndex: 9999 });
       }, 500);
-      setTimeout(() => {
-        confetti.default({
-          particleCount: 60, spread: 160, origin: { y: 0.4 }, colors: brandColors, zIndex: 9999,
-          shapes: ['star'], scalar: 1.2,
-        });
-      }, 1000);
     });
   }, []);
 
@@ -530,12 +522,19 @@ export function ProjectWorkspace({
 
   // Track Window Resize for Chat Width
   useEffect(() => {
+    let rafId: number | null = null;
     const handleResize = () => {
-      setIsLargeScreen(window.innerWidth > 1200);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        setIsLargeScreen(window.innerWidth > 1200);
+        rafId = null;
+      });
     };
-
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // Fetch fresh project data on mount
@@ -788,7 +787,7 @@ export function ProjectWorkspace({
         <Card className="max-w-2xl w-full p-12 text-center bg-white/90 backdrop-blur shadow-xl border-0">
           {/* Trophy with animated glow */}
           <div className="relative w-24 h-24 mx-auto mb-8">
-            <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'linear-gradient(135deg, #0d9488, #ffa200)' }} />
+            <div className="absolute inset-0 rounded-full animate-pulse opacity-20" style={{ background: 'linear-gradient(135deg, #0d9488, #ffa200)' }} />
             <div className="relative w-24 h-24 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0d9488, #ffa200)' }}>
               <Trophy className="w-12 h-12 text-white" />
             </div>
@@ -846,7 +845,7 @@ export function ProjectWorkspace({
   return (
     <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)' }}>
       {/* Header */}
-      <header className="border-b border-slate-100 bg-white/80 backdrop-blur-sm px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-10">
+      <header className="border-b border-slate-100 bg-white/95 px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="flex items-center gap-2 text-teal-600 hover:text-teal-700 transition-colors">
             <ArrowLeft className="w-5 h-5" />
