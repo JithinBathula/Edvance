@@ -18,7 +18,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://loc
 CORS(app,
      resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
      supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+     allow_headers=["*"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Register all API blueprints
