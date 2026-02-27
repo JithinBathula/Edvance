@@ -258,7 +258,7 @@ if '' not in sys.path:
       await py.runPythonAsync(`
       import os
       os.environ['AUTH_TOKEN'] = '''${authToken}'''
-      os.environ['PROXY_URL'] = '''${apiUrl}'''
+      os.environ['BASE_URL'] = '''${apiUrl}'''
       `);
           }
 

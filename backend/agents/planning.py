@@ -166,7 +166,7 @@ class CurriculumPlanner:
                     milestone_position=milestone_position,
                     subheading_title=milestone.subheading_title,
                     description=milestone.description,
-                    proxy_url = os.getenv("PROXY_URL", "http://localhost:8000")
+                    base_url = os.getenv("BASE_URL", "http://localhost:8000")
                 ),
             },
         ]

@@ -18,12 +18,14 @@ def _create_openai_module():
             self.choices = choices
 
     class _Completions:
+        def __init__(self, base_url, api_key):
+            self.base_url = base_url
+            self.api_key = api_key
+
         def create(self, model="gemini-model", messages=None, **kwargs):
-            token = _os.environ.get("AUTH_TOKEN", "")
-            proxy_url = _os.environ.get("PROXY_URL", "http://localhost:8000")
             resp = _req.post(
-                f"{proxy_url}/api/proxy/v1/chat/completions",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                f"{self.base_url}/api/proxy/v1/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                 json={"model": model, "messages": messages or []}
             )
             data = resp.json()
@@ -40,12 +42,16 @@ def _create_openai_module():
             return _ChatResponse(choices)
 
     class _Chat:
-        def __init__(self):
-            self.completions = _Completions()
+        def __init__(self, base_url, api_key):
+            self.completions = _Completions(base_url, api_key)
 
     class OpenAI:
-        def __init__(self, **kwargs):
-            self.chat = _Chat()
+        def __init__(self, base_url = None, api_key = None, **kwargs):
+            if not base_url: 
+                raise ValueError("Missing base_url. It should be OpenAI(base_url, api_key).")
+            if not api_key:
+                raise ValueError("Missing api_key. It should be OpenAI(base_url, api_key).")
+            self.chat = _Chat(base_url, api_key)
 
     mod = _types.ModuleType("openai")
     mod.OpenAI = OpenAI

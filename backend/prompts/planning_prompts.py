@@ -101,7 +101,8 @@ THE LEARNING ENVIRONMENT:
 ```python
       from openai import OpenAI
       token = os.environ.get("AUTH_TOKEN")
-      client = OpenAI(base_url="{proxy_url}/api/proxy/v1", api_key=token)
+      base_url = os.environ.get("BASE_URL")
+      client = OpenAI(base_url=base_url, api_key=token)
       response = client.chat.completions.create(model="gemini-model", messages=[...])```
   The proxy handles auth via their login token and routes to Gemini behind the scenes.
   The openai package is already pre-installed in the browser IDE — no pip install needed.
@@ -149,12 +150,15 @@ Requirements: {requirements}
 Tech Stack: {tech_stack}
 
 AI PROXY (if this project uses AI/LLM features):
-The student has access to an OpenAI-compatible proxy at: {proxy_url}/api/proxy/v1
+The student has access to an OpenAI-compatible proxy at: {base_url}
 They do NOT need their own API key. Include this setup in the first AI-related task:
-  from openai import OpenAI
-  token = os.environ.get("AUTH_TOKEN")
-  client = OpenAI(base_url="{proxy_url}/api/proxy/v1", api_key=token)
-  response = client.chat.completions.create(
+```python
+   import os
+   from openai import OpenAI
+   token = os.environ.get("AUTH_TOKEN")
+   base_url = os.environ.get("BASE_URL")
+   client = OpenAI(base_url=base_url, api_key=token)
+   response = client.chat.completions.create(
       model="gemini-model",
       messages=[{{"role": "user", "content": "Hello!"}}]
   )
