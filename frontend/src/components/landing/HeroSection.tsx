@@ -260,6 +260,12 @@ export function HeroSection({ user }: HeroSectionProps) {
     { text: 'def', className: 'hidden lg:block text-teal-700/20 text-2xl bottom-[32%] left-[3%]', delay: 0.8 },
     { text: '=>', className: 'hidden lg:block text-teal-500/20 text-3xl bottom-[15%] right-[5%]', delay: 2 },
     { text: '( )', className: 'hidden xl:block text-amber-500/18 text-2xl top-[52%] left-[10%]', delay: 1.2 },
+    { text: '[ ]', className: 'hidden md:block text-teal-600/22 text-3xl top-[6%] right-[20%]', delay: 0.5 },
+    { text: 'print', className: 'hidden xl:block text-teal-700/15 text-xl bottom-[22%] right-[28%]', delay: 1.8 },
+    { text: '#', className: 'hidden lg:block text-teal-500/20 text-4xl top-[40%] left-[2%]', delay: 0.3 },
+    { text: 'if', className: 'hidden md:block text-amber-600/18 text-2xl top-[70%] left-[8%]', delay: 2.5 },
+    { text: 'return', className: 'hidden xl:block text-teal-700/15 text-lg top-[75%] right-[35%]', delay: 3.2 },
+
   ];
 
   return (
