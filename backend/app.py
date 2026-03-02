@@ -41,3 +41,5 @@ if __name__ == '__main__':
     print(f"Starting Edvance Backend on port {port}")
     print(f"Debug mode: {debug}")
     app.run(host='0.0.0.0', port=port, debug=debug)
+
+# testing ci-cd pipeline for staging
