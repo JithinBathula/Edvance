@@ -1,4 +1,4 @@
-name : Deploy Backend to EC2    #Name shown in Github Actions tab
+name : Deploy Staging Backend to EC2    #Name shown in Github Actions tab
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to EC2
+    name: Deploy Staging to EC2
     runs-on: ubuntu-latest      # Github spins up a fresh Ubuntu VM to run this
 
     steps:
@@ -21,7 +21,7 @@ jobs:
           key : ${{ secrets.EC2_SSH_KEY_STAGING }}
           script: |
             cd ~/backend
-            git pull origin main
+            git pull origin staging
             docker build -t edvance-backend .
             docker stop edvance-backend || true
             docker rm edvance-backend || true
