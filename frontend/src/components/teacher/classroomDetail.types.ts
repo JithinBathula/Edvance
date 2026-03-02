@@ -44,12 +44,6 @@ export interface Analytics {
     avg_xp_per_student: number;
     most_popular_vm: string;
   };
-  students_needing_help: Array<{
-    student_name: string;
-    days_inactive: number;
-    stuck_on_task: string;
-    reason?: string;
-  }>;
   assignment_analytics: Array<{
     id: string;
     title: string;

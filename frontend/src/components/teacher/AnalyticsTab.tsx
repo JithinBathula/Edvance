@@ -1,6 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Star, Target, AlertCircle, CheckCircle2, Users, MessageSquare } from 'lucide-react';
+import { Star, Target, CheckCircle2, Users, MessageSquare } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -17,13 +16,6 @@ import type { Analytics } from './classroomDetail.types';
 interface AnalyticsTabProps {
   analytics: Analytics | null;
 }
-
-const REASON_LABELS: Record<string, string> = {
-  inactive_5_days: '5+ days inactive',
-  low_completion: 'Low progress',
-  started_never_completed: 'Stuck on first task',
-  no_activity: 'Never started',
-};
 
 export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
   if (!analytics) {
@@ -46,45 +38,6 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Students Needing Help Alert */}
-      {analytics.students_needing_help.length > 0 && analytics.assignment_analytics.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900">
-              <AlertCircle className="h-5 w-5" />
-              Students Needing Help
-            </CardTitle>
-            <CardDescription className="text-amber-700">
-              These students may be stuck or disengaged
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {analytics.students_needing_help.map((student, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white border border-amber-200 rounded-lg p-4 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-semibold text-gray-900">{student.student_name}</p>
-                    <p className="text-sm text-gray-600">
-                      Stuck on: {student.stuck_on_task}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                    {student.reason && REASON_LABELS[student.reason]
-                      ? REASON_LABELS[student.reason]
-                      : student.days_inactive === -1
-                        ? 'No activity'
-                        : `${student.days_inactive}d inactive`}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Metric Cards — all 4 slots filled */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>

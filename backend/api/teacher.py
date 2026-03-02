@@ -471,7 +471,6 @@ def get_classroom_analytics(classroom_id: str):
     buckets = {'0-25': 0, '25-50': 0, '50-75': 0, '75-100': 0}
     leaderboard = []
     daily_activity = {}
-    students_needing_help = []
     total_started = 0
     total_completed_projects = 0
     total_tasks_completed = 0
@@ -539,59 +538,6 @@ def get_classroom_analytics(classroom_id: str):
                 hours = (end_dt - start_dt).total_seconds() / 3600
                 if 0 < hours < 100:
                     all_task_times.append(hours)
-
-        # ── Improved "students needing help" detection ──
-        last_dates = [p['completed_at'] for p in completed if p.get('completed_at')]
-
-        # Get stuck task name (prefer in_progress tasks)
-        stuck_task = ''
-        if in_progress_tasks:
-            stuck_task = in_progress_tasks[0].get('tasks', {}).get('task_id_slug', '')
-
-        if last_dates:
-            last_dt = _parse_datetime(max(last_dates))
-            if last_dt:
-                days_inactive = (now.replace(tzinfo=last_dt.tzinfo) - last_dt).days if last_dt.tzinfo else (now - last_dt).days
-                if days_inactive >= 5:
-                    students_needing_help.append({
-                        'student_name': user.get('name', 'Unknown'),
-                        'days_inactive': days_inactive,
-                        'stuck_on_task': stuck_task or 'Inactive',
-                        'reason': 'inactive_5_days',
-                    })
-                elif rate < 25 and days_inactive >= 3 and len(completed) > 0:
-                    # Low completion rate and stalling
-                    students_needing_help.append({
-                        'student_name': user.get('name', 'Unknown'),
-                        'days_inactive': days_inactive,
-                        'stuck_on_task': stuck_task or 'Low progress',
-                        'reason': 'low_completion',
-                    })
-        elif in_progress_tasks and len(completed) == 0:
-            # Started tasks but never completed any
-            oldest_start = None
-            for ip in in_progress_tasks:
-                start_dt = _parse_datetime(ip.get('started_at'))
-                if start_dt and (oldest_start is None or start_dt < oldest_start):
-                    oldest_start = start_dt
-            days_stuck = 0
-            if oldest_start:
-                days_stuck = (now.replace(tzinfo=oldest_start.tzinfo) - oldest_start).days if oldest_start.tzinfo else (now - oldest_start).days
-            if days_stuck >= 5:
-                students_needing_help.append({
-                    'student_name': user.get('name', 'Unknown'),
-                    'days_inactive': days_stuck,
-                    'stuck_on_task': stuck_task or 'Never completed a task',
-                    'reason': 'started_never_completed',
-                })
-        elif true_total == 0 and len(progress) == 0:
-            # Never started any task
-            students_needing_help.append({
-                'student_name': user.get('name', 'Unknown'),
-                'days_inactive': -1,
-                'stuck_on_task': 'No tasks started',
-                'reason': 'no_activity',
-            })
 
     # Sort leaderboard by XP descending
     leaderboard.sort(key=lambda x: x['xp'], reverse=True)
@@ -706,7 +652,6 @@ def get_classroom_analytics(classroom_id: str):
             'avg_xp_per_student': round(sum(s['xp'] for s in leaderboard) / len(leaderboard), 1) if leaderboard else 0,
             'most_popular_vm': most_popular_vm,
         },
-        'students_needing_help': students_needing_help,
         'total_tasks_completed': total_tasks_completed,
         'active_students_7d': active_students_7d,
         'assignment_analytics': assignment_analytics,
