@@ -264,7 +264,6 @@ export default function App() {
   };
 
   const handleRequirementsReady = (data: any) => {
-    console.log("Requirements ready:", data);
     const outlineVmType = data?.outline?.vm_type || data?.outline?.vmType;
     const requirements = {
       session: data.session || data.session_data,
@@ -278,7 +277,6 @@ export default function App() {
   };
 
   const handleProjectReady = (project: any) => {
-    console.log("Project ready:", project);
     setCurrentProject(project);
     localStorage.setItem('edvance_current_project', JSON.stringify(project));
     navigate("/project");

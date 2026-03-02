@@ -408,9 +408,6 @@ export function ProjectWorkspace({
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, []);
 
-  // Screen Size State (Default to true/large)
-  const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth > 1200);
-
   // Submission gate state
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
@@ -520,23 +517,6 @@ export function ProjectWorkspace({
     localStorage.setItem(`edvance_project_${initialProject.id}_completed_tasks`, JSON.stringify(completedTasks));
   }, [completedTasks, initialProject.id]);
 
-  // Track Window Resize for Chat Width
-  useEffect(() => {
-    let rafId: number | null = null;
-    const handleResize = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        setIsLargeScreen(window.innerWidth > 1200);
-        rafId = null;
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, []);
-
   // Fetch fresh project data on mount
   useEffect(() => {
     const fetchProject = async () => {
@@ -567,7 +547,6 @@ export function ProjectWorkspace({
           const data = await response.json();
           
           if (data.success && data.completed_tasks?.length > 0) {
-            console.log('✅ Hydrated from DB:', data.completed_tasks);
             setCompletedTasks(data.completed_tasks);
           }
         } catch (error) {
@@ -732,7 +711,6 @@ export function ProjectWorkspace({
             tasks: updatedTasks,
           });
 
-          console.log('✅ Next task updated with adapted content');
         }
 
         setSuccessFeedback(data.feedback || 'Great job! Task completed.');

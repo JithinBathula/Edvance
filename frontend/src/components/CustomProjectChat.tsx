@@ -107,7 +107,6 @@ function filterValidFiles(files: File[]): File[] {
 }
 
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
-  console.log("[System] Generating prompt to pass to LLM from user answers:", answers);
   const { startPath, description, timeline } = answers;
 
   const pathLabel = startPath === 'have_idea'
@@ -128,7 +127,6 @@ const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
     - **Timeline:** ${timeline}
   `;
 
-  console.log("[System] Generated system prompt:", prompt);
   return prompt;
 }
 
@@ -397,7 +395,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
         }]);
       }, 500);
     } else {
-      console.log("[Guiding] Phase Complete! Initiating Chat LLM...");
       const systemPrompt = generateSystemPrompt(answers);
       handleSendMessage(systemPrompt, { skipUserBubble: true });
     }
@@ -419,8 +416,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   // ─── Handoff ─────────────────────────────────────────────────────────────────
 
   const triggerHandoff = async () => {
-    console.log('Triggering handoff');
-
     if (isProcessingHandoff) return;
     setIsProcessingHandoff(true);
 
