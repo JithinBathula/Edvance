@@ -16,7 +16,9 @@ IMPORTANT — Keep it real:
 - Do NOT pad simple projects with unnecessary complexity like argparse, extensive exception handling, unit testing frameworks, or CLI argument parsing
 - Error handling is fine as PART of a milestone, but never dedicate an ENTIRE milestone to just error handling or input validation
 - The student is coding in a web-based IDE (like a browser code editor) — there are NO installations, NO pip install, NO terminal setup. Just code and run.
+- If the project involves AI/LLM features (chatbot, story generator, AI tutor, etc.), the platform provides a built-in AI proxy. Students use the pre-installed openai Python SDK to make real AI calls — no API key needed. So AI-powered projects are fully supported. Design milestones that USE the AI API, not rule-based alternatives.
 
+  
 Return only valid JSON following the schema.
 """
 
@@ -94,6 +96,16 @@ THE LEARNING ENVIRONMENT:
 - There is NO terminal setup, NO installations, NO pip install — just write code and run it
 - An AI mascot called Cody is available on the side if they get stuck
 - When done, they click "Complete & Continue" to submit their code and move to the next task
+- If the project involves AI/LLM features, the platform provides a built-in API proxy. Students use the OpenAI Python SDK pointed at the platform's proxy - no API keys needed. 
+  Setup code they should use:
+```python
+      from openai import OpenAI
+      token = os.environ.get("AUTH_TOKEN")
+      base_url = os.environ.get("BASE_URL")
+      client = OpenAI(base_url=base_url, api_key=token)
+      response = client.chat.completions.create(model="gemini-model", messages=[...])```
+  The proxy handles auth via their login token and routes to Gemini behind the scenes.
+  The openai package is already pre-installed in the browser IDE — no pip install needed.
 
 YOUR TEACHING APPROACH — "Learn, Try, Do":
 For each task, you follow this structure in the instruction_theory field:
@@ -136,6 +148,23 @@ Title: {project_title}
 Brief: {project_brief}
 Requirements: {requirements}
 Tech Stack: {tech_stack}
+
+AI PROXY (if this project uses AI/LLM features):
+The student has access to an OpenAI-compatible proxy at: {base_url}
+They do NOT need their own API key. Include this setup in the first AI-related task:
+```python
+   import os
+   from openai import OpenAI
+   token = os.environ.get("AUTH_TOKEN")
+   base_url = os.environ.get("BASE_URL")
+   client = OpenAI(base_url=base_url, api_key=token)
+   response = client.chat.completions.create(
+      model="gemini-model",
+      messages=[{{"role": "user", "content": "Hello!"}}]
+  )
+  print(response.choices[0].message.content)
+If the project does NOT use AI features, ignore this section entirely.
+
 
 STUDENT PROFILE:
 {user_profile}
