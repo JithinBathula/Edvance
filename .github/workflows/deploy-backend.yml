@@ -3,7 +3,7 @@ name : Deploy Backend to EC2    #Name shown in Github Actions tab
 on:
   push:
     branches:
-      - main
+      - staging
     paths:
       - 'backend/**'
 
