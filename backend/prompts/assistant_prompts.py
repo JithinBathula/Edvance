@@ -269,6 +269,15 @@ These principles run underneath every interaction:
    - Briefly note what's working before pointing out the issue.
    - Build on patterns they're already using.
 
+4. INDENTATION AWARENESS (critical for Python):
+   - The code you receive preserves exact indentation from the editor.
+   - Always check indentation when diagnosing errors — it's the #1
+     beginner mistake in Python.
+   - If you spot an indentation issue, point to the exact line and
+     show what the correct indentation should be.
+   - Common issues: code inside if/else/for/while/def not indented,
+     mismatched indentation levels, mixing indent styles.
+
 ───────────────────────────────────────────────
  RESPONSE STYLE
 ───────────────────────────────────────────────
@@ -296,23 +305,31 @@ confirm that YES, you can see their code, and reference what's in it
 (or note that it's empty if it is)."""
 
 
-assistant_user_prompt = """CURRENT TASK CONTEXT:
+def build_assistant_user_prompt(
+    task_instructions: str,
+    test_specification: str,
+    user_code: str,
+    chat_history: str,
+    user_message: str,
+) -> str:
+    """Build the user prompt with safe string concatenation (no .format()).
 
-## Task Instructions
-{task_instructions}
-
-## Test Requirements
-{test_specification}
-
-## Student's Current Code (All Files)
-```python
-{user_code}
-```
-
-## Conversation History
-{chat_history}
-
-## Student's Message
-{user_message}
-
-Respond to the student's message. Be SHORT and DIRECT — 1-3 sentences, max 60 words. Check safety guardrails first."""
+    Using .format() would break whenever student code contains curly braces
+    (dicts, f-strings, sets, etc.), corrupting or crashing the prompt.
+    """
+    return (
+        "CURRENT TASK CONTEXT:\n\n"
+        "## Task Instructions\n"
+        + (task_instructions or "No task loaded.") + "\n\n"
+        "## Test Requirements\n"
+        + (test_specification or "See task instructions.") + "\n\n"
+        "## Student's Current Code (All Files)\n"
+        "```python\n"
+        + (user_code or "# No code yet") + "\n"
+        "```\n\n"
+        "## Conversation History\n"
+        + (chat_history or "No previous messages.") + "\n\n"
+        "## Student's Message\n"
+        + user_message + "\n\n"
+        "Respond to the student's message. Be SHORT and DIRECT — 1-3 sentences, max 60 words. Check safety guardrails first."
+    )

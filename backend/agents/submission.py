@@ -82,11 +82,11 @@ class SubmissionEvaluator:
             {"role": "system", "content": prompts.submission_system_prompt},
             {
                 "role": "user",
-                "content": prompts.submission_user_prompt.format(
+                "content": prompts.build_submission_user_prompt(
                     task_instructions=task_instructions,
                     coding_requirements=coding_req_text,
                     test_specification=test_spec_text,
-                    user_code=user_code or "# No code submitted"
+                    user_code=user_code,
                 )
             }
         ]
