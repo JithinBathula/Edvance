@@ -8,6 +8,7 @@ from api.middleware import require_auth
 from agents.assistant import AssistantAgent
 from db.supabase_client import (
     get_task_by_id,
+    get_milestone_by_id,
     get_project_by_id,
     save_chat_message,
     get_chat_history,
@@ -45,10 +46,24 @@ def chat():
 
     try:
 
-        # Save user message to database
+        # Fetch task context if task_id provided (done first so task_number is available when saving)
+        task_instructions = ''
+        test_specification = {}
+        task_number = None
+
+        if task_id:
+            task = get_task_by_id(task_id)
+            if task:
+                task_instructions = task.get('instruction_theory', '')
+                test_specification = task.get('test_specification', {})
+                milestone = get_milestone_by_id(task.get('milestone_id', ''))
+                if milestone and task.get('position') is not None:
+                    task_number = f"{milestone.get('position')}.{task.get('position')}"
+
+        # Save user message to database (with task_number so teachers can see which task was asked about)
         if project_id:
             try:
-                save_chat_message(user_id, project_id, 'user', message)
+                save_chat_message(user_id, project_id, 'user', message, task_number=task_number)
             except Exception as save_err:
                 print(f"Warning: Failed to save user message: {save_err}")
 
@@ -63,16 +78,6 @@ def chat():
                         f"# === {f['name']} ===\n{f.get('content', '')}"
                         for f in files
                     )
-
-        # Fetch task context if task_id provided
-        task_instructions = ''
-        test_specification = {}
-
-        if task_id:
-            task = get_task_by_id(task_id)
-            if task:
-                task_instructions = task.get('instruction_theory', '')
-                test_specification = task.get('test_specification', {})
 
         # Generate assistant response
         response = assistant.chat(

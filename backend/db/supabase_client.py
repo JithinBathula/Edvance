@@ -254,6 +254,16 @@ def get_project_milestones(project_id: str) -> List[Dict[str, Any]]:
     return result.data or []
 
 
+def get_milestone_by_id(milestone_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch a single milestone by ID.
+    """
+    result = supabase.table("milestones").select("*").eq("id", milestone_id).execute()
+    if result.data:
+        return result.data[0]
+    return None
+
+
 # =============================================================================
 # TASK OPERATIONS
 # =============================================================================
@@ -426,7 +436,8 @@ def save_chat_message(
     user_id: str,
     project_id: str,
     role: str,
-    content: str
+    content: str,
+    task_number: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Save a chat message for a user-project pair.
@@ -440,6 +451,9 @@ def save_chat_message(
         "role": role,
         "content": content
     }
+
+    if task_number is not None:
+        message_data["task_number"] = task_number
 
     result = supabase.table("chat_messages").insert(message_data).execute()
 
@@ -968,7 +982,7 @@ def get_recent_chat_questions(student_ids: List[str], project_ids: List[str], li
     result = execute_with_retry(
         "get_recent_chat_questions",
         lambda: supabase.table("chat_messages").select(
-            "user_id, project_id, content, created_at"
+            "user_id, project_id, content, created_at, task_number"
         ).in_("user_id", student_ids).in_(
             "project_id", project_ids
         ).eq("role", "user").order("created_at", desc=True).limit(limit).execute(),

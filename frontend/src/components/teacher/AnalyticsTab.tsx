@@ -204,9 +204,16 @@ export function AnalyticsTab({ analytics }: AnalyticsTabProps) {
                     {analytics.ai_usage.recent_questions.map((q, idx) => (
                       <div key={`${q.student_name}-${idx}`} className="rounded-md border bg-gray-50 p-3">
                         <p className="text-sm text-gray-900 line-clamp-2">{q.content}</p>
-                        <p className="mt-1 text-xs text-gray-600">
-                          {q.student_name} · {q.project_title}
-                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="text-xs text-gray-600">
+                            {q.student_name} · {q.project_title}
+                          </p>
+                          {q.task_number && (
+                            <span className="inline-flex items-center rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
+                              Task {q.task_number}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

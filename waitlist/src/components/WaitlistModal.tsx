@@ -55,7 +55,7 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
         return;
       }
 
-      const fullPhone = `${countryCode} ${phone.trim()}`;
+      const fullPhone = phone.trim() ? `${countryCode} ${phone.trim()}` : null;
       const { error } = await supabase
         .from('waitlist')
         .insert([{ email: email.trim().toLowerCase(), phone: fullPhone }]);
@@ -134,7 +134,7 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
                 />
               </div>
               <div>
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Phone Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <div className="flex gap-2 mt-1.5">
                   <div className="relative">
                     <select
@@ -156,7 +156,6 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
                     placeholder="9123 4567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    required
                     className="flex-1"
                   />
                 </div>

@@ -1,0 +1,34 @@
+name : Deploy Backend to EC2    #Name shown in Github Actions tab
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest      # Github spins up a fresh Ubuntu VM to run this
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with: 
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{secrets.EC2_USER }}
+          key : ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/backend
+            git pull origin main
+            docker build -t edvance-backend .
+            docker stop edvance-backend || true
+            docker rm edvance-backend || true
+            docker run -d \
+              --name edvance-backend \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              --env-file .env \
+              edvance-backend
+            docker image prune -f

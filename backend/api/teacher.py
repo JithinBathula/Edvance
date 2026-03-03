@@ -631,6 +631,7 @@ def get_classroom_analytics(classroom_id: str):
             'project_title': project_title_by_id.get(q.get('project_id'), 'Untitled project'),
             'content': content,
             'created_at': q.get('created_at'),
+            'task_number': q.get('task_number'),
         })
 
     num_students = len(student_ids) or 1
