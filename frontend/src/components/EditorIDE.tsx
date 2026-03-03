@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Editor, { type Monaco } from '@monaco-editor/react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { usePyodide, type OutputLine } from '../hooks/usePyodide';
+import { getAccessToken } from '../utils/authFetch';
 
 // --- Utility functions (from CodeSandboxIDE, zero external deps) ---
 
@@ -132,6 +133,10 @@ function FileIcon({ filename }: { filename: string }) {
   return <File className="w-3.5 h-3.5 text-slate-400" />;
 }
 
+export type EditorIDEHandle = {
+  getLatestFiles: () => ProjectFile[];
+};
+
 type Props = {
   files: ProjectFile[];
   onFilesChange: (files: ProjectFile[]) => void;
@@ -143,16 +148,20 @@ type Props = {
   vmType?: string;
 };
 
-export function EditorIDE({
+export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   files,
   onFilesChange,
   onSave,
   readOnly = false,
   saving = false,
   vmType,
-}: Props) {
+}, ref) {
   const mode = resolveMode(files, vmType);
   const [localFiles, setLocalFiles] = useState<ProjectFile[]>(files);
+
+  useImperativeHandle(ref, () => ({
+    getLatestFiles: () => localFiles,
+  }), [localFiles]);
   const [activeFile, setActiveFile] = useState<string>(files[0]?.name || 'main.py');
   const [openFiles, setOpenFiles] = useState<string[]>([files[0]?.name || 'main.py']);
   const [showNewFile, setShowNewFile] = useState(false);
@@ -542,7 +551,7 @@ export function EditorIDE({
 
     const pyFiles = filteredFiles.map((f) => ({ name: f.name, content: f.content }));
     const entry = pyFiles.find((f) => f.name === 'main.py')?.name || pyFiles[0]?.name || 'main.py';
-    runCode(pyFiles, entry);
+    runCode(pyFiles, entry, getAccessToken() || undefined);
   };
 
   const handleInputSubmit = (e: React.FormEvent) => {
@@ -951,4 +960,4 @@ export function EditorIDE({
 
     </div>
   );
-}
+});

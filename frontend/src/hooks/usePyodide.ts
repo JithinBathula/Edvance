@@ -70,12 +70,12 @@ export function usePyodide() {
   }, [spawnWorker]);
 
   const runCode = useCallback(
-    (files: Array<{ name: string; content: string }>, entryFile: string) => {
+    (files: Array<{ name: string; content: string }>, entryFile: string, authToken?: string) => {
       if (!workerRef.current) return;
       setOutput([]);
       setInputPrompt(null);
       setIsRunning(true);
-      workerRef.current.postMessage({ type: 'run', files, entryFile });
+      workerRef.current.postMessage({ type: 'run', files, entryFile, authToken });
     },
     []
   );

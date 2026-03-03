@@ -167,7 +167,6 @@ export function StudentsTab({ students, classroomId, onStudentRemoved }: Student
               <TableRow>
                 <SortHeader column="name">Name</SortHeader>
                 <SortHeader column="xp">XP</SortHeader>
-                <TableHead>Projects</TableHead>
                 <SortHeader column="completion_rate">Completion</SortHeader>
                 <SortHeader column="last_active">Last Active</SortHeader>
                 <TableHead>Status</TableHead>
@@ -177,7 +176,7 @@ export function StudentsTab({ students, classroomId, onStudentRemoved }: Student
             <TableBody>
               {filteredAndSortedStudents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                     {students.length === 0
                       ? 'No students in this classroom yet'
                       : 'No students match the filter'}
@@ -196,9 +195,6 @@ export function StudentsTab({ students, classroomId, onStudentRemoved }: Student
                         <Trophy className="h-4 w-4 text-amber-500" />
                         <span className="font-semibold">{student.xp}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {student.completed_projects}/{student.projects_count}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

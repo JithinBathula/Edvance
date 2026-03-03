@@ -56,15 +56,17 @@ interface Milestone {
 }
 
 interface Project {
-  id: string;
+  id: string | null;
   title: string;
-  status: 'draft' | 'in_progress' | 'completed';
+  status: 'draft' | 'in_progress' | 'completed' | 'not_started';
   progress: number;
   tasks_completed: number;
   tasks_total: number;
-  vm_type: string;
+  vm_type: string | null;
   created_at: string;
   milestones: Milestone[];
+  assignment_id?: string;
+  due_date?: string;
 }
 
 interface PerProjectUsage {
@@ -421,10 +423,10 @@ export function StudentDetail({ user }: StudentDetailProps) {
               </Card>
             ) : (
               projects.map((project) => {
-                const isExpanded = expandedProjects.has(project.id);
-                const lang = vmTypeToLanguage(project.vm_type);
+                const isExpanded = project.id ? expandedProjects.has(project.id) : false;
+                const lang = project.vm_type ? vmTypeToLanguage(project.vm_type) : '';
                 return (
-                  <Card key={project.id} className="overflow-hidden">
+                  <Card key={project.id || `assignment-${project.assignment_id}`} className="overflow-hidden">
                     <CardHeader className="bg-gray-50">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -433,7 +435,7 @@ export function StudentDetail({ user }: StudentDetailProps) {
                             <Badge className={getStatusColor(project.status)}>
                               {project.status.replace('_', ' ')}
                             </Badge>
-                            <Badge variant="outline">{project.vm_type}</Badge>
+                            {project.vm_type && <Badge variant="outline">{project.vm_type}</Badge>}
                             <Badge variant="outline">
                               {project.tasks_completed}/{project.tasks_total} tasks
                             </Badge>
@@ -445,18 +447,20 @@ export function StudentDetail({ user }: StudentDetailProps) {
                             />
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleProjectExpanded(project.id)}
-                          className="ml-4"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="h-5 w-5" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5" />
-                          )}
-                        </Button>
+                        {project.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleProjectExpanded(project.id!)}
+                            className="ml-4"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-5 w-5" />
+                            ) : (
+                              <ChevronRight className="h-5 w-5" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
 

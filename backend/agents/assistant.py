@@ -73,12 +73,12 @@ class AssistantAgent:
             {"role": "system", "content": prompts.assistant_system_prompt},
             {
                 "role": "user",
-                "content": prompts.assistant_user_prompt.format(
-                    task_instructions=task_instructions or "No task loaded.",
+                "content": prompts.build_assistant_user_prompt(
+                    task_instructions=task_instructions,
                     test_specification=test_spec_text,
-                    user_code=user_code or "# No code yet",
+                    user_code=user_code,
                     chat_history=history_text,
-                    user_message=user_message
+                    user_message=user_message,
                 )
             }
         ]

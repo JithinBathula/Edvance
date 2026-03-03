@@ -14,6 +14,7 @@ import {
     Zap,
     Bell,
     ArrowLeft,
+    RotateCcw,
 } from 'lucide-react';
 
 type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
@@ -22,6 +23,7 @@ interface StudentLayoutProps {
     children: ReactNode;
     user: User;
     onLogout: () => void;
+    onRestart?: (() => void) | null;
 }
 
 type LightStats = {
@@ -36,7 +38,7 @@ const navItems: { icon: typeof Home; label: NavTab }[] = [
     { icon: BookOpen, label: 'Projects' },
 ];
 
-export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) {
+export function StudentLayout({ children, user, onLogout, onRestart }: StudentLayoutProps) {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -143,6 +145,8 @@ export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) 
     const handleSettingsClick = () => {
         navigate('/student/settings');
     };
+
+    const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
 
     /* ── Header: detect special pages ── */
     const isCustomProject = location.pathname === '/custom-project';
@@ -279,6 +283,45 @@ export function StudentLayout({ children, user, onLogout }: StudentLayoutProps) 
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-3 text-sm text-slate-500">
+                            {onRestart && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRestartConfirmOpen(true)}
+                                        className="flex items-center gap-1.5 bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg font-semibold text-sm hover:bg-rose-100 transition-colors cursor-pointer border-none"
+                                    >
+                                        <RotateCcw className="w-4 h-4" />
+                                        Restart
+                                    </button>
+                                    {restartConfirmOpen && (
+                                        <div className="fixed inset-0 z-50 flex items-center justify-center">
+                                            <div className="fixed inset-0 bg-black/50" onClick={() => setRestartConfirmOpen(false)} />
+                                            <div className="relative z-[60] bg-gray-50 border rounded-lg p-6 w-[50vw] max-w-lg shadow-xl">
+                                                <h2 className="text-xl font-semibold mb-2">Restart Chat?</h2>
+                                                <p className="text-gray-500 text-lg mb-6">
+                                                    This will clear your current chat history and requirements. This action cannot be undone.
+                                                </p>
+                                                <div className="flex gap-2 justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRestartConfirmOpen(false)}
+                                                        className="px-4 py-2 rounded-md border border-gray-200 bg-white text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setRestartConfirmOpen(false); onRestart(); }}
+                                                        className="px-4 py-2 rounded-md bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors cursor-pointer border-none"
+                                                    >
+                                                        Restart Now
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                             <div className="flex items-center gap-1.5 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg font-semibold">
                                 <Flame className="w-4 h-4" />
                                 {stats?.current_streak ?? 0} day streak

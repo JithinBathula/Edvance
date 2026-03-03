@@ -30,20 +30,28 @@ You must return a JSON object with:
 - is_correct: boolean indicating if the code passes the requirements
 - feedback: string with your assessment"""
 
-submission_user_prompt = """Evaluate this Python code submission:
+def build_submission_user_prompt(
+    task_instructions: str,
+    coding_requirements: str,
+    test_specification: str,
+    user_code: str,
+) -> str:
+    """Build submission prompt with safe concatenation (no .format()).
 
-## Task Instructions
-{task_instructions}
-
-## Coding Requirements (Checklist)
-{coding_requirements}
-
-## Expected State / Test Specification
-{test_specification}
-
-## Student's Submitted Code (All Files)
-```python
-{user_code}
-```
-
-Remember: Focus on whether the LOGIC is correct. Be lenient on variable names, extra print statements, formatting, and style choices. Only mark as incorrect if the core functionality is wrong or missing. Return your evaluation as a JSON object."""
+    Using .format() breaks when student code contains curly braces
+    (dicts, f-strings, sets), corrupting the prompt.
+    """
+    return (
+        "Evaluate this Python code submission:\n\n"
+        "## Task Instructions\n"
+        + task_instructions + "\n\n"
+        "## Coding Requirements (Checklist)\n"
+        + coding_requirements + "\n\n"
+        "## Expected State / Test Specification\n"
+        + test_specification + "\n\n"
+        "## Student's Submitted Code (All Files)\n"
+        "```python\n"
+        + (user_code or "# No code submitted") + "\n"
+        "```\n\n"
+        "Remember: Focus on whether the LOGIC is correct. Be lenient on variable names, extra print statements, formatting, and style choices. Only mark as incorrect if the core functionality is wrong or missing. Return your evaluation as a JSON object."
+    )

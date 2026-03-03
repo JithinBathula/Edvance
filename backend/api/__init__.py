@@ -15,7 +15,7 @@ from .teacher import teacher_bp
 from .student_classroom import student_classroom_bp
 from .dashboard import dashboard_bp
 from .assignment import assignment_bp
-
+from .proxy import proxy_bp
 
 def register_blueprints(app):
     """Register all API blueprints with the Flask app."""
@@ -32,7 +32,7 @@ def register_blueprints(app):
     app.register_blueprint(student_classroom_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(assignment_bp)
-
+    app.register_blueprint(proxy_bp)
 
 __all__ = [
     'auth_bp',

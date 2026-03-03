@@ -7,3 +7,11 @@ docs
 repos
 README.md
 package-lock.json
+venv
+.venv
+env
+*.egg-info
+.mypy_cache
+.pytest_cache
+test_proxy.py
+node_modules
