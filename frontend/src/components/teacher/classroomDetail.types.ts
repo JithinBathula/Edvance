@@ -70,6 +70,7 @@ export interface Analytics {
       project_title: string;
       content: string;
       created_at: string | null;
+      task_number: string | null;
     }>;
   };
   total_tasks_completed: number;
