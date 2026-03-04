@@ -487,55 +487,63 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
-              
-                <Card className={cn(
-                  'p-4 max-w-[85%] rounded-2xl',
-                  msg.role === 'user'
-                    ? msg.attachments?.length
-                      ? 'bg-transparent border-0 shadow-none'
-                      : 'bg-teal-600 text-white border-0 shadow-sm'
-                    : 'bg-white/90 border-slate-100 shadow-sm',
-                )}>
-                  {/* File attachment previews */}
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="flex flex-col gap-3 mb-3">
-                      {msg.attachments.map((att, i) =>
-                        att.isImage ? (
-                          <div key={i} className="w-fit">
-                            <a href={att.url} target="_blank" rel="noopener noreferrer">
+
+                {/* User messages with attachments: stack attachment + text, right-aligned */}
+                {msg.role === 'user' && msg.attachments?.length ? (
+                  <div className="flex flex-col items-end gap-1.5 max-w-[85%]">
+                    {msg.attachments.map((att, i) =>
+                      att.isImage ? (
+                        <div key={i} className="w-fit">
+                          <a href={att.url} target="_blank" rel="noopener noreferrer">
                             <img
                               src={att.url}
                               alt={att.name}
                               className="max-h-[300px] max-w-[300px] rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
                             />
-                            </a>
-                          </div>
-                        ) : (
-                          <a
-                            key={i}
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex w-fit h-fit items-center border-2 gap-3 bg-white/80 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-white/30 hover:text-teal-600 transition-colors cursor-pointer no-underline"
-                          >
-                            <FileText className="flex flex-col leading-tight pr-2 text-teal" />
-                            <span className="font-medium truncate max-w-[180px]">{att.name}</span>
-                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                              {att.name.split('.').pop()}
-                            </span>
                           </a>
-                        ),
-                      )}
-                    </div>
-                  )}
-                  {msg.content && (
-                    <div className={cn('prose prose-sm max-w-none break-words', msg.role === 'user' ? 'prose-invert' : 'prose-gray')}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                </Card>
+                        </div>
+                      ) : (
+                        <a
+                          key={i}
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex w-fit h-fit items-center border-2 gap-3 bg-white/80 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-white/30 hover:text-teal-600 transition-colors cursor-pointer no-underline"
+                        >
+                          <FileText className="flex flex-col leading-tight pr-2 text-teal" />
+                          <span className="font-medium truncate max-w-[180px]">{att.name}</span>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                            {att.name.split('.').pop()}
+                          </span>
+                        </a>
+                      ),
+                    )}
+                    {msg.content && (
+                      <Card className="p-4 rounded-2xl bg-teal-600 text-white border-0 shadow-sm">
+                        <div className="prose prose-sm max-w-none break-words prose-invert">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                ) : (
+                  <Card className={cn(
+                    'p-4 max-w-[85%] rounded-2xl',
+                    msg.role === 'user'
+                      ? 'bg-teal-600 text-white border-0 shadow-sm'
+                      : 'bg-white/90 border-slate-100 shadow-sm',
+                  )}>
+                    {msg.content && (
+                      <div className={cn('prose prose-sm max-w-none break-words', msg.role === 'user' ? 'prose-invert' : 'prose-gray')}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </Card>
+                )}
 
                 {msg.role === 'user' && (
                   <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">

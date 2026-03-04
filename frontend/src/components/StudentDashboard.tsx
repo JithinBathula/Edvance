@@ -29,6 +29,7 @@ import {
     ChevronRight,
     ListFilter,
     Plus,
+    AlertTriangle,
 } from 'lucide-react';
 
 /* ───────────── Types ───────────── */
@@ -65,12 +66,24 @@ type ProjectInfo = {
 
 type XPHistoryItem = { date: string; xp: number };
 
+type WeakConcept = {
+    concept: string;
+    struggle_count: number;
+    mastery_count: number;
+    last_task_number: string | null;
+    project_name: string | null;
+    last_seen_at: string;
+    last_source: string | null;
+    summary: string | null;
+};
+
 type DashboardData = {
     stats: DashboardStats;
     in_progress_projects: ProjectInfo[];
     completed_projects: ProjectInfo[];
     xp_history: XPHistoryItem[];
     concepts: string[];
+    weak_concepts: WeakConcept[];
 };
 
 type Props = {
@@ -148,6 +161,115 @@ function ProgressRing({ percent, size = 110, stroke = 10 }: { percent: number; s
         </svg>
     );
 }
+
+/* ───────────── Weak Concepts Card ───────────── */
+function WeakConceptsCard({ weakConcepts }: { weakConcepts: WeakConcept[] }) {
+    const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+    if (weakConcepts.length === 0) {
+        return (
+            <Card className="p-4 border-slate-100">
+                <div className="flex items-center gap-1.5 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-orange-400" />
+                    <span className="font-bold text-sm text-slate-800">Focus Areas</span>
+                </div>
+                <div className="text-center py-4">
+                    <Sparkles className="w-7 h-7 text-slate-200 mx-auto mb-1.5" />
+                    <p className="text-slate-400 text-sm">No weak areas detected yet!</p>
+                </div>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="p-4 border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-orange-400" />
+                    <span className="font-bold text-sm text-slate-800">Focus Areas</span>
+                </div>
+                <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full font-medium">
+                    {weakConcepts.length} concept{weakConcepts.length !== 1 ? 's' : ''}
+                </span>
+            </div>
+            <div className="flex flex-col gap-2">
+                {weakConcepts.slice(0, 5).map((wc, i) => {
+                    const isExpanded = expandedIdx === i;
+                    const intensity = Math.min(wc.struggle_count, 5);
+                    const bgColors = ['#fff7ed', '#ffedd5', '#fed7aa', '#fdba74', '#fb923c'];
+                    const textColors = ['#c2410c', '#c2410c', '#9a3412', '#7c2d12', '#7c2d12'];
+                    const bg = bgColors[intensity - 1] || bgColors[0];
+                    const fg = textColors[intensity - 1] || textColors[0];
+
+                    return (
+                        <motion.div
+                            key={wc.concept}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.05 * i }}
+                        >
+                            <button
+                                onClick={() => setExpandedIdx(isExpanded ? null : i)}
+                                className="w-full text-left"
+                            >
+                                <div
+                                    className="rounded-xl px-3 py-2 flex items-center justify-between gap-2 transition-opacity hover:opacity-80"
+                                    style={{ backgroundColor: bg }}
+                                >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-sm font-semibold truncate capitalize" style={{ color: fg }}>
+                                            {wc.concept}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className="text-[11px] font-bold" style={{ color: fg }}>
+                                            ×{wc.struggle_count}
+                                        </span>
+                                        <ChevronRight
+                                            className="w-3 h-3 transition-transform"
+                                            style={{
+                                                color: fg,
+                                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </button>
+
+                            <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="mt-1 mx-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
+                                            {(wc.project_name || wc.last_task_number) && (
+                                                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 mb-1.5">
+                                                    {wc.project_name && wc.last_task_number
+                                                        ? `${wc.project_name} · Task ${wc.last_task_number}`
+                                                        : wc.project_name || `Task ${wc.last_task_number}`}
+                                                </span>
+                                            )}
+                                            {wc.summary ? (
+                                                <p className="text-xs text-slate-600 leading-relaxed">{wc.summary}</p>
+                                            ) : (
+                                                <p className="text-[11px] text-slate-400 italic">More details will appear after your next submission.</p>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    );
+                })}
+            </div>
+        </Card>
+    );
+}
+
 
 /* ───────────── Main Component ───────────── */
 
@@ -262,7 +384,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
             );
         }
 
-        const { stats, in_progress_projects, completed_projects, xp_history, concepts } = data;
+        const { stats, in_progress_projects, completed_projects, xp_history, concepts, weak_concepts } = data;
         const levelInfo = getLevel(stats.total_xp);
         const totalTasks = in_progress_projects.reduce((a, p) => a + p.tasks_total, 0);
         const doneTasks = in_progress_projects.reduce((a, p) => a + p.tasks_completed, 0);
@@ -685,6 +807,41 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     <span className="font-bold text-base text-slate-800">{todayTip.title}</span>
                                 </div>
                                 <p className="text-sm text-slate-500 leading-relaxed">{todayTip.text}</p>
+                            </Card>
+                        </motion.div>
+
+                        {/* Focus Areas — weak concepts */}
+                        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={3}>
+                            <WeakConceptsCard weakConcepts={weak_concepts ?? []} />
+                        </motion.div>
+
+                        {/* XP Chart */}
+                        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
+                            <Card className="p-4 border-slate-100">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <TrendingUp className="w-4 h-4 text-teal-600" />
+                                        <span className="font-bold text-sm text-slate-800">XP History</span>
+                                    </div>
+                                    <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded font-medium">30d</span>
+                                </div>
+                                <div className="h-28 w-full">
+                                    <ChartContainer config={chartConfig} className="h-full w-full">
+                                        <BarChart data={xp_history} barCategoryGap="25%">
+                                            <defs>
+                                                <linearGradient id="xpGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.7} />
+                                                    <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.3} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                            <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                                            <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={22} />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Bar dataKey="xp" fill="url(#xpGrad)" radius={[3, 3, 0, 0]} />
+                                        </BarChart>
+                                    </ChartContainer>
+                                </div>
                             </Card>
                         </motion.div>
 

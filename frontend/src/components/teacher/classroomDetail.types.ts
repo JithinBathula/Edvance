@@ -55,6 +55,13 @@ export interface Analytics {
     avg_completion_hours: number | null;
     on_time_count: number;
   }>;
+  class_struggles: {
+  concept: string;
+  student_count: number;
+  students: string[];
+  student_summaries: Record<string, string>;
+  student_task_numbers: Record<string, string>;
+  }[];
   ai_usage: {
     total_questions: number;
     total_responses: number;

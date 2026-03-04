@@ -15,6 +15,7 @@ from db.supabase_client import (
     get_user_progress_for_task_ids,
     get_student_assignments_for_user,
     is_transient_supabase_error,
+    get_student_weak_concepts,
 )
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
@@ -76,6 +77,7 @@ def _compute_xp_history_and_streak(completion_dates: list[str], days: int = 30):
     return history, streak
 
 
+
 def _build_unstarted_entry(sa):
     """Build an in-progress placeholder dict from a student_assignment row."""
     assignment = sa.get('assignments') or {}
@@ -133,9 +135,11 @@ def get_dashboard(user_id: str):
                 'completed_projects': [],
                 'xp_history': _compute_xp_history_and_streak([])[0],
                 'concepts': [],
+                'weak_concepts': get_student_weak_concepts(user_id),
             }), 200
 
         project_ids = [p['id'] for p in projects]
+        project_title_by_id = {p['id']: p.get('title', '') for p in projects}
         source_assignment_ids = [p.get('source_assignment_id') for p in projects if p.get('source_assignment_id')]
 
         assignment_classroom_name: dict[str, str] = {}
@@ -256,6 +260,9 @@ def get_dashboard(user_id: str):
             'completed_projects': completed,
             'xp_history': xp_history,
             'concepts': concepts,
+            'weak_concepts': get_student_weak_concepts(
+                user_id, project_title_map=project_title_by_id
+            ),
         }), 200
 
     except Exception as e:
