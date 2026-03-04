@@ -326,7 +326,7 @@ export function ClassroomDetail({ user, onLogout }: ClassroomDetailProps) {
           </TabsList>
 
           <TabsContent value="analytics">
-            <AnalyticsTab analytics={analytics} />
+            <AnalyticsTab analytics={analytics} studentCount={students.length} students={students} />
           </TabsContent>
 
           <TabsContent value="students">

@@ -10,6 +10,7 @@ import {
   Copy,
   Play,
   FolderPlus,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -56,6 +57,15 @@ interface RecentActivity {
   timestamp: string;
 }
 
+interface StudentWeakConcept {
+  student_id: string;
+  student_name: string;
+  concept: string;
+  struggle_count: number;
+  last_task_number: string | null;
+  last_seen_at: string;
+}
+
 export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -69,6 +79,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
   });
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [studentWeakConcepts, setStudentWeakConcepts] = useState<StudentWeakConcept[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newClassroomName, setNewClassroomName] = useState('');
   const [newClassroomDescription, setNewClassroomDescription] = useState('');
@@ -88,6 +99,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
         setStats(data.stats);
         setClassrooms(data.classrooms);
         setRecentActivity(data.recent_activity);
+        setStudentWeakConcepts(data.student_weak_concepts ?? []);
       } else {
         toast.error('Failed to load dashboard data');
       }
@@ -195,6 +207,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
         return action;
     }
   };
+
 
   if (initialLoad) {
     return (
@@ -343,7 +356,8 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
             </div>
           </div>
 
-          {/* Section 3: Recent Activity Feed */}
+          {/* Section 3: Recent Activity Feed*/}
+          {/* Recent Activity */}
           <div>
             <h2 className="mb-4 text-xl font-semibold text-gray-900">
               Recent Activity
@@ -387,7 +401,7 @@ export function TeacherDashboard({ user, onLogout }: TeacherDashboardProps) {
               </CardContent>
             </Card>
           </div>
-        </div>
+          </div>
 
       {/* Create Classroom Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

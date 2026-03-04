@@ -2,11 +2,14 @@
 Submission Evaluation API routes.
 Handles code submission evaluation for task progression.
 """
+import threading
+
 from flask import Blueprint, request, jsonify, g
 
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
-from db.supabase_client import get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks
+from agents.concept_tracker import ConceptTrackerAgent
+from db.supabase_client import get_student_all_concept_names, get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks, record_concept_signal, get_chat_history
 
 
 def _merge_feedback(user_id: str, task_id: str, new_message: str) -> dict:
@@ -30,6 +33,55 @@ from services.git_repo import read_repo_files
 submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
 
 evaluator = SubmissionEvaluator()
+concept_tracker = ConceptTrackerAgent()
+
+def _track_submission_concepts_async(
+    user_id: str,
+    project_id: str,
+    task_instructions: str,
+    submitted_code: str,
+    passed: bool,
+    feedback,
+    task_number,
+) -> None:
+    """
+    Runs in a background thread after every graded submission.
+    """
+    try:
+        # Fetch only student (user role) messages for this specific task
+        chat_rows = get_chat_history(user_id, project_id, task_number=task_number)
+        chat_history = [
+            row["content"] for row in chat_rows
+            if row.get("role") == "user" and row.get("content", "").strip()
+        ]
+
+        # Fetch all concept names ever tracked for this student so agent reuses them
+        existing_concepts = get_student_all_concept_names(user_id)
+
+        signals = concept_tracker.analyse_submission(
+            task_instructions=task_instructions,
+            submitted_code=submitted_code,
+            passed=passed,
+            feedback=feedback if isinstance(feedback, dict) else {"message": str(feedback)},
+            task_number=task_number,
+            chat_history=chat_history,
+            existing_concepts=existing_concepts,
+        )
+        
+        code_snippet = (submitted_code or "")[:300]
+        for signal in signals:
+            record_concept_signal(
+                user_id=user_id,
+                concept=signal["concept"],
+                signal=signal["signal"],
+                confidence=signal["confidence"],
+                source_snippet=code_snippet,
+                task_number=task_number,
+                project_id=project_id,
+                summary=signal.get("summary"),  
+            )
+    except Exception as exc:
+        print(f"[concept_tracker] submission analysis failed silently: {exc}")
 
 
 @submission_bp.route('/evaluate', methods=['POST'])
@@ -96,6 +148,17 @@ def evaluate_submission():
         test_specification = task.get('test_specification', {})
         coding_requirements = task.get('coding_requirements', None)
 
+        # Build task_number (e.g. "2.3") for concept tracking context
+        task_number = None
+        try:
+            milestone_pos_query = supabase.table("milestones").select("position").eq(
+                "id", task.get("milestone_id")
+            ).limit(1).execute()
+            if milestone_pos_query.data and task.get('position') is not None:
+                task_number = f"{milestone_pos_query.data[0]['position']}.{task['position']}"
+        except Exception:
+            pass
+
         if project_id:
             project = get_project_by_id(project_id)
             if project and str(project.get('user_id')) == str(user_id):
@@ -136,6 +199,13 @@ def evaluate_submission():
                     passed=True,
                     feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
+
+                # Track mastery signals in background
+                threading.Thread(
+                    target=_track_submission_concepts_async,
+                    args=(user_id, project_id, task_instructions, code, True, result.feedback, task_number),
+                    daemon=True,
+                ).start()
 
                 # Award XP only on first completion
                 if not already_completed:
@@ -232,6 +302,14 @@ def evaluate_submission():
                     passed=False,
                     feedback=_merge_feedback(user_id, task_id, result.feedback)
                 )
+
+                # Track struggle signals in background
+                threading.Thread(
+                    target=_track_submission_concepts_async,
+                    args=(user_id, project_id, task_instructions, code, False, result.feedback, task_number),
+                    daemon=True,
+                ).start()
+
         except Exception:
             pass  # Non-critical: progress update failure doesn't affect response
 

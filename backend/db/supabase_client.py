@@ -10,6 +10,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
+from unittest import result
+from blinker import signal
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from supabase.lib.client_options import SyncClientOptions
@@ -462,11 +464,28 @@ def save_chat_message(
     raise Exception("Failed to save chat message")
 
 
-def get_chat_history(user_id: str, project_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+def get_chat_history(
+    user_id: str,
+    project_id: str,
+    limit: int = 50,
+    task_number: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
     """
     Get chat history for a user-project pair, ordered by creation time.
+    If task_number is provided, only returns messages for that task.
     """
-    result = supabase.table("chat_messages").select("*").eq("user_id", user_id).eq("project_id", project_id).order("created_at", desc=False).limit(limit).execute()
+    query = (
+        supabase.table("chat_messages")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("project_id", project_id)
+        .order("created_at", desc=False)
+        .limit(limit)
+        )
+    if task_number is not None:
+        query = query.eq("task_number", task_number)
+
+    result = query.execute()
     return result.data or []
 
 
@@ -1220,3 +1239,172 @@ def increment_xp_atomic(user_id: str, amount: int) -> Optional[int]:
         new_xp = current_xp + amount
         supabase.table('users').update({'xp': new_xp}).eq('id', user_id).execute()
         return new_xp
+
+# =============================================================================
+# CONCEPT TRACKING 
+# =============================================================================
+def record_concept_signal(
+    user_id: str,
+    concept: str,
+    signal: str,
+    confidence: str,
+    source_snippet: str,
+    task_number: Optional[str] = None,
+    project_id: Optional[str] = None,
+    summary: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Upsert a concept signal for a student.
+    """
+    weight = 1 if confidence in ("high", "medium") else 0
+    now = datetime.utcnow().isoformat()
+
+    existing = supabase.table("student_concepts").select(
+        "id, struggle_count, mastery_count"
+    ).eq("user_id", user_id).eq("concept", concept).execute()
+
+    if existing.data:
+        row = existing.data[0]
+
+        if signal == "struggle":
+            new_struggle = row["struggle_count"] + weight
+            new_mastery  = row["mastery_count"]
+            new_latest   = "struggle"
+        else:
+            new_struggle = row["struggle_count"]
+            new_mastery  = row["mastery_count"] + weight
+            earned       = new_mastery >= 2 and new_mastery > new_struggle
+            new_latest   = "mastery" if earned else "struggle"
+
+        update_data: Dict[str, Any] = {
+            "latest_signal":    new_latest,
+            "struggle_count":   new_struggle,
+            "mastery_count":    new_mastery,
+            "last_source":      source_snippet[:500],
+            "last_task_number": task_number,
+            "last_seen_at":     now,
+        }
+        if project_id:
+            update_data["last_project_id"] = project_id
+
+        # Update summary on struggle; clear it when concept is mastered
+        if signal == "struggle" and summary:
+            update_data["summary"] = summary
+        elif new_latest == "mastery":
+            update_data["summary"] = None
+
+        result = supabase.table("student_concepts").update(update_data).eq(
+            "id", row["id"]
+        ).execute()
+
+        if result.data:
+            flip_note = " → MASTERED" if new_latest == "mastery" else ""
+            print(
+                f"[concept_db] UPDATE user={user_id[:8]} | "
+                f"concept='{concept}' | signal={signal} ({confidence}) | "
+                f"task={task_number} | "
+                f"struggle={new_struggle} mastery={new_mastery} | "
+                f"latest={new_latest}{flip_note}"
+            )
+            return result.data[0]
+
+    else:
+        # Brand new concept — skip if first signal is mastery
+        if signal == "mastery":
+            print(
+                f"[concept_db] SKIP  user={user_id[:8]} | "
+                f"concept='{concept}' | first signal is mastery — not stored"
+            )
+            return {}
+
+        result = supabase.table("student_concepts").insert({
+            "user_id":          user_id,
+            "concept":          concept,
+            "latest_signal":    "struggle",
+            "struggle_count":   weight,
+            "mastery_count":    0,
+            "last_source":      source_snippet[:500],
+            "last_task_number": task_number,
+            "last_project_id":  project_id,
+            "summary":          summary if signal == "struggle" else None,
+            "first_seen_at":    now,
+            "last_seen_at":     now,
+        }).execute()
+
+        if result.data:
+            print(
+                f"[concept_db] INSERT user={user_id[:8]} | "
+                f"concept='{concept}' | signal={signal} ({confidence}) | "
+                f"task={task_number} | struggle_count={weight}"
+            )
+            return result.data[0]
+
+    raise Exception(f"Failed to record concept signal '{concept}' for user {user_id}")
+
+
+def get_student_all_concept_names(user_id: str) -> List[str]:
+    result = execute_with_retry(
+        "get_student_all_concept_names",
+        lambda: supabase.table("student_concepts").select(
+            "concept"
+        ).eq("user_id", user_id).execute(),
+    )
+    return [row["concept"] for row in (result.data or [])]
+
+
+def get_student_weak_concepts(
+    user_id: str,
+    limit: int = 10,
+    project_title_map: Optional[Dict[str, str]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Return concepts the student is currently struggling with.
+    If project_title_map is provided, each row gets a 'project_name' field.
+    """
+    result = execute_with_retry(
+        "get_student_weak_concepts",
+        lambda: supabase.table("student_concepts").select(
+            "concept, last_task_number, last_project_id, last_seen_at, last_source, summary"
+        ).eq("user_id", user_id).eq(
+            "latest_signal", "struggle"
+        ).gte(
+            "struggle_count", 2
+        ).order("struggle_count", desc=True).limit(limit).execute(),
+    )
+    concepts = result.data or []
+    print(
+        f"[concept_db] QUERY weak_concepts user={user_id[:8]} | "
+        f"returned {len(concepts)}: {[c['concept'] for c in concepts]}"
+    )
+    title_map = project_title_map or {}
+    for wc in concepts:
+        pid = wc.pop('last_project_id', None)
+        wc['project_name'] = title_map.get(pid, '') if pid else None
+    return concepts
+
+
+def get_bulk_student_weak_concepts(
+    student_ids: List[str],
+) -> List[Dict[str, Any]]:
+    """
+    Fetch weak concepts for multiple students in one query.
+    Used by teacher dashboard. struggle_count kept for severity ranking.
+    """
+    if not student_ids:
+        return []
+    result = execute_with_retry(
+        "get_bulk_student_weak_concepts",
+        lambda: supabase.table("student_concepts").select(
+            "user_id, concept, struggle_count, last_task_number, last_project_id, last_seen_at, last_source, summary"
+        ).in_("user_id", student_ids).eq(
+            "latest_signal", "struggle"
+        ).gte(
+            "struggle_count", 2
+        ).order("struggle_count", desc=True).execute(),
+    )
+    rows = result.data or []
+    print(
+        f"[concept_db] QUERY bulk_weak_concepts students={len(student_ids)} | "
+        f"returned {len(rows)} rows"
+    )
+    return rows

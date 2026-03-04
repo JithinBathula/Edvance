@@ -12,14 +12,13 @@ from db.supabase_client import (
     get_project_by_id,
     save_chat_message,
     get_chat_history,
-    clear_chat_history
+    clear_chat_history,
 )
 from services.git_repo import read_repo_files
 
 assistant_bp = Blueprint('assistant', __name__, url_prefix='/api/assistant')
 
 assistant = AssistantAgent()
-
 
 @assistant_bp.route('/chat', methods=['POST'])
 @require_auth
@@ -88,24 +87,18 @@ def chat():
             chat_history=history
         )
 
-        # Save assistant response to database
+        # Save assistant response — task_number now included for concept tracking 
         if project_id:
             try:
-                save_chat_message(user_id, project_id, 'assistant', response)
+                save_chat_message(user_id, project_id, 'assistant', response, task_number=task_number)
             except Exception as save_err:
                 print(f"Warning: Failed to save assistant message: {save_err}")
 
-        return jsonify({
-            'success': True,
-            'response': response
-        }), 200
-
+        return jsonify({'success': True, 'response': response}), 200
+    
     except Exception as e:
         print(f"Error in assistant chat: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @assistant_bp.route('/history/<project_id>', methods=['GET'])

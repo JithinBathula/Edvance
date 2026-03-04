@@ -37,6 +37,7 @@ from db.supabase_client import (
     get_assignments_for_classroom,
     get_student_assignments_for_assignment,
     get_student_assignments_for_user,
+    get_bulk_student_weak_concepts,
     supabase,
 )
 
@@ -642,6 +643,39 @@ def get_classroom_analytics(classroom_id: str):
         'recent_questions': recent_questions,
     }
 
+    # ── Class struggles ──
+    raw_weak = get_bulk_student_weak_concepts(student_ids)
+    concept_map = {}
+    for row in raw_weak:
+        concept = row['concept']
+        student_name = student_name_by_id.get(row['user_id'], 'Unknown')
+        if concept not in concept_map:
+            concept_map[concept] = {
+                'concept': concept,
+                'student_count': 0,
+                'students': [],
+                'student_summaries': {},
+                'student_task_numbers': {},
+                'student_project_names': {},
+                'total_struggle_count': 0,
+            }
+        if student_name not in concept_map[concept]['students']:
+            concept_map[concept]['students'].append(student_name)
+            concept_map[concept]['student_count'] += 1
+        if row.get('summary'):
+            concept_map[concept]['student_summaries'][student_name] = row['summary']
+        if row.get('last_task_number'):
+            concept_map[concept]['student_task_numbers'][student_name] = row['last_task_number']
+        if row.get('last_project_id'):
+            concept_map[concept]['student_project_names'][student_name] = project_title_by_id.get(row['last_project_id'], '')
+        concept_map[concept]['total_struggle_count'] += row.get('struggle_count', 0)
+
+    class_struggles = sorted(
+        concept_map.values(),
+        key=lambda x: (x['total_struggle_count'], x['student_count']),
+        reverse=True,
+    )[:5]
+    
     return jsonify({
         'success': True,
         'progress_distribution': buckets,
@@ -657,6 +691,7 @@ def get_classroom_analytics(classroom_id: str):
         'active_students_7d': active_students_7d,
         'assignment_analytics': assignment_analytics,
         'ai_usage': ai_usage,
+        'class_struggles': class_struggles,
     }), 200
 
 
