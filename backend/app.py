@@ -12,6 +12,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 # 50 MB max upload size
+
 # CORS configuration - restrict origins in production via ALLOWED_ORIGINS env var
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 
