@@ -92,18 +92,35 @@ function cleanStreamContent(raw: string): string {
   return clean;
 }
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (matches backend MAX_CONTENT_LENGTH)
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB for images (matches backend)
 
-function isValidFile(file: File): boolean {
-  if (file.size > MAX_FILE_SIZE) {
-    toast.error(`${file.name} is too large (max 100MB)`);
-    return false;
+function isValidFile(file: File): { valid: boolean; reason?: string } {
+  const isImage = file.type.startsWith('image/');
+  if (isImage && file.size > MAX_IMAGE_SIZE) {
+    return { valid: false, reason: `${file.name} is too large (images max 5MB, got ${(file.size / 1024 / 1024).toFixed(1)}MB)` };
   }
-  return VALID_MIME_TYPES.includes(file.type) || VALID_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, reason: `${file.name} is too large (max 50MB, got ${(file.size / 1024 / 1024).toFixed(1)}MB)` };
+  }
+  const typeOk = VALID_MIME_TYPES.includes(file.type) || VALID_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+  if (!typeOk) {
+    return { valid: false, reason: `${file.name} has an unsupported file type` };
+  }
+  return { valid: true };
 }
 
 function filterValidFiles(files: File[]): File[] {
-  return files.filter(isValidFile);
+  const accepted: File[] = [];
+  for (const file of files) {
+    const result = isValidFile(file);
+    if (result.valid) {
+      accepted.push(file);
+    } else {
+      toast.error(result.reason!);
+    }
+  }
+  return accepted;
 }
 
 const generateSystemPrompt = (answers: Record<string, string | string[]>) => {
@@ -242,9 +259,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     if (valid.length > 0) {
       setAttachedFiles(prev => [...prev, ...valid]);
       toast.success(`Added ${valid.length} file${valid.length > 1 ? 's' : ''}`);
-    } else if (files.length > 0) {
-      toast.error('No valid files. Accepted: images, PDFs, .txt, .py, .js');
     }
+    // Individual rejection toasts are now shown by filterValidFiles
   }, []);
 
   const removeFile = useCallback((index: number) => {
@@ -289,7 +305,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     };
     const onHandoff = () => triggerHandoff();
     const onDone = () => { setIsLoading(false); setIsInitializingAI(false); };
-    const onError = () => { setIsLoading(false); setIsInitializingAI(false); toast.error('Connection error'); };
+    const onError = (msg?: string) => { setIsLoading(false); setIsInitializingAI(false); toast.error(msg || 'Connection error — please check your network and try again'); };
     return { onContent, onHandoff, onDone, onError };
   }, []);
 
@@ -364,12 +380,35 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
         });
       }
 
+      if (!response.ok) {
+        // Handle specific HTTP errors with clear messages
+        if (response.status === 413) {
+          onError('File too large — the server limit is 50MB. Please reduce file size and try again.');
+        } else if (response.status === 400) {
+          let detail = 'Invalid request';
+          try { const body = await response.json(); detail = body.error || detail; } catch {}
+          onError(detail);
+        } else if (response.status === 422) {
+          onError('Unsupported file type — accepted: images, PDFs, .txt, .py, .js');
+        } else {
+          onError(`Server error (${response.status}) — please try again`);
+        }
+        return;
+      }
+
       await readSSEStream(response, onContent, onHandoff);
       onDone();
-    } catch (error) {
+    } catch (error: any) {
       if (controller.signal.aborted) return;
       console.error('[Chat] Stream Error:', error);
-      onError();
+      // Distinguish network errors from other failures
+      if (error instanceof TypeError && error.message?.includes('Failed to fetch')) {
+        onError('Network error — could not reach the server. Please check your connection.');
+      } else if (error?.message?.includes('413')) {
+        onError('File too large — the server limit is 50MB. Please reduce file size and try again.');
+      } else {
+        onError();
+      }
     }
   }, [isLoading, messages, user, chatSessionId, attachedFiles, input, makeStreamHandlers, userProfile]);
 
