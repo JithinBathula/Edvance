@@ -401,9 +401,13 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     } catch (error: any) {
       if (controller.signal.aborted) return;
       console.error('[Chat] Stream Error:', error);
-      // Distinguish network errors from other failures
+      const hadFiles = filesToSend.length > 0;
       if (error instanceof TypeError && error.message?.includes('Failed to fetch')) {
-        onError('Network error — could not reach the server. Please check your connection.');
+        onError(
+          hadFiles
+            ? 'File too large for the server. Please reduce file size (images max 5MB, total max 50MB) and try again.'
+            : 'Network error — could not reach the server. Please check your connection.',
+        );
       } else if (error?.message?.includes('413')) {
         onError('File too large — the server limit is 50MB. Please reduce file size and try again.');
       } else {
