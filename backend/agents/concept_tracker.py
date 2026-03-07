@@ -28,15 +28,6 @@ class ConceptTrackerAgent:
         chat_history=None, 
         existing_concepts: list[str] | None = None,
     ) -> list[dict]:
-        """
-        Identify concept signals from a graded submission + task chat history.
-
-        chat_history: list of strings — student (user role) messages only,
-        already filtered by the caller to this task only.
-
-        PASS: 1 core mastery + optionally 1 supporting if clearly evidenced.
-        FAIL: 1 core struggle + optionally 1 supporting if clearly evidenced.
-        """
         signal_type = "mastery" if passed else "struggle"
         verdict = "PASSED" if passed else "FAILED"
 
@@ -49,102 +40,69 @@ class ConceptTrackerAgent:
 
         chat_section = ""
         if chat_history:
-            formatted = "\n".join(f"- {m}" for m in chat_history if str(m).strip())
+            formatted = "\n".join(f"  - {m}" for m in chat_history if str(m).strip())
             if formatted:
-                chat_section = f"""
-STUDENT'S MESSAGES DURING THIS TASK:
-(What they asked about and struggled to understand while working on it)
-{formatted}
-"""
-        # Build existing concepts section — LLM decides semantically whether to reuse
+                chat_section = f"\nSTUDENT CHAT (use as supporting evidence only):\n{formatted}\n"
+
         if existing_concepts:
-            existing_list = "\n".join(f"- {name}" for name in existing_concepts)
-            existing_section = f"""ALREADY TRACKED CONCEPTS FOR THIS STUDENT:
-{existing_list}
-
-Before naming a concept, judge whether the gap you want to flag is the SAME underlying
-misunderstanding as any concept above — not just a similar surface error.
-- If YES: use that EXACT name. Two different mistakes can map to the same concept.
-  e.g. writing random.uniform(0,0) and random.uniform(2,1) are both "weight initialisation" errors.
-- If NO: genuinely different topic — create a new descriptive name."""
+            existing_list = "\n".join(f"  - {name}" for name in existing_concepts)
+            existing_section = (
+                f"\nTRACKED CONCEPTS FOR THIS STUDENT:\n{existing_list}\n"
+                f"Before naming any concept, check this list first.\n"
+                f"If the Python skill you want to flag is the SAME underlying skill as one above "
+                f"— even if the task or surface error looks different — use that EXACT name.\n"
+                f"Only create a new name if it is genuinely a different Python skill not covered above.\n"
+            )
         else:
-            existing_section = """ALREADY TRACKED CONCEPTS FOR THIS STUDENT:
-None yet — choose a clear learning-objective name."""
+            existing_section = ""
 
-        prompt = f"""You are an expert programming educator analysing a student's task submission.
+        prompt = f"""You are a Python educator. Analyse this student submission and identify which Python skill(s) were mastered or struggled with.
 
-TASK INSTRUCTIONS:
-{task_instructions or "Not provided."}
+TASK {task_number or "?"} — {verdict}
+INSTRUCTIONS: {task_instructions or "Not provided."}
 
-TASK NUMBER: {task_number or "Unknown"}
-
-VERDICT: {verdict}
-
-SUBMITTED CODE:
+CODE:
 ```
 {(submitted_code or "No code submitted.")[:2000]}
 ```
+GRADER FEEDBACK: {feedback_text or "None."}
+{chat_section}{existing_section}
+━━━ RULES ━━━
 
-GRADER FEEDBACK:
-{feedback_text or "No feedback provided."}
-{chat_section}
-{existing_section}
+SIGNAL TYPE:
+- PASSED → mastery signals only. FAILED → struggle signals only. Never mix.
 
-Identify concept signals for this {"PASSING" if passed else "FAILING"} submission.
-Use the student's chat messages as additional evidence of what they understood or struggled with.
+CONCEPTS — name the Python skill, not the task domain:
+- GOOD: "2d lists", "for loop iteration", "function return values", "random.uniform arguments"
+- BAD:  "maze design", "weight initialisation", "neural network structure", "grid markers"
+- If the error is task logic (wrong values, wrong layout) not a Python mechanism → return []
+- If a tracked concept above covers the same Python skill → reuse that EXACT name
 
-CONCEPT HIERARCHY:
+HIERARCHY:
+- CORE (exactly 1): the primary Python skill this task teaches
+- SUPPORTING (max 1): a prerequisite Python skill with clear evidence of mastery/struggle. Omit if uncertain.
 
-CORE (exactly 1):
-  The single thing this task is designed to teach. 
-  {"Mastery: only if code clearly and correctly implements it." if passed else "Struggle: if code/feedback shows the student does not understand it."}
+SKIP entirely (too basic): variable assignment, print, string literals, basic arithmetic, imports, int/str types
 
-SUPPORTING (max 1, only if clearly evidenced):
-  {"Strong correct use of a prerequisite concept beyond minimum required." if passed else "A prerequisite concept also clearly wrong — evidence must be in code, feedback, or chat. If uncertain, omit."}
+RETURN [] if: vague frustration ("I don't get it"), meta-questions ("what do I do?"), or error can't be pinned to a specific Python mechanism.
 
-NEVER FLAG (too basic):
-variable assignment, print statements, string literals, basic arithmetic, importing modules, running a file, basic int/str types.
-Only flag what a teacher would dedicate a full lesson to.
+━━━ OUTPUT ━━━
 
-RETURN [] IMMEDIATELY IF ANY APPLY:
-- Vague frustration: "I don't get it", "this is confusing", "I still don't understand" with no specific technical question
-- Confusion not pinned to a specific concept
-- Student asking what they are supposed to do or learn: "what am I supposed to do?", "I don't know what to learn from this", "what is the point of this?"
-- Student asking for confirmation or next steps: "is this right?", "what do I do next?"
+Max 2 items. confidence: "high" = explicit evidence, "medium" = implied, "low" = weak.
+STRUGGLE signals must include "summary": 1-2 sentences describing the specific misconception for a teacher. Be concrete.
+  Good: "Passes arguments in wrong order to random.uniform() — writes uniform(1, -1) instead of uniform(-1, 1)."
+  Bad: "Student struggles with random numbers."
+MASTERY signals: no summary field.
 
-EXISTING CONCEPTS FOR THIS STUDENT:
-{existing_section}
-If any existing concept above clearly covers the same learning objective as what you want to flag,
-you MUST reuse that exact concept name — do not create a new variant.
-NO SYNONYMS — use the same concept name consistently for the same learning objective.
-If the student shows evidence of misunderstanding the same concept in multiple ways,
-flag the same concept rather than creating multiple slightly different names.
+Return ONLY a JSON array, no markdown.
+[{{"concept": "2d lists", "signal": "struggle", "confidence": "high", "summary": "Creates a single flat list instead of a list of lists."}}]
+[]"""
 
-CONCEPT NAMING — name the learning objective, not the Python mechanism:
-BAD:  "random number generation", "math.exp usage", "function calls"
-GOOD: "weight initialisation", "neural network structure", "activation functions"
-The concept name should answer: "what is this task trying to teach?" not "what Python feature did they use?".
-
-MAX 2 CONCEPTS TOTAL.
-
-confidence: "high" = clear evidence, "medium" = strongly implied, "low" = weak
-
-For STRUGGLE signals only, include a "summary" field: 1-2 sentences describing the SPECIFIC
-misconception visible in the code/chat — written for a teacher, concrete not generic.
-Good example: "Consistently writes grid[col][row] instead of grid[row][col] when indexing 2D lists."
-Bad example: "Student is struggling with 2D lists." (too vague)
-Mastery signals do NOT include a summary field.
-
-Return ONLY valid JSON array. No markdown.
-Example struggle: [{{"concept": "for loops", "signal": "struggle", "confidence": "high", "summary": "Writes the for loop header correctly but leaves the body empty or unreachable."}}]
-Example mastery:  [{{"concept": "for loops", "signal": "mastery", "confidence": "high"}}]
-If nothing evidenced: []"""
-
-        signals = self._call_llm(prompt)
+        signals = self._call_llm(prompt, passed=passed)
         print(f"[concept_tracker] task={task_number} passed={passed} → {signals}")
         return signals
 
-    def _call_llm(self, prompt: str) -> list[dict]:
+    def _call_llm(self, prompt: str, passed: bool = True) -> list[dict]:
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -175,10 +133,12 @@ If nothing evidenced: []"""
                     and item.get("confidence") in ("high", "medium", "low")
                 ):
                     canonical = item["concept"].strip().lower()
+                    if not passed and item.get("signal") == "mastery":
+                        print(f"[concept_tracker] DROPPED mastery on failed submission: '{canonical}'")
+                        continue
                     if canonical not in seen:
                         seen.add(canonical)
                         item["concept"] = canonical
-                        # summary is optional — only expected on struggle signals
                         if item.get("signal") != "struggle":
                             item.pop("summary", None)
                         valid.append(item)

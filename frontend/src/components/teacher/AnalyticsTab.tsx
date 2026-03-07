@@ -68,6 +68,7 @@ interface AnalyticsTabProps {
 export function AnalyticsTab({ analytics, studentCount, students = [] }: AnalyticsTabProps) {
   const topStruggles = (analytics?.class_struggles ?? []).slice(0, 5);
   const [selectedConcept, setSelectedConcept] = useState<StudentWeakConcept | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
 
   if (!analytics) {
     return (
@@ -374,17 +375,37 @@ export function AnalyticsTab({ analytics, studentCount, students = [] }: Analyti
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="divide-y divide-orange-100">
-                  {selectedConcept.students.map((studentName) => (
-                    <StudentStruggleRow
-                      key={studentName}
-                      studentName={studentName}
-                      summary={selectedConcept.student_summaries?.[studentName] ?? null}
-                      taskNumber={selectedConcept.student_task_numbers?.[studentName] ?? null}
-                      projectName={selectedConcept.student_project_names?.[studentName] ?? null}
-                    />
-                  ))}
+                {/* Student pills — click to expand summary */}
+                <div className="px-4 py-3 flex flex-wrap gap-2">
+                  {selectedConcept.students.map((studentName) => {
+                    const isSelected = selectedStudent === studentName;
+                    return (
+                      <button
+                        key={studentName}
+                        title={studentName}
+                        onClick={() => setSelectedStudent(isSelected ? null : studentName)}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                          isSelected
+                            ? 'bg-orange-500 text-white ring-2 ring-orange-500 ring-offset-2'
+                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200 transition-duration-200 cursor-auto pointer-events-auto'
+                        }`}
+                      >
+                        {studentName.charAt(0).toUpperCase()}
+                      </button>
+                    );
+                  })}
                 </div>
+                {/* Expanded summary for selected student */}
+                {selectedStudent && (
+                  <div className="border-t border-orange-200">
+                    <StudentStruggleRow
+                      studentName={selectedStudent}
+                      summary={selectedConcept.student_summaries?.[selectedStudent] ?? null}
+                      taskNumber={selectedConcept.student_task_numbers?.[selectedStudent] ?? null}
+                      projectName={selectedConcept.student_project_names?.[selectedStudent] ?? null}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
