@@ -201,14 +201,23 @@ def get_final_requirements(session_id: str):
 
         session_state = get_requirement_agent().get_session_state(internal_session_id)
 
-        if not session_state.get('ready_to_plan'):
+        if not session_state:
             return jsonify({
                 'status': 'error',
-                'message': 'Requirements not yet finalized in this session'
+                'ready_to_plan': False,
+                'message': 'Session not found'
             }), 404
 
+        if not session_state.get('ready_to_plan'):
+            return jsonify({
+                'status': 'pending',
+                'ready_to_plan': False,
+                'message': 'Requirements not yet finalized in this session'
+            }), 200
+        
         return jsonify({
             'status': 'success',
+            'ready_to_plan': True,
             'requirements': {'session_data': session_state}
         }), 200
 

@@ -467,7 +467,20 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
         // Fetch the canonical/validated session data from the backend
         const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
         const reqJson = await reqRes.json();
-        if (!reqRes.ok || reqJson.status !== 'success') throw new Error('Failed to get requirements');
+
+        // session not found
+        if (reqRes.status === 404) {
+          toast.error("Session not found");
+          setIsProcessingHandoff(false);
+          return;
+        }
+
+        // requirements still being gathered
+        if (!reqJson.ready_to_plan) {
+          toast.info("Still gathering requirements...");
+          setIsProcessingHandoff(false);
+          return;
+        }
 
         const sessionData = reqJson.requirements.session_data;
 

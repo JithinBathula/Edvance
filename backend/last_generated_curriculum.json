@@ -1,0 +1,142 @@
+{
+  "project_title": "Gardening Portfolio (Terminal App)",
+  "project_brief": "Build a terminal-based portfolio to log your plants and garden projects. You'll create a menu-driven app that saves entries to a JSON file, so your garden data persists between sessions. Perfect for tracking what you're growing!",
+  "milestones": [
+    {
+      "subheading_title": "Create the Menu Loop and Add Entries",
+      "description": "Build the main menu that displays numbered options and keeps running until the user quits. Implement the 'Add Entry' feature where users can input a plant/project name and notes, storing them in a list of dictionaries. You'll practice using while loops, input(), and working with lists of dictionaries.",
+      "tasks": [
+        {
+          "task_id": "1.1",
+          "instruction_theory": "**Part A: Explanation**\n\nWe're building the main menu for your gardening portfolio \u2014 this is like the home screen of your app! When someone runs your program, they need to see what options are available (like adding a plant, viewing entries, etc.).\n\nThink of it like a restaurant menu board \u2014 you display all the choices, and the customer picks one. In our case, we'll use `print()` to show the options and `input()` to let the user type their choice.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nprint(\"=== My App ===\")\nprint(\"1. Say Hello\")\nprint(\"2. Say Goodbye\")\nprint(\"3. Quit\")\nchoice = input(\"Pick an option: \")\nprint(\"You picked:\", choice)\n```\nYou should see the menu appear, then it waits for you to type. Type `1` and press Enter. You'll see: `You picked: 1`\n\n**Part C: Your Task**\n\n1. Create a variable called `entries` and set it to an empty list: `[]` \u2014 this will store all your garden entries later\n2. Use `print()` to display this menu:\n   ```\n   === Gardening Portfolio ===\n   1. Add Entry\n   2. List Entries\n   3. View Entry\n   4. Edit Entry\n   5. Delete Entry\n   6. Quit\n   ```\n3. Use `input()` to ask the user to pick an option, and store their answer in a variable called `choice`\n4. Print `You selected:` followed by the value of `choice`",
+          "coding_requirements": [
+            "Create a variable called `entries` set to an empty list `[]`",
+            "Display the menu with exactly 6 numbered options using `print()`",
+            "Use `input()` to get the user's choice and store it in a variable called `choice`",
+            "Print the user's selection with `You selected:` followed by `choice`"
+          ],
+          "hints": [
+            "Make sure each menu option is on its own line \u2014 use a separate `print()` for each line, or use `\\n` inside one print statement",
+            "If you see nothing happening after running, the program is waiting for you to type in the input box below your code!",
+            "Double-check your variable names are exactly `entries` and `choice` (all lowercase)"
+          ],
+          "test_specification": {
+            "expected_state": "Running the program displays the 6-option menu and waits for input. After typing a number and pressing Enter, it shows 'You selected:' with that number.",
+            "verification_code": "# Check that entries list exists and is empty\nassert 'entries' in dir() or entries == [], 'entries should be an empty list'\n# Check choice variable exists\nassert 'choice' in dir(), 'choice variable should exist'"
+          },
+          "id": "09551cf3-d028-4774-98e1-590ee1fcf324"
+        },
+        {
+          "task_id": "1.2",
+          "instruction_theory": "**Part A: Explanation**\n\nRight now, your menu shows once and then the program ends. But we want it to keep showing until the user chooses to quit \u2014 like how a real app stays open until you close it!\n\nWe'll use a `while` loop to keep the menu running. The loop will repeat forever (`while True`) until the user picks option 6 (Quit), and then we use `break` to escape the loop.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nwhile True:\n    print(\"1. Keep going\")\n    print(\"2. Stop\")\n    choice = input(\"Pick: \")\n    if choice == \"2\":\n        print(\"Goodbye!\")\n        break\n    print(\"Looping again...\")\n```\nTry typing `1` a few times \u2014 notice how it keeps looping! Then type `2` to quit. The `break` statement is what escapes the loop.\n\n**Part C: Your Task**\n\n1. Keep your `entries = []` at the very top (before the loop)\n2. Wrap your menu display and input code inside a `while True:` loop\n3. Add an `if` statement that checks if `choice == \"6\"`:\n   - If true, print `Goodbye! Happy gardening!` and then use `break` to exit the loop\n4. Add an `else` block that prints `You selected:` followed by `choice` (this handles all other options for now)\n\nYour program should now keep showing the menu until the user types `6`!",
+          "coding_requirements": [
+            "Keep `entries = []` at the top, before the while loop",
+            "Wrap the menu and input inside `while True:`",
+            "Check if `choice == \"6\"` \u2014 if so, print `Goodbye! Happy gardening!` and `break`",
+            "For any other choice, print `You selected:` followed by the choice"
+          ],
+          "hints": [
+            "Remember to indent everything inside the `while True:` loop \u2014 Python uses indentation to know what's inside the loop!",
+            "The `break` statement must be inside the `if choice == \"6\":` block, otherwise your loop will never end",
+            "Make sure you're comparing `choice == \"6\"` with quotes \u2014 input() always gives you text, not a number"
+          ],
+          "test_specification": {
+            "expected_state": "The menu displays repeatedly. Typing any number shows 'You selected: X' and loops back. Typing 6 prints 'Goodbye! Happy gardening!' and the program ends.",
+            "verification_code": "# Verify the code structure has a while loop and break\nimport ast\nwith open('main.py', 'r') as f:\n    tree = ast.parse(f.read())\n    has_while = any(isinstance(node, ast.While) for node in ast.walk(tree))\n    has_break = any(isinstance(node, ast.Break) for node in ast.walk(tree))\nassert has_while and has_break, 'Code should have a while loop with break'"
+          },
+          "id": "8836e0b3-5f88-421a-87e4-528eb07a54db"
+        },
+        {
+          "task_id": "1.3",
+          "instruction_theory": "**Part A: Explanation**\n\nNow let's build the \"Add Entry\" feature! When the user picks option 1, we'll ask them for a plant name and some notes, then store it in our `entries` list.\n\nWe'll store each entry as a **dictionary** \u2014 think of it like a mini filing card with labeled slots. Each card has a `name` slot and a `notes` slot. Then we add that card to our `entries` list (like putting it in a filing cabinet).\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nmy_list = []\n\nentry = {\"name\": \"Tomato\", \"notes\": \"Needs lots of sun\"}\nmy_list.append(entry)\n\nprint(my_list)\nprint(\"First entry name:\", my_list[0][\"name\"])\n```\nYou should see:\n```\n[{'name': 'Tomato', 'notes': 'Needs lots of sun'}]\nFirst entry name: Tomato\n```\nThe dictionary stores the data, and `append()` adds it to the list!\n\n**Part C: Your Task**\n\n1. Inside your while loop, change the `else` block to check for specific options using `elif`\n2. Add this check: `if choice == \"1\":` for the Add Entry feature\n3. Inside that block:\n   - Use `input()` to ask `Enter plant/project name: ` and store it in a variable called `name`\n   - Use `input()` to ask `Enter notes: ` and store it in a variable called `notes`\n   - Create a dictionary called `entry` with two keys: `\"name\"` (set to `name`) and `\"notes\"` (set to `notes`)\n   - Use `entries.append(entry)` to add it to your list\n   - Print `Entry added!` to confirm it worked\n4. Keep an `else` block at the end that prints `Invalid option. Try again.` for any unrecognized choice",
+          "coding_requirements": [
+            "Check `if choice == \"1\":` for the Add Entry feature",
+            "Ask for plant name with `input()` and store in variable `name`",
+            "Ask for notes with `input()` and store in variable `notes`",
+            "Create a dictionary `entry` with keys `\"name\"` and `\"notes\"`, then append it to `entries`",
+            "Print `Entry added!` after successfully adding",
+            "Include an `else` block that prints `Invalid option. Try again.` for unrecognized choices"
+          ],
+          "hints": [
+            "Your if/elif/else structure should look like: `if choice == \"6\":` ... `elif choice == \"1\":` ... `else:` ...",
+            "When creating the dictionary, use curly braces: `entry = {\"name\": name, \"notes\": notes}`",
+            "If you get a `KeyError`, double-check your dictionary keys are spelled exactly as `\"name\"` and `\"notes\"` with quotes"
+          ],
+          "test_specification": {
+            "expected_state": "Selecting option 1 asks for a plant name and notes, then confirms 'Entry added!'. The entry is stored in the entries list. Invalid options show 'Invalid option. Try again.'",
+            "verification_code": "# Simulate adding an entry and check it's stored correctly\nentries = []\nentry = {\"name\": \"Rose\", \"notes\": \"Water daily\"}\nentries.append(entry)\nassert len(entries) == 1, 'Should have one entry'\nassert entries[0][\"name\"] == \"Rose\", 'Entry name should be Rose'"
+          },
+          "id": "f64afa2a-a162-484f-a445-29f27da08c96"
+        },
+        {
+          "task_id": "1.4",
+          "instruction_theory": "**Part A: Explanation**\n\nLet's add the \"List Entries\" feature so users can see all the plants they've added! This is option 2 on our menu.\n\nWe'll loop through the `entries` list and print each one. We'll also use `enumerate()` to get a number for each entry \u2014 this is super useful because later we'll need those numbers to view, edit, or delete specific entries.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nfruits = [\"Apple\", \"Banana\", \"Cherry\"]\n\nfor index, fruit in enumerate(fruits):\n    print(str(index + 1) + \". \" + fruit)\n```\nYou should see:\n```\n1. Apple\n2. Banana\n3. Cherry\n```\nThe `enumerate()` function gives us both the position (index) and the item. We add 1 to the index so it starts at 1 instead of 0 (more user-friendly!).\n\n**Part C: Your Task**\n\n1. Add a new condition: `elif choice == \"2\":` for the List Entries feature\n2. Inside that block, first check if `entries` is empty using `if len(entries) == 0:`\n   - If empty, print `No entries yet. Add some plants!`\n3. If not empty (use `else:`), loop through entries with `for index, entry in enumerate(entries):`\n   - For each entry, print the number and name like this: `1. Tomato`\n   - Use `str(index + 1) + \". \" + entry[\"name\"]` to format it\n\nTest it by adding a couple of entries with option 1, then listing them with option 2!",
+          "coding_requirements": [
+            "Add `elif choice == \"2\":` for the List Entries feature",
+            "Check if `entries` is empty with `len(entries) == 0` and print `No entries yet. Add some plants!`",
+            "If entries exist, use `for index, entry in enumerate(entries):` to loop through them",
+            "Print each entry as a numbered list showing the name (e.g., `1. Tomato`)"
+          ],
+          "hints": [
+            "Remember that `enumerate()` gives you two things: the index AND the item. Use `for index, entry in enumerate(entries):`",
+            "To combine the number and name, convert the number to text first: `str(index + 1)`",
+            "If your list shows `0. Tomato` instead of `1. Tomato`, you forgot to add 1 to the index!"
+          ],
+          "test_specification": {
+            "expected_state": "Selecting option 2 with no entries shows 'No entries yet. Add some plants!'. After adding entries, option 2 shows a numbered list of plant names.",
+            "verification_code": "# Test the enumerate logic\nentries = [{\"name\": \"Tomato\", \"notes\": \"Red\"}, {\"name\": \"Basil\", \"notes\": \"Green\"}]\noutput = []\nfor index, entry in enumerate(entries):\n    output.append(str(index + 1) + \". \" + entry[\"name\"])\nassert output == [\"1. Tomato\", \"2. Basil\"], 'List should show numbered entries'"
+          },
+          "id": "07f2b358-5ea8-4c91-98f4-829ac69e7c4a"
+        }
+      ],
+      "id": "7138fe8a-3d23-4bff-b3f4-638616cbb850",
+      "status": "ready"
+    },
+    {
+      "id": "04984d55-0759-405e-840d-fe965d26ead5",
+      "subheading_title": "List and View Individual Entries",
+      "description": "Add the ability to display all entries as a numbered list, and let users pick one to see its full details. You'll learn to loop through lists with enumerate() to show numbered items, and handle cases where the list is empty or the user picks an invalid number.",
+      "tasks": [],
+      "status": "generating"
+    },
+    {
+      "id": "9ac40f86-5aae-450b-b144-96b5449a3a71",
+      "subheading_title": "Edit and Delete Entries",
+      "description": "Implement editing (change an entry's notes) and deleting entries by number. This teaches you how to modify and remove items from a list, plus reinforces checking that user input is valid before making changes.",
+      "tasks": [],
+      "status": "generating"
+    },
+    {
+      "id": "5c5e6f24-b297-44cb-83dd-8570ec2d99f2",
+      "subheading_title": "Save to JSON and Load on Startup",
+      "description": "Use Python's json module to save your entries to a file when the user saves or quits, and automatically load existing entries when the program starts. You'll learn file I/O with open(), json.dump(), and json.load(), plus handle the case where the file doesn't exist yet.",
+      "tasks": [],
+      "status": "generating"
+    }
+  ],
+  "project_id": "016a2f8a-12ff-4e99-b430-8923183682d8",
+  "outline": {
+    "milestones": [
+      {
+        "description": "Build the main menu that displays numbered options and keeps running until the user quits. Implement the 'Add Entry' feature where users can input a plant/project name and notes, storing them in a list of dictionaries. You'll practice using while loops, input(), and working with lists of dictionaries.",
+        "subheading_title": "Create the Menu Loop and Add Entries"
+      },
+      {
+        "description": "Add the ability to display all entries as a numbered list, and let users pick one to see its full details. You'll learn to loop through lists with enumerate() to show numbered items, and handle cases where the list is empty or the user picks an invalid number.",
+        "subheading_title": "List and View Individual Entries"
+      },
+      {
+        "description": "Implement editing (change an entry's notes) and deleting entries by number. This teaches you how to modify and remove items from a list, plus reinforces checking that user input is valid before making changes.",
+        "subheading_title": "Edit and Delete Entries"
+      },
+      {
+        "description": "Use Python's json module to save your entries to a file when the user saves or quits, and automatically load existing entries when the program starts. You'll learn file I/O with open(), json.dump(), and json.load(), plus handle the case where the file doesn't exist yet.",
+        "subheading_title": "Save to JSON and Load on Startup"
+      }
+    ],
+    "project_brief": "Build a terminal-based portfolio to log your plants and garden projects. You'll create a menu-driven app that saves entries to a JSON file, so your garden data persists between sessions. Perfect for tracking what you're growing!",
+    "project_title": "Gardening Portfolio (Terminal App)",
+    "vm_type": "python"
+  },
+  "vm_type": "python"
+}
