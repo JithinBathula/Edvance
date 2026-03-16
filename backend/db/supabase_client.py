@@ -1151,6 +1151,20 @@ def get_user_progress_for_task_ids(user_id: str, task_ids: List[str]) -> List[Di
     return result.data or []
 
 
+def get_user_task_feedback(user_id: str, task_id: str) -> Optional[Dict[str, Any]]:
+    """Get submission feedback for a specific user-task pair."""
+    try:
+        result = execute_with_retry(
+            "get_user_task_feedback",
+            lambda: supabase.table("user_progress").select(
+                "feedback, passed, status"
+            ).eq("user_id", user_id).eq("task_id", task_id).maybe_single().execute(),
+        )
+        return result.data
+    except Exception:
+        return None
+
+
 def get_student_assignments_for_assignment(assignment_id: str) -> List[Dict[str, Any]]:
     """Get all student assignments for an assignment with user names."""
     result = supabase.table("student_assignments").select(

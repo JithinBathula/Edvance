@@ -20,8 +20,9 @@ jobs:
           username: ${{secrets.EC2_USER_STAGING }}
           key : ${{ secrets.EC2_SSH_KEY_STAGING }}
           script: |
-            cd ~/backend
+            cd ~/app
             git pull origin staging
+            cd backend
             docker build -t edvance-backend .
             docker stop edvance-backend || true
             docker rm edvance-backend || true

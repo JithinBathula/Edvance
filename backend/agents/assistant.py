@@ -45,13 +45,36 @@ class AssistantAgent:
         
         return "\n".join(formatted)
 
+    def _format_submission_feedback(self, submission_feedback: Dict[str, Any] | None) -> str:
+        """Format previous submission feedback for prompt context."""
+        if not submission_feedback:
+            return "No previous submissions for this task."
+
+        passed = submission_feedback.get('passed', False)
+        feedback = submission_feedback.get('feedback', {})
+        status = "PASSED" if passed else "FAILED"
+
+        parts = [f"Last submission result: {status}"]
+
+        ai_feedback = feedback.get('message', '')
+        if ai_feedback:
+            parts.append(f"Feedback: {ai_feedback}")
+
+        teacher_feedback = feedback.get('teacher_feedback', '')
+        if teacher_feedback:
+            teacher_name = feedback.get('teacher_name', 'Teacher')
+            parts.append(f"Teacher feedback (from {teacher_name}): {teacher_feedback}")
+
+        return "\n".join(parts)
+
     def chat(
         self,
         user_message: str,
         task_instructions: str,
         test_specification: Dict[str, Any],
         user_code: str,
-        chat_history: List[Dict[str, str]]
+        chat_history: List[Dict[str, str]],
+        submission_feedback: Dict[str, Any] | None = None,
     ) -> str:
         """
         Generate a helpful response to the student's message.
@@ -68,7 +91,8 @@ class AssistantAgent:
         """
         test_spec_text = self._format_test_spec(test_specification)
         history_text = self._format_history(chat_history)
-        
+        feedback_text = self._format_submission_feedback(submission_feedback)
+
         messages = [
             {"role": "system", "content": prompts.assistant_system_prompt},
             {
@@ -79,6 +103,7 @@ class AssistantAgent:
                     user_code=user_code,
                     chat_history=history_text,
                     user_message=user_message,
+                    submission_feedback=feedback_text,
                 )
             }
         ]

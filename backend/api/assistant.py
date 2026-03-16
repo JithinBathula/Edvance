@@ -13,6 +13,7 @@ from db.supabase_client import (
     save_chat_message,
     get_chat_history,
     clear_chat_history,
+    get_user_task_feedback,
 )
 from services.git_repo import read_repo_files
 
@@ -66,6 +67,16 @@ def chat():
             except Exception as save_err:
                 print(f"Warning: Failed to save user message: {save_err}")
 
+        # Fetch submission feedback for this task (if any prior submissions exist)
+        submission_feedback = None
+        if task_id:
+            progress = get_user_task_feedback(g.user_id, task_id)
+            if progress and progress.get('feedback'):
+                submission_feedback = {
+                    'passed': progress.get('passed', False),
+                    'feedback': progress['feedback'],
+                }
+
         # If no code was sent, fall back to cloud storage
         if not code and project_id:
             project = get_project_by_id(project_id)
@@ -84,7 +95,8 @@ def chat():
             task_instructions=task_instructions,
             test_specification=test_specification,
             user_code=code,
-            chat_history=history
+            chat_history=history,
+            submission_feedback=submission_feedback,
         )
 
         # Save assistant response — task_number now included for concept tracking 
