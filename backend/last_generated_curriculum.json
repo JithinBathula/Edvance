@@ -1,0 +1,126 @@
+{
+  "project_title": "Mystery Bug Detective",
+  "project_brief": "A terminal-based quiz game where you play detective and spot bugs in broken Python code snippets. You'll choose the correct fix from multiple choices, get feedback on your answers, and track your score across puzzles loaded from a data file.",
+  "milestones": [
+    {
+      "subheading_title": "Load and Display Puzzles from Data File",
+      "description": "Create a JSON file with 5+ bug puzzles (each has a broken code snippet, multiple-choice answers, and the correct answer). Write code to load this file and display the first puzzle with its choices to the player. You'll practice working with JSON files and dictionaries.",
+      "tasks": [
+        {
+          "task_id": "1.1",
+          "instruction_theory": "**Part A: Explanation**\n\nBefore we can write code to load puzzles, we need to create the puzzle data! We'll use a **JSON file** \u2014 think of it like a recipe card that stores information in a neat, organized way that Python can easily read.\n\nJSON stands for \"JavaScript Object Notation\" but don't worry about the name \u2014 it's just a way to store data using curly braces `{}` and square brackets `[]`. It looks a lot like Python dictionaries and lists!\n\n**Part B: Try It Out**\n\nHere's what JSON looks like \u2014 it's just text that stores data:\n```json\n{\n  \"name\": \"Alex\",\n  \"age\": 11,\n  \"hobbies\": [\"coding\", \"games\"]\n}\n```\n\nNotice how it uses:\n- Curly braces `{}` to group things together (like a dictionary)\n- Square brackets `[]` for lists\n- Colons `:` to separate names from values\n- Commas `,` between items\n\nYou don't need to run anything yet \u2014 just understand the format!\n\n**Part C: Your Task**\n\nCreate a new file called `puzzles.json` (click the + button to add a new file) and paste this starter puzzle data:\n\n```json\n{\n  \"puzzles\": [\n    {\n      \"id\": 1,\n      \"code\": \"name = 'Alex'\\nprint(Name)\",\n      \"question\": \"Why does this code crash?\",\n      \"choices\": {\n        \"A\": \"Missing quotes around Alex\",\n        \"B\": \"Variable name is spelled differently (name vs Name)\",\n        \"C\": \"print() is not a real function\"\n      },\n      \"correct\": \"B\",\n      \"explanation\": \"Python cares about uppercase and lowercase! 'name' and 'Name' are different.\"\n    },\n    {\n      \"id\": 2,\n      \"code\": \"for i in range(5)\\n    print(i)\",\n      \"question\": \"What's missing from this loop?\",\n      \"choices\": {\n        \"A\": \"The colon : at the end of the for line\",\n        \"B\": \"The word 'loop' instead of 'for'\",\n        \"C\": \"Parentheses around the print\"\n      },\n      \"correct\": \"A\",\n      \"explanation\": \"for loops need a colon at the end: for i in range(5):\"\n    }\n  ]\n}\n```\n\n1. Create a new file named exactly `puzzles.json`\n2. Paste the JSON data above into that file\n3. Save the file",
+          "coding_requirements": [
+            "Create a file named exactly `puzzles.json`",
+            "The file contains valid JSON with a `puzzles` array containing at least 2 puzzle objects",
+            "Each puzzle has: id, code, question, choices (with A/B/C), correct, and explanation"
+          ],
+          "hints": [
+            "Make sure your file is named `puzzles.json` (not `puzzle.json` or `puzzles.txt`)",
+            "If you see red squiggly lines in the JSON, check that every opening brace `{` has a closing `}` and every quote has a matching quote",
+            "Don't forget commas between items, but NOT after the last item in a list!"
+          ],
+          "test_specification": {
+            "expected_state": "A file called puzzles.json exists with valid JSON containing at least 2 puzzles",
+            "verification_code": "import json\nwith open('puzzles.json', 'r') as f:\n    data = json.load(f)\nassert 'puzzles' in data and len(data['puzzles']) >= 2"
+          },
+          "id": "629e961f-5f5b-486b-88f4-13c83c1d68da"
+        },
+        {
+          "task_id": "1.2",
+          "instruction_theory": "**Part A: Explanation**\n\nAwesome! Now that we have our puzzle data saved, let's write Python code to **load** it. Python has a built-in tool called `json` that can read JSON files and turn them into dictionaries and lists we can use.\n\nIt's like having a translator that reads the recipe card and tells Python what's on it!\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code in `main.py`:\n```python\nimport json\n\nwith open('puzzles.json', 'r') as file:\n    data = json.load(file)\n\nprint(type(data))\nprint(data)\n```\n\nYou should see:\n```\n<class 'dict'>\n{'puzzles': [{'id': 1, 'code': \"name = 'Alex'\\nprint(Name)\" ... }]}\n```\n\nThe `json.load()` function reads the file and converts it into a Python dictionary!\n\n**Part C: Your Task**\n\n1. In `main.py`, add `import json` at the top\n2. Use `with open('puzzles.json', 'r') as file:` to open the file\n3. Use `data = json.load(file)` to load the JSON into a variable called `data`\n4. Create a variable called `puzzles` that stores just the list of puzzles: `puzzles = data['puzzles']`\n5. Print how many puzzles loaded: `print('Loaded', len(puzzles), 'puzzles!')`",
+          "coding_requirements": [
+            "Import the `json` module at the top of main.py",
+            "Load puzzles.json using `with open()` and `json.load()`",
+            "Store the puzzle list in a variable called `puzzles`",
+            "Print the number of puzzles loaded"
+          ],
+          "hints": [
+            "Make sure `puzzles.json` is in the same folder as `main.py`",
+            "The `'r'` in `open('puzzles.json', 'r')` means 'read mode' \u2014 we're just reading, not changing the file",
+            "If you get `FileNotFoundError`, double-check the filename spelling matches exactly"
+          ],
+          "test_specification": {
+            "expected_state": "Running main.py prints 'Loaded 2 puzzles!' (or more if you added extra puzzles)",
+            "verification_code": "import json\nwith open('puzzles.json', 'r') as f:\n    data = json.load(f)\npuzzles = data['puzzles']\nassert len(puzzles) >= 2"
+          },
+          "id": "e8da1482-9cc9-4374-b9b7-fdb666b678bd"
+        },
+        {
+          "task_id": "1.3",
+          "instruction_theory": "**Part A: Explanation**\n\nNow let's display a puzzle to the player! Each puzzle in our list is a **dictionary** with keys like `code`, `question`, and `choices`. We can access these using square brackets, like `puzzle['code']`.\n\nThink of it like a filing cabinet \u2014 you ask for a specific folder by name, and it gives you what's inside!\n\n**Part B: Try It Out**\n\nAdd this after your existing code and run it:\n```python\nfirst_puzzle = puzzles[0]\nprint(first_puzzle['question'])\n```\n\nYou should see: `Why does this code crash?`\n\nWe used `puzzles[0]` to get the first puzzle (remember, lists start counting at 0!), then `['question']` to get just the question text.\n\n**Part C: Your Task**\n\n1. Get the first puzzle and store it in a variable called `current_puzzle`: `current_puzzle = puzzles[0]`\n2. Print a header: `print('\\n=== MYSTERY BUG DETECTIVE ===')`\n3. Print `print('\\nPuzzle #' + str(current_puzzle['id']))`\n4. Print `print('\\nBuggy Code:')`\n5. Print the actual code: `print(current_puzzle['code'])`\n6. Print the question: `print('\\nQuestion:', current_puzzle['question'])`",
+          "coding_requirements": [
+            "Store the first puzzle in a variable called `current_puzzle`",
+            "Print the game title header",
+            "Print the puzzle ID, the buggy code, and the question"
+          ],
+          "hints": [
+            "Use `str()` to convert numbers to text when combining with strings: `str(current_puzzle['id'])`",
+            "The `\\n` creates a blank line \u2014 it makes the output easier to read",
+            "If you see `KeyError`, check that you spelled the key exactly right (like `'code'` not `'Code'`)"
+          ],
+          "test_specification": {
+            "expected_state": "Running main.py shows the game title, puzzle number, the buggy code snippet, and the question",
+            "verification_code": "# Visual check: output should include '=== MYSTERY BUG DETECTIVE ===' and show puzzle code"
+          },
+          "id": "09b6ace3-d221-4372-91ce-536e32a8d771"
+        },
+        {
+          "task_id": "1.4",
+          "instruction_theory": "**Part A: Explanation**\n\nAlmost there! Now we need to show the multiple-choice answers. The `choices` in each puzzle is another dictionary with keys like `'A'`, `'B'`, `'C'`. We need to loop through and display each one.\n\nSince you already know loops, this will be a breeze! We'll use `.items()` to get both the letter AND the answer text at the same time.\n\n**Part B: Try It Out**\n\nTry this quick example:\n```python\nmy_choices = {'A': 'Apple', 'B': 'Banana', 'C': 'Cherry'}\nfor letter, answer in my_choices.items():\n    print(letter + ': ' + answer)\n```\n\nYou should see:\n```\nA: Apple\nB: Banana\nC: Cherry\n```\n\nThe `.items()` method gives us pairs \u2014 the key (letter) and the value (answer) together!\n\n**Part C: Your Task**\n\n1. After printing the question, print `print('\\nChoices:')`\n2. Get the choices dictionary: `choices = current_puzzle['choices']`\n3. Loop through the choices and print each one:\n```python\nfor letter, answer in choices.items():\n    print(letter + ': ' + answer)\n```\n4. Run your code \u2014 you should see the full puzzle displayed with all answer choices!",
+          "coding_requirements": [
+            "Store the choices in a variable called `choices`",
+            "Use a for loop with `.items()` to loop through the choices",
+            "Print each choice in the format `A: answer text`"
+          ],
+          "hints": [
+            "Make sure `choices = current_puzzle['choices']` comes AFTER you create `current_puzzle`",
+            "The `.items()` method works on dictionaries \u2014 it won't work on lists",
+            "If your choices print in a weird order, that's okay! Dictionaries don't always keep order, but the game will still work"
+          ],
+          "test_specification": {
+            "expected_state": "Running main.py displays the complete first puzzle: title, puzzle ID, buggy code, question, and all choices (A, B, C)",
+            "verification_code": "# Visual check: output should show choices like 'A: Missing quotes...' etc."
+          },
+          "id": "d26b5106-6bb3-452b-bfc8-2c143aefa793"
+        }
+      ],
+      "id": "01b948c4-9036-4153-9e6d-1d4f51ca5952",
+      "status": "ready"
+    },
+    {
+      "id": "642faba6-7838-4b22-9fd6-655cede63719",
+      "subheading_title": "Build the Quiz Loop with Answer Checking",
+      "description": "Create a loop that goes through each puzzle, takes the player's input (A/B/C), checks if it matches the correct answer, and shows whether they got it right along with a brief explanation of the bug. This is where your loop and conditional skills come together.",
+      "tasks": [],
+      "status": "generating"
+    },
+    {
+      "id": "2faafeb7-d369-4a60-a4fb-d2d820a226fa",
+      "subheading_title": "Add Score Tracking and Game Summary",
+      "description": "Track the player's score throughout the game (+1 for correct answers) and display a final summary when all puzzles are done. Also add a friendly error message if the puzzle file is missing, so the game doesn't crash unexpectedly.",
+      "tasks": [],
+      "status": "generating"
+    }
+  ],
+  "project_id": "a0cef0b5-f478-45fc-9f2e-c25e62c9b16d",
+  "outline": {
+    "milestones": [
+      {
+        "description": "Create a JSON file with 5+ bug puzzles (each has a broken code snippet, multiple-choice answers, and the correct answer). Write code to load this file and display the first puzzle with its choices to the player. You'll practice working with JSON files and dictionaries.",
+        "subheading_title": "Load and Display Puzzles from Data File"
+      },
+      {
+        "description": "Create a loop that goes through each puzzle, takes the player's input (A/B/C), checks if it matches the correct answer, and shows whether they got it right along with a brief explanation of the bug. This is where your loop and conditional skills come together.",
+        "subheading_title": "Build the Quiz Loop with Answer Checking"
+      },
+      {
+        "description": "Track the player's score throughout the game (+1 for correct answers) and display a final summary when all puzzles are done. Also add a friendly error message if the puzzle file is missing, so the game doesn't crash unexpectedly.",
+        "subheading_title": "Add Score Tracking and Game Summary"
+      }
+    ],
+    "project_brief": "A terminal-based quiz game where you play detective and spot bugs in broken Python code snippets. You'll choose the correct fix from multiple choices, get feedback on your answers, and track your score across puzzles loaded from a data file.",
+    "project_title": "Mystery Bug Detective",
+    "vm_type": "python"
+  },
+  "vm_type": "python"
+}

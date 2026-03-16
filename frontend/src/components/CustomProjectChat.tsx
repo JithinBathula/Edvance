@@ -195,6 +195,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   const [isDragging, setIsDragging] = useState(false);
 
   // --- Refs ---
+  const guidingAnswersRef = useRef(guidingAnswers);
+  guidingAnswersRef.current = guidingAnswers; 
   const hasInitializedChat = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -470,6 +472,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
         if (!reqRes.ok || reqJson.status !== 'success') throw new Error('Failed to get requirements');
 
         const sessionData = reqJson.requirements.session_data;
+        sessionData.timeline = guidingAnswersRef.current.timeline || '';
 
         const outlineRes = await authFetch('/planning/outline', {
           method: 'POST',

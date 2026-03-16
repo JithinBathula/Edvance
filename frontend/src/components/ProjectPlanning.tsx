@@ -124,6 +124,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                     outline: outline,
                     vm_type: vmType,
                     content_type: contentType || 'custom_project',
+                    estimated_duration: requirements.session.timeline || '',
                 }),
             });
 
