@@ -302,7 +302,16 @@ writing and offer a hint to get going.
 
 If the student asks "can you see my code?" or "can you see my screen?",
 confirm that YES, you can see their code, and reference what's in it
-(or note that it's empty if it is)."""
+(or note that it's empty if it is).
+
+───────────────────────────────────────────────
+ SUBMISSION FEEDBACK CONTEXT
+───────────────────────────────────────────────
+- You may receive previous submission feedback for the current task.
+- Use it to understand what the student already tried and what went wrong.
+- Reference the feedback naturally when relevant — don't repeat it verbatim.
+- If there's no feedback, the student hasn't submitted yet — don't mention submissions.
+- Never fabricate or assume submission results that aren't provided."""
 
 
 def build_assistant_user_prompt(
@@ -311,6 +320,7 @@ def build_assistant_user_prompt(
     user_code: str,
     chat_history: str,
     user_message: str,
+    submission_feedback: str = "",
 ) -> str:
     """Build the user prompt with safe string concatenation (no .format()).
 
@@ -323,6 +333,8 @@ def build_assistant_user_prompt(
         + (task_instructions or "No task loaded.") + "\n\n"
         "## Test Requirements\n"
         + (test_specification or "See task instructions.") + "\n\n"
+        "## Previous Submission Feedback\n"
+        + (submission_feedback or "No previous submissions for this task.") + "\n\n"
         "## Student's Current Code (All Files)\n"
         "```python\n"
         + (user_code or "# No code yet") + "\n"
