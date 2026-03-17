@@ -7,7 +7,6 @@ import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Paperclip, X, FileTex
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
 import { cn } from './ui/utils';
@@ -159,21 +158,72 @@ async function readSSEStream(
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
+  let buffer = '';
   let finished = false;
 
   while (!finished) {
     const { value, done } = await reader.read();
-    if (done) break;
 
-    for (const line of decoder.decode(value, { stream: true }).split('\n')) {
-      if (!line.startsWith('data: ')) continue;
+    // fix incomplete chunks by buffering and only processing complete events (separated by double newlines)
+    if (done) {
+      buffer += decoder.decode();
+    } else {
+      buffer += decoder.decode(value, { stream: true });
+    }
+
+    // Normalize newlines to \n for consistent splitting
+    buffer = buffer.replace(/\r\n/g, '\n');
+
+    // SSE events are separated by double newlines, but content can have single newlines, so we split on double newlines to get complete events
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+
+    for (const event of events) {
+      // Ignore comment-only / empty events
+      if (!event.trim()) continue;
+
+      const dataLines = event
+        .split('\n')
+        .filter(line => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart());
+
+      if (dataLines.length === 0) continue;
+
+      const dataStr = dataLines.join('\n');
+
       try {
-        const data = JSON.parse(line.substring(6));
-        if (data.content) onContent(data.content);
+        const data = JSON.parse(dataStr);
+
+        if (data.content !== undefined) onContent(data.content);        
         if (data.handoff) onHandoff();
-        if (data.done) finished = true;
-      } catch {
-        // skip malformed chunks
+        if (data.done) {
+          finished = true;
+          break;
+        }
+      }catch (err) {
+        console.error('[SSE] Failed to parse event JSON:', dataStr, err);
+      }
+    }
+    if (done) break;
+  }
+
+  const tail = buffer.trim();
+  if (tail) {
+    const dataLines = tail
+      .split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart());
+
+    if (dataLines.length > 0) {
+      const dataStr = dataLines.join('\n');
+      
+      try {
+        const data = JSON.parse(dataStr);
+        if (data.content !== undefined) onContent(data.content);        
+        if (data.handoff) onHandoff();
+      } catch (err) {
+        console.error('[SSE] Failed to parse trailing event JSON:', dataStr, err);
       }
     }
   }
@@ -200,6 +250,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const handoffStartedRef = useRef(false);
+  const handoffTimeoutRef = useRef<number | null>(null);
 
   // --- Derived ---
   const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
@@ -293,21 +345,140 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [addValidFiles]);
 
+
+  // ─── Handoff ─────────────────────────────────────────────────────────────────
+
+  const triggerHandoff = useCallback(() => {
+    // Immediate guard against duplicate handoff scheduling
+    if (handoffStartedRef.current) return;
+
+    handoffStartedRef.current = true;
+    setIsProcessingHandoff(true);
+
+    // Clear any previous timeout just in case
+    if (handoffTimeoutRef.current !== null) {
+      window.clearTimeout(handoffTimeoutRef.current);
+      handoffTimeoutRef.current = null;
+    }
+
+    handoffTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        const MAX_POLL_ATTEMPTS = 4;
+        const POLL_INTERVAL_MS = 1200;
+
+        let sessionData: any = null;
+
+        for (let attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt++) {
+          try {
+            console.log('[Handoff Poll] Attempt', attempt, 'of', MAX_POLL_ATTEMPTS, 'for session', chatSessionId);
+            const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
+            const reqJson = await reqRes.json();
+
+            console.log('[Handoff Poll] Response', {
+              attempt,
+              status: reqRes.status,
+              ready_to_plan: !!reqJson?.ready_to_plan,
+              payload_status: reqJson?.status,
+            });
+
+            if (reqRes.status === 404) {
+              console.warn('[Handoff Poll] Session not found', { attempt, chatSessionId });
+              toast.error('Session not found');
+              handoffStartedRef.current = false;
+              setIsProcessingHandoff(false);
+              return;
+            }
+
+            if (reqJson.ready_to_plan) {
+              console.log('[Handoff Poll] Ready to plan reached', { attempt });
+              sessionData = reqJson.requirements.session_data;
+              break;
+            }
+          } catch (err) {
+            console.warn('[Handoff Poll] Request failed', { attempt, err });
+            if (attempt === MAX_POLL_ATTEMPTS) {
+              throw err;
+            }
+          }
+
+          if (attempt < MAX_POLL_ATTEMPTS) {
+            console.log('[Handoff Poll] Waiting before retry', { nextAttempt: attempt + 1, delayMs: POLL_INTERVAL_MS });
+            await new Promise((resolve) => window.setTimeout(resolve, POLL_INTERVAL_MS));
+          }
+        }
+
+        if (!sessionData) {
+          console.warn('[Handoff Poll] Exhausted attempts without ready_to_plan');
+          toast.info('Still gathering requirements...');
+          handoffStartedRef.current = false;
+          setIsProcessingHandoff(false);
+          return;
+        }
+
+        const outlineRes = await authFetch('/planning/outline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session: sessionData,
+            user_profile: userProfile,
+          }),
+        });
+
+        const outlineJson = await outlineRes.json();
+
+        if (!outlineRes.ok) {
+          throw new Error(`Outline generation failed: ${outlineRes.status}`);
+        }
+
+        toast.success('Plan Created!');
+        handoffStartedRef.current = false;
+        setIsProcessingHandoff(false);
+        onProjectCreated({
+          session: sessionData,
+          outline: outlineJson,
+          userProfile,
+        });
+      } catch (e) {
+        console.error('[Handoff] Failed:', e);
+        toast.error('Failed to generate plan');
+        handoffStartedRef.current = false;
+        setIsProcessingHandoff(false);
+      } finally {
+        handoffTimeoutRef.current = null;
+      }
+    }, 300);
+  }, [chatSessionId, userProfile, onProjectCreated]);
+
+
   // ─── Stream response helper ──────────────────────────────────────────────────
 
   /** Shared callback that appends streamed content to the assistant message. */
   const makeStreamHandlers = useCallback((assistantId: string) => {
     const onContent = (content: string) => {
-      setMessages(prev => prev.map(msg => {
+      setMessages(prev => 
+        prev.map(msg => {
         if (msg.id !== assistantId) return msg;
-        return { ...msg, content: cleanStreamContent((msg.content || '') + content) };
-      }));
-    };
+        return { 
+          ...msg, 
+          content: cleanStreamContent((msg.content || '') + content),
+         };
+      }),
+    );
+  };
     const onHandoff = () => triggerHandoff();
-    const onDone = () => { setIsLoading(false); setIsInitializingAI(false); };
-    const onError = (msg?: string) => { setIsLoading(false); setIsInitializingAI(false); toast.error(msg || 'Connection error — please check your network and try again'); };
+
+    const onDone = () => { 
+      setIsLoading(false); 
+      setIsInitializingAI(false); 
+    };
+
+    const onError = (msg?: string) => { 
+      setIsLoading(false); 
+      setIsInitializingAI(false); 
+      toast.error(msg || 'Connection error — please check your network and try again'); 
+    };
     return { onContent, onHandoff, onDone, onError };
-  }, []);
+  }, [triggerHandoff]);
 
   // ─── Send message ────────────────────────────────────────────────────────────
 
@@ -456,43 +627,19 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     console.groupEnd();
   };
 
-  // ─── Handoff ─────────────────────────────────────────────────────────────────
-
-  const triggerHandoff = async () => {
-    if (isProcessingHandoff) return;
-    setIsProcessingHandoff(true);
-
-    setTimeout(async () => {
-      try {
-        // Fetch the canonical/validated session data from the backend
-        const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
-        const reqJson = await reqRes.json();
-        if (!reqRes.ok || reqJson.status !== 'success') throw new Error('Failed to get requirements');
-
-        const sessionData = reqJson.requirements.session_data;
-
-        const outlineRes = await authFetch('/planning/outline', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session: sessionData, user_profile: userProfile }),
-        });
-        const outlineJson = await outlineRes.json();
-
-        toast.success('Plan Created!');
-        onProjectCreated({ session: sessionData, outline: outlineJson, userProfile });
-      } catch (e) {
-        console.error(e);
-        toast.error('Failed to generate plan');
-        setIsProcessingHandoff(false);
-      }
-    }, 2000);
-  };
-
   // ─── Restart ─────────────────────────────────────────────────────────────────
 
   const handleRestart = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    
+    if (handoffTimeoutRef.current !== null) {
+    window.clearTimeout(handoffTimeoutRef.current);
+    handoffTimeoutRef.current = null;
+    }
+
+    handoffStartedRef.current = false;
+
     setMessages([]);
     setCurrentStep(0);
     setGuidingAnswers({});
@@ -501,6 +648,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     setIsLoading(false);
     setIsInitializingAI(false);
     setIsProcessingHandoff(false);
+
     const newId = crypto.randomUUID();
     setChatSessionId(newId);
     hasInitializedChat.current = null;
@@ -512,6 +660,18 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     onRegisterRestart?.(handleRestart);
     return () => onRegisterRestart?.(null);
   }, [handleRestart, onRegisterRestart]);
+
+  // unmount cleanup effect
+  useEffect(() => {
+  return () => {
+    abortControllerRef.current?.abort();
+
+    if (handoffTimeoutRef.current !== null) {
+      window.clearTimeout(handoffTimeoutRef.current);
+      handoffTimeoutRef.current = null;
+    }
+  };
+}, []);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
