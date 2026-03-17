@@ -11,6 +11,12 @@ from requests import session
 from tools.requirement import RequirementTools
 from prompts import requirements_prompts
 
+from db.supabase_client import (
+    get_or_create_requirement_session,
+    save_requirement_session,
+    delete_requirement_session,
+)
+
 load_dotenv()
 
 DEFAULT_USER_SKILLS = {
@@ -44,44 +50,22 @@ class RequirementGatheringAgent:
             api_key=os.getenv("OPENROUTER_API_KEY")
         )
         self.requirement_tools = RequirementTools()
-        self.sessions: Dict[str, Dict[str, Any]] = {} 
 
 #----------------
 # SESSION MODEL
 #-----------------
-    def get_session_state(self, session_id: str) -> Dict[str, Any]:
-        """Get or create session state. Session state tracks the progress of requirement gathering."""
-        if session_id not in self.sessions:
-            self.sessions[session_id] = {
-                "project_idea": None,
-                "ready_to_plan": False,
-                "snapshot": {
-                    "project_title": "",
-                    "project_summary": "",
-                    "constraints": [],
-                    "must_haves": [],                    
-                    "nice_to_haves": [],
-                    "out_of_scope": [],
-                    "assumptions": [],
-                    "acceptance_criteria": [],
-                },
-                "decision_log": [],
-                # append-only tool context (so nothing overwrites)
-                "tool_context": {
-                    "tech_analysis_history": [],
-                    "quality_check_history": [],
-                },
-                
-                # metadata
-                "created_at": time.time(),
-                "last_updated": time.time(),
-            }
-        return self.sessions[session_id]
-    
-    def reset_session(self, session_id: str):
-        """Reset session state"""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
+    def get_session_state(self, session_id: str, user_id: str) -> Dict[str, Any]:
+        """Get or create persisted session state from Supabase."""
+        return get_or_create_requirement_session(session_id, user_id)
+
+    def save_session_state(self, session_id: str, user_id: str, session: Dict[str, Any]) -> Dict[str, Any]:
+        """Persist session state to Supabase."""
+        session["last_updated"] = time.time()
+        return save_requirement_session(session_id, user_id, session)
+
+    def reset_session(self, session_id: str, user_id: str):
+        """Delete persisted session state."""
+        delete_requirement_session(session_id, user_id)
     
 #----------------
 # HELPERS
@@ -212,7 +196,15 @@ class RequirementGatheringAgent:
 #----------------
 # TOOL DISPATCH
 #-----------------
-    def _tool_dispatch(self, tool_name: str, tool_args: Dict[str, Any], user_profile: Dict[str, Any], session: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_dispatch(
+        self,
+        tool_name: str,
+        tool_args: Dict[str, Any],
+        user_profile: Dict[str, Any],
+        session_id: str,
+        user_id: str,
+        session: Dict[str, Any],
+    ) -> Dict[str, Any]:        
         print(f"Dispatching tool: {tool_name}")
         print(f"Arguments: {json.dumps(tool_args, indent=2)}")
         
@@ -226,8 +218,8 @@ class RequirementGatheringAgent:
                     {"ts": time.time(), "args": tool_args, "result": result}
                 )
                 session["last_updated"] = time.time()
-
-                print(f"Quality check: {result.get('action','unknown')}")
+                self.save_session_state(session_id, user_id, session)
+                print(f"Quality check: {result.get('action', 'unknown')}")
                 return result
             
             elif tool_name == "update_snapshot":
@@ -248,6 +240,7 @@ class RequirementGatheringAgent:
                             snapshot[key] = str(value)
 
                 session["last_updated"] = time.time()
+                self.save_session_state(session_id, user_id, session)
                 return {"status": "refined", "note": note}
             
             elif tool_name == "mark_ready_to_plan":
@@ -258,12 +251,14 @@ class RequirementGatheringAgent:
                 if err:
                     # Never mark ready if invalid
                     session["ready_to_plan"] = False
+                    self.save_session_state(session_id, user_id, session)
                     return {"ready_to_plan": False, "error": err}
 
                 if ready:
                     session["snapshot"] = final_snapshot
                     session["ready_to_plan"] = True
                     session["last_updated"] = time.time()
+                    self.save_session_state(session_id, user_id, session)
 
                     print("REQUIREMENTS FINALIZED")
                     print(f"Final Snapshot:")
@@ -271,6 +266,7 @@ class RequirementGatheringAgent:
                     return {"ready_to_plan": True, "snapshot": final_snapshot}
 
                 session["ready_to_plan"] = False
+                self.save_session_state(session_id, user_id, session)
                 return {"ready_to_plan": False}
             
             elif tool_name == "suggest_alternative_projects":
@@ -305,6 +301,7 @@ class RequirementGatheringAgent:
         message: str,
         conversation_history: List[Dict[str, str]],
         user_profile: Dict[str, Any],
+        user_id: str,
         session_id: str = 'default',
         files: Optional[List[Dict[str, Any]]] = None,
     ) -> Generator[Dict[str, Any], None, None]:
@@ -323,11 +320,12 @@ class RequirementGatheringAgent:
         """
 
         active_user_profile = user_profile if user_profile else DEFAULT_USER_SKILLS
-        session = self.get_session_state(session_id)
-        
+        session = self.get_session_state(session_id, user_id)
+
         # Track the current project idea if it's new
         if session.get("project_idea") is None:
             session["project_idea"] = message
+            self.save_session_state(session_id, user_id, session)
 
         # Prepare Context
         system_prompt = self._build_system_prompt(active_user_profile, session)
@@ -351,6 +349,7 @@ class RequirementGatheringAgent:
             )
 
         session['turn_count'] = session.get('turn_count', 0) + 1
+        self.save_session_state(session_id, user_id, session)
         current_turn = session['turn_count']
 
         # --- THE STREAMING LOOP ---
@@ -427,7 +426,7 @@ class RequirementGatheringAgent:
                         args = {}
                         result = {"error": "Invalid JSON arguments", "status": "failed"}
                     else:
-                        result = self._tool_dispatch(tool_name, args, active_user_profile, session)
+                        result = self._tool_dispatch(tool_name, args, active_user_profile, session_id, user_id, session)
 
                     if tool_name == "mark_ready_to_plan" and result.get("ready_to_plan") is True:
                         handoff_triggered = True

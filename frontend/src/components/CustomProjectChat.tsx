@@ -7,7 +7,6 @@ import { ArrowLeft, Send, Bot, User as UserIcon, Sparkles, Paperclip, X, FileTex
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BACKEND_URL } from '../utils/constants';
 import { GUIDING_QUESTIONS } from '../utils/guidingQuestions';
 import { authFetch } from '../utils/authFetch';
 import { cn } from './ui/utils';
@@ -364,24 +363,57 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
 
     handoffTimeoutRef.current = window.setTimeout(async () => {
       try {
-        const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
-        const reqJson = await reqRes.json();
+        const MAX_POLL_ATTEMPTS = 4;
+        const POLL_INTERVAL_MS = 1200;
 
-        if (reqRes.status === 404) {
-          toast.error('Session not found');
-          handoffStartedRef.current = false;
-          setIsProcessingHandoff(false);
-          return;
+        let sessionData: any = null;
+
+        for (let attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt++) {
+          try {
+            console.log('[Handoff Poll] Attempt', attempt, 'of', MAX_POLL_ATTEMPTS, 'for session', chatSessionId);
+            const reqRes = await authFetch(`/chat/requirements/${chatSessionId}`);
+            const reqJson = await reqRes.json();
+
+            console.log('[Handoff Poll] Response', {
+              attempt,
+              status: reqRes.status,
+              ready_to_plan: !!reqJson?.ready_to_plan,
+              payload_status: reqJson?.status,
+            });
+
+            if (reqRes.status === 404) {
+              console.warn('[Handoff Poll] Session not found', { attempt, chatSessionId });
+              toast.error('Session not found');
+              handoffStartedRef.current = false;
+              setIsProcessingHandoff(false);
+              return;
+            }
+
+            if (reqJson.ready_to_plan) {
+              console.log('[Handoff Poll] Ready to plan reached', { attempt });
+              sessionData = reqJson.requirements.session_data;
+              break;
+            }
+          } catch (err) {
+            console.warn('[Handoff Poll] Request failed', { attempt, err });
+            if (attempt === MAX_POLL_ATTEMPTS) {
+              throw err;
+            }
+          }
+
+          if (attempt < MAX_POLL_ATTEMPTS) {
+            console.log('[Handoff Poll] Waiting before retry', { nextAttempt: attempt + 1, delayMs: POLL_INTERVAL_MS });
+            await new Promise((resolve) => window.setTimeout(resolve, POLL_INTERVAL_MS));
+          }
         }
 
-        if (!reqJson.ready_to_plan) {
+        if (!sessionData) {
+          console.warn('[Handoff Poll] Exhausted attempts without ready_to_plan');
           toast.info('Still gathering requirements...');
           handoffStartedRef.current = false;
           setIsProcessingHandoff(false);
           return;
         }
-
-        const sessionData = reqJson.requirements.session_data;
 
         const outlineRes = await authFetch('/planning/outline', {
           method: 'POST',
@@ -414,7 +446,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
       } finally {
         handoffTimeoutRef.current = null;
       }
-    }, 2000);
+    }, 300);
   }, [chatSessionId, userProfile, onProjectCreated]);
 
 

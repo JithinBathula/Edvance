@@ -496,6 +496,134 @@ def clear_chat_history(user_id: str, project_id: str) -> bool:
     result = supabase.table("chat_messages").delete().eq("user_id", user_id).eq("project_id", project_id).execute()
     return True
 
+# =============================================================================
+# REQUIREMENT SESSION OPERATIONS
+# =============================================================================
+
+def _default_requirement_session() -> Dict[str, Any]:
+    return {
+        "project_idea": None,
+        "ready_to_plan": False,
+        "snapshot": {
+            "project_title": "",
+            "project_summary": "",
+            "constraints": [],
+            "must_haves": [],
+            "nice_to_haves": [],
+            "out_of_scope": [],
+            "assumptions": [],
+            "acceptance_criteria": [],
+        },
+        "decision_log": [],
+        "tool_context": {
+            "tech_analysis_history": [],
+            "quality_check_history": [],
+        },
+        "turn_count": 0,
+    }
+
+
+def get_requirement_session(session_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    result = execute_with_retry(
+        "get_requirement_session",
+        lambda: supabase.table("requirement_sessions")
+        .select("*")
+        .eq("session_id", session_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+        .execute(),
+    )
+    if result is None:
+        logger.warning(
+            "get_requirement_session returned no response object session_id=%s user_id=%s",
+            session_id,
+            user_id,
+        )
+        return None
+    return getattr(result, "data", None)
+
+
+def create_requirement_session(session_id: str, user_id: str) -> Dict[str, Any]:
+    default_state = _default_requirement_session()
+
+    row = {
+        "session_id": session_id,
+        "user_id": user_id,
+        "project_idea": default_state["project_idea"],
+        "ready_to_plan": default_state["ready_to_plan"],
+        "snapshot": default_state["snapshot"],
+        "decision_log": default_state["decision_log"],
+        "tool_context": default_state["tool_context"],
+        "turn_count": default_state["turn_count"],
+        "last_updated": datetime.utcnow().isoformat(),
+    }
+
+    result = execute_with_retry(
+        "create_requirement_session",
+        lambda: supabase.table("requirement_sessions").insert(row).execute(),
+    )
+    if result is None:
+        raise Exception(f"Supabase returned None while creating requirement session {session_id}")
+
+    data = getattr(result, "data", None)
+    if data:
+        return data[0]
+
+    raise Exception(f"Failed to create requirement session {session_id}")
+
+
+def get_or_create_requirement_session(session_id: str, user_id: str) -> Dict[str, Any]:
+    row = get_requirement_session(session_id, user_id)
+    if row is not None:
+        return row
+    return create_requirement_session(session_id, user_id)
+
+
+def save_requirement_session(session_id: str, user_id: str, session: Dict[str, Any]) -> Dict[str, Any]:
+    row = {
+        "session_id": session_id,
+        "user_id": user_id,
+        "project_idea": session.get("project_idea"),
+        "ready_to_plan": session.get("ready_to_plan", False),
+        "snapshot": session.get("snapshot", {}),
+        "decision_log": session.get("decision_log", []),
+        "tool_context": session.get("tool_context", {}),
+        "turn_count": session.get("turn_count", 0),
+        "last_updated": datetime.utcnow().isoformat(),
+    }
+
+    result = execute_with_retry(
+        "save_requirement_session",
+        lambda: supabase.table("requirement_sessions")
+        .upsert(row, on_conflict="session_id")
+        .execute(),
+    )
+    if result is None:
+        raise Exception(f"Supabase returned None while saving requirement session {session_id}")
+
+    data = getattr(result, "data", None)
+    if data:
+        return data[0]
+    raise Exception(f"Failed to save requirement session {session_id}")
+
+
+def delete_requirement_session(session_id: str, user_id: str) -> bool:
+    execute_with_retry(
+        "delete_requirement_session",
+        lambda: supabase.table("requirement_sessions")
+        .delete()
+        .eq("session_id", session_id)
+        .eq("user_id", user_id)
+        .execute(),
+    )
+    if result is None:
+        logger.warning(
+            "delete_requirement_session returned no response object session_id=%s user_id=%s",
+            session_id,
+            user_id,
+        )
+        raise Exception(f"Supabase returned None while deleting requirement session {session_id}")
+    return True
 
 # =============================================================================
 # CLOUD STORAGE OPERATIONS (Supabase Storage + repo_files table)

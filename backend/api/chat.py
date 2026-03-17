@@ -11,6 +11,7 @@ from flask import Blueprint, request, jsonify, Response, stream_with_context, g
 
 from agents.requirement_gathering_agent import RequirementGatheringAgent
 from api.middleware import require_auth
+from db.supabase_client import get_requirement_session
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
@@ -173,6 +174,7 @@ def chat():
                 message=message,
                 conversation_history=conversation_history,
                 user_profile=user_profile,
+                user_id=g.user_id,
                 session_id=internal_session_id,
                 files=processed_files,
             ):
@@ -199,7 +201,9 @@ def get_final_requirements(session_id: str):
         # session_id here is the client UUID from the URL
         internal_session_id = f"{g.user_id}:{session_id}"
 
-        session_state = get_requirement_agent().get_session_state(internal_session_id)
+        # Read-only lookup: do NOT auto-create here, otherwise a mismatched session id
+        # becomes a fresh pending session and masks the real issue.
+        session_state = get_requirement_session(internal_session_id, g.user_id)
 
         if not session_state:
             return jsonify({
