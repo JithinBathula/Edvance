@@ -1166,6 +1166,10 @@ ol, ul, menu {
     border-color: #ffa200;
   }
 
+  .border-amber-400 {
+    border-color: var(--color-amber-400);
+  }
+
   .border-gray-100 {
     border-color: var(--color-gray-100);
   }
@@ -2455,6 +2459,7 @@ body {
   animation: shimmer-slide 2s ease-in-out infinite;
   transform: translateX(-100%);
 }
+
 
 /* ============================================
    IDE Component Styles

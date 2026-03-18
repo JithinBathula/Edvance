@@ -338,7 +338,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                 </Card>
             )}
 
-            <Card className="p-8 bg-white border-slate-100 mb-6">
+            <Card className="p-8 bg-transparent border-none mb-6">
                 <div className="mb-6">
                     <div className="flex items-center gap-2.5">
                         <h2 className="text-2xl font-bold text-slate-800">{outline.project_title}</h2>
@@ -348,11 +348,6 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
                 </div>
 
                 <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2 text-slate-700">
-                    <BookOpen className="w-5 h-5 text-teal-600" />
-                    Learning Milestones
-                </h3>
-
                 <MilestonePlannerList
                     milestones={outline.milestones}
                     active={activeStep}
