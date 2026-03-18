@@ -653,6 +653,8 @@ export function ProjectWorkspace({
   };
 
   const handleCompleteTask = async () => {
+    // flush any pending debounced changes from the editor FIRST
+    editorRef.current?.flushPendingFileChanges?.();
     // Format all files for evaluation
     const code = projectFiles
       .map(f => `# === ${f.name} ===\n${f.content || ''}`)

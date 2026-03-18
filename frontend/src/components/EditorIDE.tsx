@@ -135,6 +135,7 @@ function FileIcon({ filename }: { filename: string }) {
 
 export type EditorIDEHandle = {
   getLatestFiles: () => ProjectFile[];
+  flushPendingFileChanges?: () => void;
 };
 
 type Props = {
@@ -159,9 +160,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   const mode = resolveMode(files, vmType);
   const [localFiles, setLocalFiles] = useState<ProjectFile[]>(files);
 
-  useImperativeHandle(ref, () => ({
-    getLatestFiles: () => localFiles,
-  }), [localFiles]);
+
   const [activeFile, setActiveFile] = useState<string>(files[0]?.name || 'main.py');
   const [openFiles, setOpenFiles] = useState<string[]>([files[0]?.name || 'main.py']);
   const [showNewFile, setShowNewFile] = useState(false);
@@ -417,6 +416,12 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
       if (filesChangeDebounceRef.current) clearTimeout(filesChangeDebounceRef.current);
     };
   }, []);
+
+  useImperativeHandle(ref, () => ({
+    getLatestFiles: () => localFiles, 
+    flushPendingFileChanges,
+  }), [localFiles, flushPendingFileChanges]);
+
 
   const currentFile = localFiles.find((f) => f.name === activeFile);
 
