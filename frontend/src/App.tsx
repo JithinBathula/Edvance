@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "./utils/supabase/client";
-import { authFetch, setAccessToken } from "./utils/authFetch";
+import { authFetch, getAccessToken, setAccessToken } from "./utils/authFetch";
 import { LoginScreen } from "./components/LoginScreen";
 import { SignupScreen } from "./components/SignupScreen";
 import { AuthCallback } from "./components/AuthCallback";
@@ -24,6 +24,11 @@ import { StudentClassesPanel } from "./components/student/StudentClassesPanel";
 import { StudentSettingsPanel } from "./components/StudentSettings";
 import { ProjectList } from "./components/ProjectList";
 import { LandingPage } from "./components/LandingPage";
+import { applyGPUClass } from "./utils/gpuDetect";
+
+// Detect Intel Mac GPU early and add 'intel-mac' class to <html> so CSS
+// can disable backdrop-filter / blur effects that crash Chrome's compositor.
+applyGPUClass();
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
@@ -51,6 +56,7 @@ export type User = {
 export default function App() {
   const navigate = useNavigate();
   const lastProfileFetchTokenRef = useRef<string | null>(null);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('edvance_user');
     if (!savedUser) return null;
@@ -62,6 +68,11 @@ export default function App() {
     }
   });
   const [loading, setLoading] = useState(true);
+
+  const getAuthenticatedHome = (userData: User) => {
+    if (!userData.onboarding) return "/onboarding";
+    return userData.role === 'teacher' ? "/teacher/dashboard" : "/student-dashboard";
+  };
 
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -107,6 +118,7 @@ export default function App() {
         localStorage.setItem('edvance_user', JSON.stringify(data.user));
         return data.user;
       }
+      console.warn('Profile fetch returned no user:', data.error || 'Unknown error');
     } catch (err) {
       console.error('Failed to fetch profile:', err);
     } finally {
@@ -115,10 +127,27 @@ export default function App() {
     return null;
   };
 
-  const fetchProfileOncePerToken = async (token: string | undefined) => {
-    if (!token || lastProfileFetchTokenRef.current === token) return;
-    lastProfileFetchTokenRef.current = token;
-    await fetchAndSetProfile();
+  const fetchProfileOncePerToken = async (
+    token: string | undefined,
+    { attempts = 4, retryDelayMs = 600 }: { attempts?: number; retryDelayMs?: number } = {}
+  ) => {
+    if (!token) return null;
+    if (lastProfileFetchTokenRef.current === token) return user;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const profile = await fetchAndSetProfile();
+      if (profile) {
+        lastProfileFetchTokenRef.current = token;
+        return profile;
+      }
+
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
+      }
+    }
+
+    lastProfileFetchTokenRef.current = null;
+    return null;
   };
 
   // Initialize Supabase auth session on mount
@@ -149,10 +178,10 @@ export default function App() {
 
         const session = data.session;
         setAccessToken(session?.access_token ?? null);
+        setHasActiveSession(Boolean(session));
 
         if (session) {
-          // Sync profile in background. Do not block app bootstrap on API latency.
-          void fetchProfileOncePerToken(session.access_token);
+          await fetchProfileOncePerToken(session.access_token);
         } else {
           lastProfileFetchTokenRef.current = null;
           clearUserState();
@@ -174,6 +203,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setAccessToken(session?.access_token ?? null);
+        setHasActiveSession(Boolean(session));
 
         if (event === 'SIGNED_IN' && session) {
           await fetchProfileOncePerToken(session.access_token);
@@ -195,6 +225,7 @@ export default function App() {
   useEffect(() => {
     const handleAuthExpired = () => {
       setAccessToken(null);
+      setHasActiveSession(false);
       setUser(null);
       setCurrentProject(null);
       setProjectRequirements(null);
@@ -209,6 +240,15 @@ export default function App() {
       window.removeEventListener('edvance:auth-expired', handleAuthExpired as EventListener);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (loading || !hasActiveSession || user) return;
+
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+
+    void fetchProfileOncePerToken(accessToken, { attempts: 3, retryDelayMs: 1000 });
+  }, [hasActiveSession, loading, user]);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
@@ -244,6 +284,7 @@ export default function App() {
     setUser(null);
     setCurrentProject(null);
     setProjectRequirements(null);
+    setHasActiveSession(false);
     navigate("/login");
   };
 
@@ -325,6 +366,16 @@ export default function App() {
         </div>
       );
     }
+    if (hasActiveSession && !user) {
+      return (
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
+          <div className="text-center">
+            <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+            <p className="text-slate-600 text-base">Loading your account...</p>
+          </div>
+        </div>
+      );
+    }
     if (!user) return <Navigate to="/login" replace />;
     return <>{children}</>;
   };
@@ -336,6 +387,16 @@ export default function App() {
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    if (hasActiveSession && !user) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-50">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading your account...</p>
           </div>
         </div>
       );
@@ -363,17 +424,33 @@ export default function App() {
         <Routes>
           <Route
             path="/"
-            element={<LandingPage user={user} />}
+            element={
+              user ? (
+                <Navigate to={getAuthenticatedHome(user)} replace />
+              ) : hasActiveSession ? (
+                <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
+                  <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+                    <p className="text-slate-600 text-base">Loading your account...</p>
+                  </div>
+                </div>
+              ) : (
+                <LandingPage user={user} />
+              )
+            }
           />
           <Route
             path="/login"
             element={
               user ? (
-                <Navigate to={
-                  !user.onboarding ? "/onboarding"
-                    : user.role === 'teacher' ? "/teacher/dashboard"
-                    : "/student-dashboard"
-                } replace />
+                <Navigate to={getAuthenticatedHome(user)} replace />
+              ) : hasActiveSession ? (
+                <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
+                  <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+                    <p className="text-slate-600 text-base">Loading your account...</p>
+                  </div>
+                </div>
               ) : (
                 <LoginScreen onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />
               )
@@ -383,7 +460,14 @@ export default function App() {
             path="/signup"
             element={
               user ? (
-                <Navigate to="/onboarding" replace />
+                <Navigate to={getAuthenticatedHome(user)} replace />
+              ) : hasActiveSession ? (
+                <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #fffbeb, white, #ecfeff)'}}>
+                  <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-teal-600 mx-auto mb-4" />
+                    <p className="text-slate-600 text-base">Loading your account...</p>
+                  </div>
+                </div>
               ) : (
                 <SignupScreen onSignup={handleSignup} onSwitchToLogin={() => navigate("/login")} />
               )

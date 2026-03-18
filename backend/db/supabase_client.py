@@ -649,6 +649,7 @@ def _detect_language(filename: str) -> str:
         "html": "html",
         "css": "css",
         "json": "json",
+        "csv": "text",
         "md": "markdown",
     }.get(ext, "text")
 
