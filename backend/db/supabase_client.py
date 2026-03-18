@@ -202,8 +202,10 @@ def get_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:
     """
     Fetch a project by ID with its milestones and tasks.
     """
-    result = supabase.table("projects").select("*").eq("id", project_id).execute()
-    
+    result = execute_with_retry(
+        "get_project_by_id",
+        lambda: supabase.table("projects").select("*").eq("id", project_id).execute(),
+    )
     if result.data:
         return result.data[0]
     return None
@@ -252,7 +254,10 @@ def get_project_milestones(project_id: str) -> List[Dict[str, Any]]:
     """
     Get all milestones for a project, ordered by position.
     """
-    result = supabase.table("milestones").select("*").eq("project_id", project_id).order("position").execute()
+    result = execute_with_retry(
+        "get_project_milestones",
+        lambda: supabase.table("milestones").select("*").eq("project_id", project_id).order("position").execute(),
+    )
     return result.data or []
 
 
@@ -305,7 +310,10 @@ def get_milestone_tasks(milestone_id: str) -> List[Dict[str, Any]]:
     """
     Get all tasks for a milestone, ordered by position.
     """
-    result = supabase.table("tasks").select("*").eq("milestone_id", milestone_id).order("position").execute()
+    result = execute_with_retry(
+        "get_milestone_tasks",
+        lambda: supabase.table("tasks").select("*").eq("milestone_id", milestone_id).order("position").execute(),
+    )
     return result.data or []
 
 
@@ -658,7 +666,10 @@ def get_repo_files_metadata(project_id: str) -> List[Dict[str, Any]]:
     """
     Get all file metadata for a project from repo_files table.
     """
-    result = supabase.table("repo_files").select("*").eq("project_id", project_id).execute()
+    result = execute_with_retry(
+        "get_repo_files_metadata",
+        lambda: supabase.table("repo_files").select("*").eq("project_id", project_id).execute(),
+    )
     return result.data or []
 
 
