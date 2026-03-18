@@ -24,6 +24,11 @@ import { StudentClassesPanel } from "./components/student/StudentClassesPanel";
 import { StudentSettingsPanel } from "./components/StudentSettings";
 import { ProjectList } from "./components/ProjectList";
 import { LandingPage } from "./components/LandingPage";
+import { applyGPUClass } from "./utils/gpuDetect";
+
+// Detect Intel Mac GPU early and add 'intel-mac' class to <html> so CSS
+// can disable backdrop-filter / blur effects that crash Chrome's compositor.
+applyGPUClass();
 
 export type OnboardingData = {
   educationLevel: string;        // Primary 5-6, Lower Sec, Upper Sec, JC/Poly/ITE
