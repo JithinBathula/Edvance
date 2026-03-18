@@ -46,6 +46,7 @@ const detectLanguage = (filename: string) => {
   if (lower.endsWith('.html')) return 'html';
   if (lower.endsWith('.css')) return 'css';
   if (lower.endsWith('.json')) return 'json';
+  if (lower.endsWith('.csv')) return 'text';
   return 'text';
 };
 
@@ -74,7 +75,12 @@ const resolveMode = (files: ProjectFile[], vmType?: string) => {
 const isAllowedFile = (filename: string, mode: 'python' | 'web') => {
   const lower = filename.toLowerCase();
   if (mode === 'python') {
-    return lower.endsWith('.py') || lower.endsWith('.json') || lower.endsWith('.txt');
+    return (
+      lower.endsWith('.py') ||
+      lower.endsWith('.json') ||
+      lower.endsWith('.txt') ||
+      lower.endsWith('.csv')
+    );
   }
   return (
     lower.endsWith('.js') ||
@@ -83,7 +89,8 @@ const isAllowedFile = (filename: string, mode: 'python' | 'web') => {
     lower.endsWith('.tsx') ||
     lower.endsWith('.html') ||
     lower.endsWith('.css') ||
-    lower.endsWith('.json')
+    lower.endsWith('.json') ||
+    lower.endsWith('.csv')
   );
 };
 
@@ -118,6 +125,7 @@ const monacoLanguage = (filename: string): string => {
   if (lower.endsWith('.css')) return 'css';
   if (lower.endsWith('.json')) return 'json';
   if (lower.endsWith('.md')) return 'markdown';
+  if (lower.endsWith('.csv')) return 'plaintext';
   return 'plaintext';
 };
 
@@ -130,6 +138,7 @@ function FileIcon({ filename }: { filename: string }) {
   if (lower.endsWith('.html')) return <FileText className="w-3.5 h-3.5 text-orange-400" />;
   if (lower.endsWith('.css')) return <FileText className="w-3.5 h-3.5 text-blue-300" />;
   if (lower.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 text-green-400" />;
+  if (lower.endsWith('.csv')) return <FileText className="w-3.5 h-3.5 text-emerald-300" />;
   return <File className="w-3.5 h-3.5 text-slate-400" />;
 }
 
@@ -501,13 +510,15 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
       fileName += '.py';
     }
 
-    if (filteredFiles.some((f) => f.name === fileName)) return;
+    if (localFiles.some((f) => f.name === fileName)) return;
 
     const defaultContent = fileName.endsWith('.json')
       ? '{}'
-      : mode === 'python'
-        ? '# New file\n'
-        : '';
+      : fileName.endsWith('.csv')
+        ? ''
+        : mode === 'python'
+          ? '# New file\n'
+          : '';
     const newFile: ProjectFile = {
       name: fileName,
       content: defaultContent,
