@@ -650,6 +650,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
                 onClick={handleRun}
                 disabled={readOnly}
                 className="bg-emerald-500/90 hover:bg-emerald-400 text-white"
+                data-tour="run-button"
               >
                 <Play className="w-4 h-4 mr-1" />
                 Run
@@ -671,7 +672,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* File Explorer Sidebar */}
           {sidebarOpen && (
-            <div className="ide-sidebar">
+            <div className="ide-sidebar" data-tour="file-explorer">
               <div className="ide-sidebar-header" style={{ justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                   <Code2 className="w-3.5 h-3.5" />
@@ -787,6 +788,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
                 onClick={() => setSidebarOpen(true)}
                 className="p-2 hover:bg-slate-700/50 text-white hover:text-white"
                 title="Show Files"
+                data-tour="file-explorer-toggle"
               >
                 <PanelLeft className="w-4 h-4" />
               </button>

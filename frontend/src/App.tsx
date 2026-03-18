@@ -32,6 +32,7 @@ export type OnboardingData = {
   biggestChallenges: string[];   // Multiple: syntax, steps, bugs, want more
   learningMode: string;          // hold-my-hand, roadmap, challenge-me
   theme?: string;                // Project theme: finance, gaming, etc.
+  workspace_tour_completed?: boolean;
 };
 
 export type User = {

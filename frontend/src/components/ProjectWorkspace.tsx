@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
+import { WorkspaceTour } from './WorkspaceTour';
 
 // Shared markdown components for task content rendering
 const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
@@ -408,6 +409,9 @@ export function ProjectWorkspace({
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, []);
 
+  // Tour state
+  const [showTour, setShowTour] = useState(false);
+
   // Submission gate state
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
@@ -610,6 +614,39 @@ export function ProjectWorkspace({
       setCompletedTasks(project.progress.completedTasks);
     }
   }, [project]);
+
+  // Auto-launch tour for first-time users
+  useEffect(() => {
+    if (projectLoading || filesLoading) return;
+
+    // Sync: if DB says completed, backfill localStorage so future checks are instant
+    const dbDone = (user.onboarding as any)?.workspace_tour_completed === true;
+    if (dbDone) {
+      localStorage.setItem('edvance_workspace_tour_completed', 'true');
+      return;
+    }
+
+    const localDone = localStorage.getItem('edvance_workspace_tour_completed') === 'true';
+    if (!localDone && window.innerWidth >= 768) {
+      const timer = setTimeout(() => setShowTour(true), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [projectLoading, filesLoading, user.onboarding]);
+
+  const handleTourComplete = useCallback(async () => {
+    setShowTour(false);
+    localStorage.setItem('edvance_workspace_tour_completed', 'true');
+    try {
+      await authFetch('/users/onboarding', {
+        method: 'POST',
+        body: JSON.stringify({
+          onboardingData: { ...user.onboarding, workspace_tour_completed: true },
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to persist tour completion:', err);
+    }
+  }, [user.onboarding]);
 
   const loadSavedFiles = async () => {
     setFilesLoading(true);
@@ -833,6 +870,14 @@ export function ProjectWorkspace({
           <h1 className="text-xl font-bold text-slate-800">{project.title}</h1>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowTour(true)}
+            className="flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-700 transition-colors"
+            title="Take a tour"
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span className="font-medium">Tour</span>
+          </button>
           <div className="flex items-center gap-2 bg-teal-50 px-3 py-1.5 rounded-lg">
             <CheckCircle2 className="w-4 h-4 text-teal-600" />
             <span className="text-sm font-semibold text-teal-700">
@@ -1117,7 +1162,7 @@ export function ProjectWorkspace({
               ) : (
               <>
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
-              <div ref={taskContentRef} className="max-w-none mb-6 relative">
+              <div ref={taskContentRef} data-tour="task-description" className="max-w-none mb-6 relative">
                 <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} contextCode={projectFiles.map(f => f.content || '').join('\n')} />
               </div>
 
@@ -1224,6 +1269,7 @@ export function ProjectWorkspace({
                     <Button
                       onClick={handleCompleteTask}
                       disabled={saving || evaluating}
+                      data-tour="complete-button"
                       className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-slate-300 disabled:to-slate-400 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:cursor-not-allowed"
                     >
                       {saving ? (
@@ -1317,6 +1363,7 @@ export function ProjectWorkspace({
           className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
           style={{ backgroundColor: '#4285f4' }}
           title="Open AI Chat"
+          data-tour="chat-button"
         >
           <MessageCircle className="w-6 h-6 text-white" />
         </button>
@@ -1383,6 +1430,16 @@ export function ProjectWorkspace({
             </div>
           </Card>
         </div>
+      )}
+
+      {/* Workspace Tour */}
+      {showTour && (
+        <WorkspaceTour
+          isOpen={showTour}
+          onComplete={handleTourComplete}
+          onSkip={handleTourComplete}
+          onEnsureChatClosed={() => setIsChatOpen(false)}
+        />
       )}
 
       {/* Success Modal */}
