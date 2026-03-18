@@ -99,6 +99,9 @@ async function runCode(files: Array<{ name: string; content: string }>, entryFil
 
     postStatus('running');
 
+    // Set CWD to root so open('file.json') finds files written to /file.json
+    py.FS.chdir('/');
+
     // Write all project files to Pyodide's in-memory filesystem
     for (const file of files) {
       const path = file.name.startsWith('/') ? file.name : `/${file.name}`;

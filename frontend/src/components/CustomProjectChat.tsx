@@ -245,6 +245,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   const [isDragging, setIsDragging] = useState(false);
 
   // --- Refs ---
+  const guidingAnswersRef = useRef(guidingAnswers);
+  guidingAnswersRef.current = guidingAnswers; 
   const hasInitializedChat = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -410,6 +412,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
             if (reqJson.ready_to_plan) {
               console.log('[Handoff Poll] Ready to plan reached', { attempt });
               sessionData = reqJson.requirements.session_data;
+              sessionData.timeline = guidingAnswersRef.current.timeline || '';
               break;
             }
           } catch (err) {

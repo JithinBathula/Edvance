@@ -111,6 +111,7 @@ class CurriculumPlanner:
         *,
         session_snapshot: Dict[str, Any],
         user_profile: Dict[str, Any],
+        estimated_duration: str = "",
     ) -> OutlineProject:
         """
         Generates an outline directly from the requirements agent session snapshot.
@@ -124,6 +125,7 @@ class CurriculumPlanner:
                 "content": prompt_bank.outline_user_prompt.format(
                     session_json=session_json,
                     user_profile=user_profile_text,
+                    estimated_duration=estimated_duration,
                 ),
             },
         ]
@@ -146,6 +148,8 @@ class CurriculumPlanner:
         user_profile: Dict[str, Any],
         milestone: OutlineMilestone,
         milestone_position: int,
+        estimated_duration: str = "",
+        total_milestones: int = 1,
     ) -> Milestone:
         """
         Pass 2: Expands a single milestone into detailed TaskItems (3-7 items).
@@ -166,7 +170,9 @@ class CurriculumPlanner:
                     milestone_position=milestone_position,
                     subheading_title=milestone.subheading_title,
                     description=milestone.description,
-                    base_url = os.getenv("BASE_URL", "http://localhost:8000")
+                    estimated_duration=estimated_duration,
+                    total_milestones=total_milestones,
+                    base_url=os.getenv("BASE_URL", ""),
                 ),
             },
         ]
@@ -190,6 +196,8 @@ class CurriculumPlanner:
         tech_stack: Optional[Sequence[str] | str] = None,
         user_profile: Dict[str, Any],
         outline: OutlineProject | None = None,
+        estimated_duration: str = "",
+        total_milestones: int = 1,
     ) -> ProjectCurriculum:
         """
         Orchestrates the project pipeline and returns a validated ProjectCurriculum.
@@ -205,6 +213,8 @@ class CurriculumPlanner:
                 user_profile=user_profile,
                 milestone=outline_milestone,
                 milestone_position=idx,
+                estimated_duration=estimated_duration,
+                total_milestones=total_milestones,
             )
             milestones.append(milestone)
 
@@ -224,6 +234,8 @@ class CurriculumPlanner:
         tech_stack: Optional[Sequence[str] | str] = None,
         user_profile: Dict[str, Any],
         outline: OutlineProject,
+        estimated_duration: str = "",
+        total_milestones: int = 1,
     ) -> ProjectCurriculum:
         """
         Generate ONLY the first milestone with all its tasks.
@@ -244,6 +256,8 @@ class CurriculumPlanner:
             user_profile=user_profile,
             milestone=first_milestone_outline,
             milestone_position=1,
+            estimated_duration=estimated_duration,
+            total_milestones=total_milestones,
         )
 
         try:
@@ -276,11 +290,37 @@ class CurriculumPlanner:
         """
         from prompts import planning_prompts as prompt_bank
 
+        # Add line numbers PER FILE so they match the editor
+        if "# === " in student_code:
+            # Multi-file: split and number each file separately
+            file_sections = student_code.split("# === ")
+            numbered_parts = []
+            for section in file_sections:
+                if not section.strip():
+                    continue
+                lines = section.splitlines()
+                header = "# === " + lines[0]
+                code_lines = lines[1:]
+                numbered = "\n".join(
+                    f"{i+1:>3}| {line}"
+                    for i, line in enumerate(code_lines)
+                )
+                numbered_parts.append(f"{header}\n{numbered}")
+            numbered_code = "\n\n".join(numbered_parts)
+        else:
+            # Single file: just number it directly
+            numbered_code = "\n".join(
+                f"{i+1:>3}| {line}"
+                for i, line in enumerate(student_code.splitlines())
+            )
+
+        print(f"[ADAPT] Sending numbered code:\n{numbered_code[:200]}")
+
         adaptation_prompt = f"""You are adapting a learning task to match a student's coding style.
 
 STUDENT'S PREVIOUS CODE:
 ```python
-{student_code}
+{numbered_code}
 ```
 
 NEXT TASK TO ADAPT:
@@ -299,6 +339,8 @@ Analyze the student's code and identify:
 2. Function names they used
 3. Code organization style
 4. Any patterns in their approach
+5. Where in the code (by line number) the student should add or modify code
+
 
 Then adapt the next task to reference THEIR specific variable names, function names,
 and code structure. This makes it easier for them to build incrementally.
@@ -309,11 +351,13 @@ IMPORTANT GUIDELINES:
 - If they created specific functions, reference them by name
 - Keep the learning objectives the same, just adapt the language to match their code
 - Make it feel like a natural continuation of THEIR code, not generic instructions
+-Reference specific line numbers to guide where code should be added or changed (e.g., "Below your show_room() function on line 17, add a new function...") (e.g., "Update the while loop starting at line 25 to also handle...")
+-When referencing line numbers, also describe WHAT is on that line so it's clear even if lines shift slightly
 
 Return a JSON with the adapted task in this exact format:
 {{
   "task_id": "{next_task.get('task_id', '')}",
-  "instruction_theory": "Adapted instructions that reference their specific code...",
+  "instruction_theory": "Adapted instructions that reference their specific code and line numbers...",
   "coding_requirements": ["Updated requirement 1", "Updated requirement 2", ...],
   "hints": ["Adapted hint 1", "Adapted hint 2", ...],
   "test_specification": {{
