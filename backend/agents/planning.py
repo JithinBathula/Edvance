@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import ValidationError
 from prompts import planning_prompts as prompt_bank
-from pydantic_classes.planning import CurriculumGenerationError, Milestone, ProjectCurriculum, OutlineMilestone, OutlineProject
-from schemas.planning import OUTLINE_SCHEMA,  MILESTONE_SCHEMA
+from pydantic_classes.planning import CurriculumGenerationError, Milestone, ProjectCurriculum, OutlineMilestone, OutlineProject, ProjectBlueprint
+from schemas.planning import OUTLINE_SCHEMA, MILESTONE_SCHEMA, BLUEPRINT_SCHEMA
 load_dotenv()
 
 class CurriculumPlanner:
@@ -138,6 +138,104 @@ class CurriculumPlanner:
         except Exception as exc:
             raise CurriculumGenerationError(f"Outline generation failed: {exc}") from exc
 
+    def generate_blueprint(
+        self,
+        *,
+        outline: OutlineProject,
+        requirements: Sequence[str] | str,
+        user_profile: Dict[str, Any],
+    ) -> ProjectBlueprint:
+        """
+        Pass 1.5: Generate a project blueprint from the outline.
+        Defines shared code architecture, naming, and concept progression
+        that all subsequent milestone generations will follow.
+        """
+        requirements_text = self._format_requirements(requirements)
+        user_profile_text = self._format_user_profile(user_profile)
+        milestones_json = json.dumps(
+            [{"position": i + 1, "title": m.subheading_title, "description": m.description}
+             for i, m in enumerate(outline.milestones)],
+            indent=2,
+        )
+
+        messages = [
+            {"role": "system", "content": prompt_bank.blueprint_system_prompt},
+            {
+                "role": "user",
+                "content": prompt_bank.blueprint_user_prompt.format(
+                    project_title=outline.project_title,
+                    project_brief=outline.project_brief,
+                    requirements=requirements_text,
+                    user_profile=user_profile_text,
+                    milestones_json=milestones_json,
+                ),
+            },
+        ]
+
+        try:
+            content = self._invoke_llm_structured(messages, "blueprint", BLUEPRINT_SCHEMA, temperature=0.2)
+            return ProjectBlueprint.model_validate_json(content)
+        except ValidationError as exc:
+            raise CurriculumGenerationError(f"Blueprint validation failed: {exc}") from exc
+        except Exception as exc:
+            raise CurriculumGenerationError(f"Blueprint generation failed: {exc}") from exc
+
+    @staticmethod
+    def _build_milestone_summary(milestone: Milestone, position: int) -> str:
+        """
+        Build a detailed summary of a generated milestone for use as rolling context.
+        Includes concepts taught, code state, and teaching points to prevent
+        repetition and ensure continuity in subsequent milestones.
+        """
+        # Extract function/variable names from coding requirements
+        all_requirements = []
+        for task in milestone.tasks:
+            all_requirements.extend(task.coding_requirements)
+
+        # Extract concepts from instruction_theory (look for Part A content)
+        concepts_taught = []
+        code_patterns = []
+        for task in milestone.tasks:
+            theory = task.instruction_theory
+            # Extract content between Part A and Part B as concepts
+            if "Part A" in theory and "Part B" in theory:
+                part_a_idx = theory.index("Part A")
+                part_b_idx = theory.index("Part B")
+                concept_text = theory[part_a_idx:part_b_idx].strip()
+                # Get first meaningful line as concept summary
+                for line in concept_text.split("\n"):
+                    line = line.strip().strip("*#- ")
+                    if len(line) > 15 and "Part A" not in line:
+                        concepts_taught.append(line[:100])
+                        break
+            # Extract Try It Out code patterns
+            if "Part B" in theory and "Part C" in theory:
+                part_b_idx = theory.index("Part B")
+                part_c_idx = theory.index("Part C")
+                try_section = theory[part_b_idx:part_c_idx]
+                if "```" in try_section:
+                    code_patterns.append(f"Task {task.task_id}: code example shown")
+
+        # Build the last task's requirements as handoff state
+        last_task = milestone.tasks[-1]
+        last_requirements = last_task.coding_requirements
+
+        lines = [
+            f"--- Milestone {position}: \"{milestone.subheading_title}\" ---",
+            f"DESCRIPTION: {milestone.description}",
+            f"CONCEPTS TAUGHT: {'; '.join(concepts_taught) if concepts_taught else 'See requirements below'}",
+            f"CODE PATTERNS SHOWN: {'; '.join(code_patterns) if code_patterns else 'Various examples'}",
+            f"ALL CODING REQUIREMENTS ACROSS TASKS:",
+        ]
+        for task in milestone.tasks:
+            lines.append(f"  Task {task.task_id}: {'; '.join(task.coding_requirements)}")
+        lines.extend([
+            f"CODE STATE AT END: Last task ({last_task.task_id}) requirements: {'; '.join(last_requirements)}",
+            f"---",
+        ])
+
+        return "\n".join(lines)
+
     def generate_tasks_for_milestone(
         self,
         *,
@@ -150,6 +248,8 @@ class CurriculumPlanner:
         milestone_position: int,
         estimated_duration: str = "",
         total_milestones: int = 1,
+        blueprint: ProjectBlueprint | None = None,
+        previous_milestones_summary: str = "",
     ) -> Milestone:
         """
         Pass 2: Expands a single milestone into detailed TaskItems (3-7 items).
@@ -157,6 +257,11 @@ class CurriculumPlanner:
         tech_stack_text = self._stringify_stack(tech_stack)
         requirements_text = self._format_requirements(requirements)
         user_profile_text = self._format_user_profile(user_profile)
+
+        # Serialize blueprint and summary for the prompt
+        blueprint_json = json.dumps(blueprint.model_dump(), indent=2) if blueprint else "No blueprint available — use your best judgment for naming and architecture."
+        summary_text = previous_milestones_summary.strip() if previous_milestones_summary else "This is the first milestone — no previous milestones yet."
+
         messages = [
             {"role": "system", "content": prompt_bank.task_generation_system_prompt},
             {
@@ -173,6 +278,8 @@ class CurriculumPlanner:
                     estimated_duration=estimated_duration,
                     total_milestones=total_milestones,
                     base_url=os.getenv("BASE_URL", ""),
+                    blueprint_json=blueprint_json,
+                    previous_milestones_summary=summary_text,
                 ),
             },
         ]
@@ -201,9 +308,18 @@ class CurriculumPlanner:
     ) -> ProjectCurriculum:
         """
         Orchestrates the project pipeline and returns a validated ProjectCurriculum.
+        Generates a blueprint first, then expands milestones sequentially with
+        rolling context to ensure consistency.
         """
+        # Pass 1.5: Generate the project blueprint
+        blueprint = self.generate_blueprint(
+            outline=outline,
+            requirements=requirements,
+            user_profile=user_profile,
+        )
 
         milestones: List[Milestone] = []
+        accumulated_summary = ""
         for idx, outline_milestone in enumerate(outline.milestones, start=1):
             milestone = self.generate_tasks_for_milestone(
                 project_title=outline.project_title,
@@ -215,8 +331,11 @@ class CurriculumPlanner:
                 milestone_position=idx,
                 estimated_duration=estimated_duration,
                 total_milestones=total_milestones,
+                blueprint=blueprint,
+                previous_milestones_summary=accumulated_summary,
             )
             milestones.append(milestone)
+            accumulated_summary += self._build_milestone_summary(milestone, idx) + "\n\n"
 
         try:
             return ProjectCurriculum(
@@ -236,17 +355,27 @@ class CurriculumPlanner:
         outline: OutlineProject,
         estimated_duration: str = "",
         total_milestones: int = 1,
-    ) -> ProjectCurriculum:
+    ) -> tuple["ProjectCurriculum", "ProjectBlueprint", str]:
         """
         Generate ONLY the first milestone with all its tasks.
         Remaining milestones will be generated later (in background or on-demand).
 
-        Returns ProjectCurriculum with only the first milestone populated.
+        Returns a tuple of:
+        - ProjectCurriculum with only the first milestone populated
+        - ProjectBlueprint for use by background generation
+        - First milestone summary for rolling context
         """
         if not outline.milestones:
             raise CurriculumGenerationError("Outline must have at least one milestone")
 
-        # Generate only the first milestone
+        # Pass 1.5: Generate the project blueprint
+        blueprint = self.generate_blueprint(
+            outline=outline,
+            requirements=requirements,
+            user_profile=user_profile,
+        )
+
+        # Generate only the first milestone with blueprint context
         first_milestone_outline = outline.milestones[0]
         first_milestone = self.generate_tasks_for_milestone(
             project_title=outline.project_title,
@@ -258,14 +387,19 @@ class CurriculumPlanner:
             milestone_position=1,
             estimated_duration=estimated_duration,
             total_milestones=total_milestones,
+            blueprint=blueprint,
+            previous_milestones_summary="",
         )
 
+        first_milestone_summary = self._build_milestone_summary(first_milestone, 1)
+
         try:
-            return ProjectCurriculum(
+            curriculum = ProjectCurriculum(
                 project_title=outline.project_title,
                 project_brief=outline.project_brief,
                 milestones=[first_milestone],
             )
+            return curriculum, blueprint, first_milestone_summary
         except ValidationError as exc:
             raise CurriculumGenerationError(f"First milestone generation failed: {exc}") from exc
 

@@ -47,6 +47,7 @@ CALIBRATION RULES:
    - Simple projects (calculator, to-do list, basic game) = 3-4 milestones MAX
    - Medium projects (multi-feature app, data processing) = 4-6 milestones
    - Complex projects (full-stack with auth, multi-feature apps) = 6-8 milestones
+   - Large/ambitious projects (multi-module systems, many distinct features, games with multiple mechanics) = 8-10 milestones
 
 2. **Knowledge Adaptation (use the full student profile above):**
    - Match explanation depth to their Python skill level
@@ -96,6 +97,81 @@ RESPONSE FORMAT (JSON ONLY):
 REMEMBER: Less is more. A simple project should feel achievable, not overwhelming.
 """
 
+
+blueprint_system_prompt = """
+You are a software architect designing the complete code blueprint for an educational coding project.
+
+Your job: Given a project outline (list of milestones with titles and descriptions), produce a detailed blueprint that defines:
+1. The overall code architecture — what the final program looks like
+2. ALL variable names and function names used across the entire project
+3. Which Python/programming concepts are taught in which milestone (NO concept may be taught in two milestones)
+4. The expected code state at the END of each milestone (what functions/variables exist, what the program does)
+5. How each milestone builds on the previous one's code
+
+CRITICAL RULES:
+- Every concept (e.g., "for loops", "dictionaries", "functions") must be OWNED by exactly ONE milestone — that's where it's introduced. Other milestones may USE the concept but must NOT re-teach it.
+- Variable and function names must be consistent across the entire project. If milestone 1 creates a variable called `score`, milestone 3 must use `score` — not `player_score` or `total_score`.
+- Each milestone's code state must be a natural extension of the previous milestone's end state. No milestone should require rewriting code from a previous milestone.
+- Keep naming appropriate to the student's level — beginners get simple names like `score`, `name`, `choice`; advanced students can use more descriptive names.
+- The file structure should be simple — most student projects use a single `main.py` file.
+
+Return only valid JSON following the schema.
+"""
+
+blueprint_user_prompt = """
+Create a project blueprint for the following educational coding project.
+
+PROJECT:
+Title: {project_title}
+Brief: {project_brief}
+
+REQUIREMENTS:
+{requirements}
+
+STUDENT PROFILE:
+{user_profile}
+
+MILESTONES (from outline):
+{milestones_json}
+
+For each milestone, define:
+1. `expected_code_state` — describe what the complete program looks like at the END of this milestone (what it does, what output it produces)
+2. `key_functions` — list ALL function names created or modified in this milestone (use exact names that will be referenced in tasks)
+3. `key_variables` — list ALL important variable names used in this milestone
+4. `builds_on` — describe what code/concepts from previous milestones this one extends
+
+For the concept_progression, list EVERY programming concept taught across the project. Each concept must have exactly ONE `introduced_in_milestone` — the milestone where it's first explained. Use `reinforced_in_milestones` to note where it's used again (but NOT re-taught).
+
+IMPORTANT:
+- The naming_conventions should specify the exact naming style (e.g., "snake_case, simple English words appropriate for a primary school student")
+- shared_variables are variables that persist across multiple milestones (e.g., a `score` variable used from milestone 2 through milestone 6)
+- shared_functions are functions defined in one milestone and called in later milestones
+
+RESPONSE FORMAT (JSON ONLY — follow the schema exactly):
+{{
+  "architecture_overview": "<3-5 sentences describing the final program structure>",
+  "file_structure": ["main.py"],
+  "naming_conventions": "<naming style and examples>",
+  "shared_variables": ["<var1>", "<var2>"],
+  "shared_functions": ["<func1(arg1, arg2)>", "<func2(arg1)>"],
+  "concept_progression": [
+    {{
+      "concept": "<concept name>",
+      "introduced_in_milestone": <position>,
+      "reinforced_in_milestones": ["<brief note on how it's used again>"]
+    }}
+  ],
+  "milestone_blueprints": [
+    {{
+      "milestone_position": <position>,
+      "expected_code_state": "<what the program does at the end of this milestone>",
+      "key_functions": ["<func_name(args)>"],
+      "key_variables": ["<var_name>"],
+      "builds_on": "<what from prior milestones this extends>"
+    }}
+  ]
+}}
+"""
 
 task_generation_system_prompt = """
 You are a friendly coding teacher for young students. You break down milestones into clear, learnable tasks.
@@ -192,6 +268,20 @@ STUDENT PROFILE:
   * Guided → detailed explanations, small incremental steps, lots of encouragement
   * Roadmap → concise instructions, expect more self-direction
   * Challenge → minimal hand-holding, encourage exploration and experimentation
+
+PROJECT BLUEPRINT (shared code architecture for the entire project):
+{blueprint_json}
+
+PREVIOUS MILESTONES SUMMARY (what has already been generated — DO NOT repeat this content):
+{previous_milestones_summary}
+
+ANTI-REPETITION AND CONTINUITY RULES:
+- The concepts listed as ALREADY TAUGHT in the previous milestones summary must NOT be re-explained in Part A. You may reference them briefly (e.g., "Using the `calculate()` function you built earlier...") but do NOT re-teach them.
+- The student's code ALREADY contains the functions and variables listed in the previous milestones summary. Your first task MUST start by using or extending this existing code — do NOT create new variables for the same purpose.
+- Your last task in this milestone MUST leave the code in the state described in the blueprint's `expected_code_state` for this milestone position.
+- Do NOT include "Try It Out" examples for concepts that were already taught in previous milestones — only for NEW concepts introduced in this milestone.
+- Use the EXACT variable and function names specified in the blueprint. Do not invent alternative names.
+- If the blueprint says this milestone creates `display_menu()`, your tasks must define a function called exactly `display_menu()` — not `show_menu()` or `print_menu()`.
 
 CURRENT MILESTONE:
 Position: {milestone_position}

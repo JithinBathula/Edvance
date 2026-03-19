@@ -95,8 +95,11 @@ def generate_curriculum():
         return jsonify({"error": "Invalid outline payload", "details": exc.errors()}), 400
 
     try:
+        blueprint = None
+        first_milestone_summary = ""
+
         if first_milestone_only:
-            curriculum = planner.generate_first_milestone_only(
+            curriculum, blueprint, first_milestone_summary = planner.generate_first_milestone_only(
                 requirements=requirements,
                 tech_stack=None,
                 user_profile=user_profile,
@@ -205,9 +208,15 @@ def generate_curriculum():
             if first_milestone_only and len(outline.milestones) > 1:
                 from threading import Thread
 
+                # Capture blueprint and first milestone summary for the background thread
+                bg_blueprint = blueprint
+                bg_first_summary = first_milestone_summary
+
                 def generate_remaining_in_background():
                     try:
                         print(f"[BG] Starting background generation for {len(outline.milestones) - 1} remaining milestones")
+                        accumulated_summary = bg_first_summary + "\n\n"
+
                         for idx in range(1, len(outline.milestones)):
                             milestone_outline = outline.milestones[idx]
                             milestone_position = idx + 1
@@ -224,9 +233,14 @@ def generate_curriculum():
                                 milestone_position=milestone_position,
                                 estimated_duration=estimated_duration,
                                 total_milestones=len(outline.milestones),
+                                blueprint=bg_blueprint,
+                                previous_milestones_summary=accumulated_summary,
                             )
                             print(f"[BG] Milestone {milestone_position} generated: {len(milestone_obj.tasks)} tasks")
 
+
+                            # Accumulate this milestone's summary for the next iteration
+                            accumulated_summary += CurriculumPlanner._build_milestone_summary(milestone_obj, milestone_position) + "\n\n"
 
                             from db.supabase_client import supabase
                             existing_milestone_query = supabase.table("milestones").select("*").eq(
