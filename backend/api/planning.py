@@ -28,6 +28,7 @@ def generate_outline():
         or payload.get("session_data")
     )
     user_profile = payload.get("user_profile") or {}
+    estimated_duration = payload.get("estimated_duration", "")
     # Backwards compatibility: if no user_profile, build one from pythonLevel
     if not user_profile and payload.get("pythonLevel"):
         user_profile = {"pythonLevel": payload["pythonLevel"]}
@@ -42,6 +43,7 @@ def generate_outline():
         outline = planner.generate_outline(
             session_snapshot=session_payload,
             user_profile=user_profile,
+            estimated_duration=estimated_duration,
         )
         return jsonify(outline.model_dump())
     except (CurriculumGenerationError, ValidationError) as exc:
@@ -73,6 +75,8 @@ def generate_curriculum():
     vm_type = payload.get("vm_type")
     content_type = payload.get("content_type", "custom_project")
     first_milestone_only = payload.get("first_milestone_only", True)
+    estimated_duration = payload.get("estimated_duration", "")
+    print(f"DEBUG estimated_duration: '{estimated_duration}'")
 
     if (
         requirements is None
@@ -97,6 +101,8 @@ def generate_curriculum():
                 tech_stack=None,
                 user_profile=user_profile,
                 outline=outline,
+                estimated_duration=estimated_duration,
+                total_milestones=len(outline.milestones),
             )
         else:
             curriculum = planner.generate_curriculum(
@@ -104,6 +110,8 @@ def generate_curriculum():
                 tech_stack=None,
                 user_profile=user_profile,
                 outline=outline,
+                estimated_duration=estimated_duration,
+                total_milestones=len(outline.milestones),
             )
 
         result = curriculum.model_dump()
@@ -199,9 +207,12 @@ def generate_curriculum():
 
                 def generate_remaining_in_background():
                     try:
+                        print(f"[BG] Starting background generation for {len(outline.milestones) - 1} remaining milestones")
                         for idx in range(1, len(outline.milestones)):
                             milestone_outline = outline.milestones[idx]
                             milestone_position = idx + 1
+                            print(f"[BG] Generating milestone {milestone_position}/{len(outline.milestones)}: {milestone_outline.subheading_title}")
+
 
                             milestone_obj = planner.generate_tasks_for_milestone(
                                 project_title=outline.project_title,
@@ -211,7 +222,11 @@ def generate_curriculum():
                                 user_profile=user_profile,
                                 milestone=milestone_outline,
                                 milestone_position=milestone_position,
+                                estimated_duration=estimated_duration,
+                                total_milestones=len(outline.milestones),
                             )
+                            print(f"[BG] Milestone {milestone_position} generated: {len(milestone_obj.tasks)} tasks")
+
 
                             from db.supabase_client import supabase
                             existing_milestone_query = supabase.table("milestones").select("*").eq(
@@ -219,6 +234,7 @@ def generate_curriculum():
                             ).eq("position", milestone_position).execute()
 
                             if not existing_milestone_query.data:
+                                print(f"[BG] Milestone {milestone_position} not found in database")
                                 continue
 
                             milestone = existing_milestone_query.data[0]
@@ -235,10 +251,13 @@ def generate_curriculum():
                                 )
 
                     except Exception as bg_exc:
+                        print(f"[BG] FAILED: {bg_exc}")
                         logger.error("Background milestone generation failed: %s\n%s", bg_exc, traceback.format_exc())
 
                 bg_thread = Thread(target=generate_remaining_in_background, daemon=True)
                 bg_thread.start()
+                print(f"[BG] Background thread started")
+
         import json
         with open("last_generated_curriculum.json", "w") as f:
             json.dump(result, f, indent=2)
