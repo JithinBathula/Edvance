@@ -206,35 +206,49 @@ def generate_curriculum():
                 from threading import Thread
 
                 def generate_remaining_in_background():
-                    try:
-                        print(f"[BG] Starting background generation for {len(outline.milestones) - 1} remaining milestones")
-                        for idx in range(1, len(outline.milestones)):
-                            milestone_outline = outline.milestones[idx]
-                            milestone_position = idx + 1
-                            print(f"[BG] Generating milestone {milestone_position}/{len(outline.milestones)}: {milestone_outline.subheading_title}")
+                    import time as _time
+                    MAX_RETRIES = 3
+                    logger.info("[BG] Starting background generation for %d remaining milestones", len(outline.milestones) - 1)
+                    for idx in range(1, len(outline.milestones)):
+                        milestone_outline = outline.milestones[idx]
+                        milestone_position = idx + 1
+                        logger.info("[BG] Generating milestone %d/%d: %s", milestone_position, len(outline.milestones), milestone_outline.subheading_title)
 
+                        milestone_obj = None
+                        for attempt in range(1, MAX_RETRIES + 1):
+                            try:
+                                milestone_obj = planner.generate_tasks_for_milestone(
+                                    project_title=outline.project_title,
+                                    project_brief=outline.project_brief,
+                                    requirements=requirements,
+                                    tech_stack=None,
+                                    user_profile=user_profile,
+                                    milestone=milestone_outline,
+                                    milestone_position=milestone_position,
+                                    estimated_duration=estimated_duration,
+                                    total_milestones=len(outline.milestones),
+                                )
+                                break  # success
+                            except Exception as e:
+                                if attempt == MAX_RETRIES:
+                                    logger.error("[BG] Milestone %d failed after %d attempts: %s\n%s", milestone_position, MAX_RETRIES, e, traceback.format_exc())
+                                else:
+                                    logger.warning("[BG] Milestone %d attempt %d failed, retrying: %s", milestone_position, attempt, e)
+                                    _time.sleep(2 ** attempt)
 
-                            milestone_obj = planner.generate_tasks_for_milestone(
-                                project_title=outline.project_title,
-                                project_brief=outline.project_brief,
-                                requirements=requirements,
-                                tech_stack=None,
-                                user_profile=user_profile,
-                                milestone=milestone_outline,
-                                milestone_position=milestone_position,
-                                estimated_duration=estimated_duration,
-                                total_milestones=len(outline.milestones),
-                            )
-                            print(f"[BG] Milestone {milestone_position} generated: {len(milestone_obj.tasks)} tasks")
+                        if milestone_obj is None:
+                            continue  # skip to next milestone
 
+                        logger.info("[BG] Milestone %d generated: %d tasks", milestone_position, len(milestone_obj.tasks))
 
+                        try:
                             from db.supabase_client import supabase
                             existing_milestone_query = supabase.table("milestones").select("*").eq(
                                 "project_id", project["id"]
                             ).eq("position", milestone_position).execute()
 
                             if not existing_milestone_query.data:
-                                print(f"[BG] Milestone {milestone_position} not found in database")
+                                logger.warning("[BG] Milestone %d not found in database", milestone_position)
                                 continue
 
                             milestone = existing_milestone_query.data[0]
@@ -249,14 +263,12 @@ def generate_curriculum():
                                     hints=task_item.hints,
                                     test_specification=task_item.test_specification.model_dump(),
                                 )
-
-                    except Exception as bg_exc:
-                        print(f"[BG] FAILED: {bg_exc}")
-                        logger.error("Background milestone generation failed: %s\n%s", bg_exc, traceback.format_exc())
+                        except Exception as db_exc:
+                            logger.error("[BG] Failed to save milestone %d tasks: %s", milestone_position, db_exc)
 
                 bg_thread = Thread(target=generate_remaining_in_background, daemon=True)
                 bg_thread.start()
-                print(f"[BG] Background thread started")
+                logger.info("[BG] Background thread started")
 
         import json
         with open("last_generated_curriculum.json", "w") as f:

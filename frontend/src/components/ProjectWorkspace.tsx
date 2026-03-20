@@ -655,8 +655,10 @@ export function ProjectWorkspace({
   const handleCompleteTask = async () => {
     // flush any pending debounced changes from the editor FIRST
     editorRef.current?.flushPendingFileChanges?.();
+    // Use getLatestFiles() to avoid stale state after flush
+    const latestFiles = editorRef.current?.getLatestFiles?.() ?? projectFiles;
     // Format all files for evaluation
-    const code = projectFiles
+    const code = latestFiles
       .map(f => `# === ${f.name} ===\n${f.content || ''}`)
       .join('\n\n');
 
@@ -665,7 +667,7 @@ export function ProjectWorkspace({
 
     try {
       // Save files BEFORE submitting so storage is always up-to-date
-      await saveFiles(projectFiles);
+      await saveFiles(latestFiles);
 
       const response = await authFetch('/submission/evaluate', {
         method: 'POST',

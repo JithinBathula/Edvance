@@ -331,5 +331,6 @@ def build_assistant_user_prompt(
         + (chat_history or "No previous messages.") + "\n\n"
         "## Student's Message\n"
         + user_message + "\n\n"
-        "Respond to the student's message. Be SHORT and DIRECT — 1-3 sentences, max 60 words. Check safety guardrails first."
+        "Respond to the student's message. Be SHORT and DIRECT — 1-3 sentences, max 60 words. "
+        "Check safety guardrails first. NEVER give the complete solution or full working code for the task — hints and partial snippets only (max 3 lines of code)."
     )

@@ -2,9 +2,12 @@
 Submission Evaluation API routes.
 Handles code submission evaluation for task progression.
 """
+import logging
 import threading
 
 from flask import Blueprint, request, jsonify, g
+
+logger = logging.getLogger(__name__)
 
 from api.middleware import require_auth
 from agents.submission import SubmissionEvaluator
@@ -34,6 +37,18 @@ submission_bp = Blueprint('submission', __name__, url_prefix='/api/submission')
 
 evaluator = SubmissionEvaluator()
 concept_tracker = ConceptTrackerAgent()
+
+# Per-task submission locks to prevent XP double-award race condition
+_submission_locks: dict[str, threading.Lock] = {}
+_submission_locks_guard = threading.Lock()
+
+
+def _get_submission_lock(user_id: str, task_id: str) -> threading.Lock:
+    key = f"{user_id}:{task_id}"
+    with _submission_locks_guard:
+        if key not in _submission_locks:
+            _submission_locks[key] = threading.Lock()
+        return _submission_locks[key]
 
 def _track_submission_concepts_async(
     user_id: str,
@@ -80,8 +95,9 @@ def _track_submission_concepts_async(
                 project_id=project_id,
                 summary=signal.get("summary"),  
             )
-    except Exception as exc:
-        print(f"[concept_tracker] submission analysis failed silently: {exc}")
+    except Exception:
+        print(f"[concept_tracker] submission analysis failed silently: {user_id}, {project_id}")
+        logger.exception("[concept_tracker] submission analysis failed for user=%s project=%s", user_id, project_id)
 
 
 @submission_bp.route('/evaluate', methods=['POST'])
@@ -106,6 +122,11 @@ def evaluate_submission():
             'success': False,
             'error': 'task_id is required'
         }), 400
+
+    # Prevent concurrent submissions for the same user+task (XP double-award)
+    lock = _get_submission_lock(user_id, task_id)
+    if not lock.acquire(blocking=False):
+        return jsonify({'success': False, 'error': 'Submission already being processed'}), 429
 
     try:
         task = get_task_by_id(task_id)
@@ -213,6 +234,7 @@ def evaluate_submission():
                         new_xp = increment_xp_atomic(user_id, XP_PER_TASK)
                     except Exception as xp_error:
                         print(f"Warning: Failed to update XP: {xp_error}")
+                        logger.warning("Failed to update XP for user=%s: %s", user_id, xp_error)
 
 
                 # Adaptive task generation for next task
@@ -331,6 +353,8 @@ def evaluate_submission():
             'success': False,
             'error': str(e)
         }), 500
+    finally:
+        lock.release()
 
 
 ## testing-hello

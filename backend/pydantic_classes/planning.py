@@ -5,10 +5,14 @@ from typing import List
 class CurriculumGenerationError(RuntimeError):
     """Raised when curriculum generation fails or violates the enforced schema."""
 
+class TestCase(BaseModel):
+    input: str
+    expected_output: str
 
 class TestSpecification(BaseModel):
     expected_state: str
     verification_code: str
+    test_cases: List[TestCase] = Field(default_factory=list)
 
 
 class TaskItem(BaseModel):
@@ -17,6 +21,7 @@ class TaskItem(BaseModel):
     coding_requirements: List[str] = Field(default_factory=list)
     hints: List[str] = Field(default_factory=list)
     test_specification: TestSpecification
+    solution_code: str = ""
 
     @field_validator("coding_requirements", "hints")
     @classmethod

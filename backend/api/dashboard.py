@@ -82,7 +82,7 @@ def _build_unstarted_entry(sa):
     """Build an in-progress placeholder dict from a student_assignment row."""
     assignment = sa.get('assignments') or {}
     classroom = assignment.get('classrooms') or {}
-    classroom_name = classroom.get('name') if isinstance(classroom, dict) else (classroom[0].get('name') if isinstance(classroom, list) and classroom else None)
+    classroom_name = classroom.get('name') if isinstance(classroom, dict) else (classroom[0].get('name') if isinstance(classroom, list) and classroom and isinstance(classroom[0], dict) else None)
     return {
         'id': f"assignment:{sa['id']}",
         'title': assignment.get('title', 'Untitled Assignment'),

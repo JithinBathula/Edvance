@@ -74,8 +74,8 @@ def create_assignment_route():
             if student_id:
                 try:
                     create_student_assignment(assignment["id"], student_id)
-                except Exception:
-                    pass  # Skip duplicates
+                except Exception as exc:
+                    logger.warning("Failed to create student_assignment for student %s: %s", student_id, exc)
 
         return jsonify({"success": True, "assignment": assignment}), 201
 

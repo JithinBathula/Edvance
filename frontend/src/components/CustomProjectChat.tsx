@@ -172,8 +172,8 @@ async function readSSEStream(
         if (data.content) onContent(data.content);
         if (data.handoff) onHandoff();
         if (data.done) finished = true;
-      } catch {
-        // skip malformed chunks
+      } catch (e) {
+        console.warn('[SSE] Skipping malformed chunk:', line.substring(0, 100));
       }
     }
   }

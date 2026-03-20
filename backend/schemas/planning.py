@@ -47,8 +47,20 @@ MILESTONE_SCHEMA = {
                         "properties": {
                             "expected_state": {"type": "string"},
                             "verification_code": {"type": "string"},
+                            "test_cases": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "input": {"type": "string"},
+                                        "expected_output": {"type": "string"},
+                                    },
+                                    "required": ["input", "expected_output"],
+                                    "additionalProperties": False,
+                                },
+                            },
                         },
-                        "required": ["expected_state", "verification_code"],
+                        "required": ["expected_state", "verification_code", "test_cases"],
                         "additionalProperties": False,
                     },
                 },
@@ -58,6 +70,7 @@ MILESTONE_SCHEMA = {
                     "coding_requirements",
                     "hints",
                     "test_specification",
+                    "solution_code",
                 ],
                 "additionalProperties": False,
             },
