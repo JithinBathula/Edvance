@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "./ui/utils";
-import octopusUrl from "../assets/octopus.svg";
+import codyUrl from "../assets/cody.svg";
 import { ArrowDown, ArrowUp, BookOpen, Check } from "lucide-react";
 
 type Milestone = { subheading_title: string; description: string };
@@ -138,7 +138,7 @@ export function MilestonePlannerList({
                 >
                   {/* Horizontal row: milestone icon, text, completion indicator */}
                   <div className="flex items-start gap-6">
-                    {/* Left icon lane (number ring or active octopus icon) */}
+                    {/* Left icon lane (number ring or active cody icon) */}
                     <div className="relative mt-0.5 shrink-0" style={{ width: node.wrap, height: node.wrap }}>
                       {/* Soft glow behind circular icon node */}
                       <div
@@ -180,7 +180,7 @@ export function MilestonePlannerList({
                       {/* Active-state mascot icon overlay */}
                       {isActive && (
                         <motion.img
-                          src={octopusUrl}
+                          src={codyUrl}
                           alt=""
                           aria-hidden="true"
                           className="absolute left-1/6 top-1/6"
