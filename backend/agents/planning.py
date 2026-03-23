@@ -227,56 +227,52 @@ class CurriculumPlanner:
     @staticmethod
     def _build_milestone_summary(milestone: Milestone, position: int) -> str:
         """
-        Build a detailed summary of a generated milestone for use as rolling context.
-        Includes concepts taught, code state, and teaching points to prevent
-        repetition and ensure continuity in subsequent milestones.
+        Build a structured summary of a generated milestone for rolling context.
+        Uses concrete coding requirements (not parsed instruction text) to produce
+        a clear anti-repetition blocklist for subsequent milestones.
         """
-        # Extract function/variable names from coding requirements
-        all_requirements = []
-        for task in milestone.tasks:
-            all_requirements.extend(task.coding_requirements)
+        import re
 
-        # Extract concepts from instruction_theory (look for Part A content)
-        concepts_taught = []
-        code_patterns = []
+        # Collect all coding requirements per task
+        task_req_lines = []
+        all_reqs_flat = []
         for task in milestone.tasks:
-            theory = task.instruction_theory
-            # Extract content between Part A and Part B as concepts
-            if "Part A" in theory and "Part B" in theory:
-                part_a_idx = theory.index("Part A")
-                part_b_idx = theory.index("Part B")
-                concept_text = theory[part_a_idx:part_b_idx].strip()
-                # Get first meaningful line as concept summary
-                for line in concept_text.split("\n"):
-                    line = line.strip().strip("*#- ")
-                    if len(line) > 15 and "Part A" not in line:
-                        concepts_taught.append(line[:100])
-                        break
-            # Extract Try It Out code patterns
-            if "Part B" in theory and "Part C" in theory:
-                part_b_idx = theory.index("Part B")
-                part_c_idx = theory.index("Part C")
-                try_section = theory[part_b_idx:part_c_idx]
-                if "```" in try_section:
-                    code_patterns.append(f"Task {task.task_id}: code example shown")
+            reqs_joined = "; ".join(task.coding_requirements)
+            task_req_lines.append(f"  {task.task_id}: {reqs_joined}")
+            all_reqs_flat.extend(task.coding_requirements)
 
-        # Build the last task's requirements as handoff state
+        # Extract function names from requirements (look for patterns like `func_name()`)
+        func_pattern = re.compile(r'`(\w+)\([^)]*\)`')
+        functions_created = sorted(set(func_pattern.findall(" ".join(all_reqs_flat))))
+
+        # Extract variable names (look for patterns like `var_name`)
+        var_pattern = re.compile(r'`(\w+)`')
+        all_backtick = set(var_pattern.findall(" ".join(all_reqs_flat)))
+        # Filter out things that look like functions or Python keywords
+        keywords = {"if", "elif", "else", "while", "for", "def", "return", "import", "True", "False", "None", "and", "or", "not", "in", "print"}
+        variables_used = sorted(all_backtick - set(functions_created) - keywords)
+
+        # Build DO NOT REPEAT list from all requirements
+        do_not_repeat = []
+        for req in all_reqs_flat:
+            # Each coding requirement is a concrete feature — summarize it
+            do_not_repeat.append(f"  - {req}")
+
         last_task = milestone.tasks[-1]
-        last_requirements = last_task.coding_requirements
 
         lines = [
             f"--- Milestone {position}: \"{milestone.subheading_title}\" ---",
-            f"DESCRIPTION: {milestone.description}",
-            f"CONCEPTS TAUGHT: {'; '.join(concepts_taught) if concepts_taught else 'See requirements below'}",
-            f"CODE PATTERNS SHOWN: {'; '.join(code_patterns) if code_patterns else 'Various examples'}",
-            f"ALL CODING REQUIREMENTS ACROSS TASKS:",
+            f"TASK REQUIREMENTS (what the student coded):",
         ]
-        for task in milestone.tasks:
-            lines.append(f"  Task {task.task_id}: {'; '.join(task.coding_requirements)}")
+        lines.extend(task_req_lines)
         lines.extend([
-            f"CODE STATE AT END: Last task ({last_task.task_id}) requirements: {'; '.join(last_requirements)}",
-            f"---",
+            f"FUNCTIONS CREATED: {', '.join(functions_created) if functions_created else 'none'}",
+            f"VARIABLES IN USE: {', '.join(variables_used) if variables_used else 'see requirements'}",
+            f"CODE STATE AT END: {'; '.join(last_task.coding_requirements)}",
+            f"DO NOT REPEAT IN LATER MILESTONES:",
         ])
+        lines.extend(do_not_repeat)
+        lines.append("---")
 
         return "\n".join(lines)
 
@@ -306,6 +302,23 @@ class CurriculumPlanner:
         blueprint_json = json.dumps(blueprint.model_dump(), indent=2) if blueprint else "No blueprint available — use your best judgment for naming and architecture."
         summary_text = previous_milestones_summary.strip() if previous_milestones_summary else "This is the first milestone — no previous milestones yet."
 
+        # Extract "DO NOT REPEAT" items from rolling summary into a prominent blocklist
+        already_built_lines = []
+        if previous_milestones_summary:
+            in_block = False
+            for line in previous_milestones_summary.split("\n"):
+                if "DO NOT REPEAT" in line:
+                    in_block = True
+                    continue
+                if in_block:
+                    if line.startswith("---") or line.startswith("TASK ") or line.startswith("FUNCTIONS ") or line.startswith("VARIABLES ") or line.startswith("CODE STATE"):
+                        in_block = False
+                        continue
+                    stripped = line.strip()
+                    if stripped.startswith("- "):
+                        already_built_lines.append(stripped)
+        already_built_features = "\n".join(already_built_lines) if already_built_lines else "This is the first milestone — nothing has been built yet."
+
         messages = [
             {"role": "system", "content": prompt_bank.task_generation_system_prompt},
             {
@@ -324,6 +337,7 @@ class CurriculumPlanner:
                     base_url=os.getenv("BASE_URL", ""),
                     blueprint_json=blueprint_json,
                     previous_milestones_summary=summary_text,
+                    already_built_features=already_built_features,
                 ),
             },
         ]

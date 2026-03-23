@@ -35,6 +35,10 @@ class Milestone(BaseModel):
     def validate_tasks(self) -> "Milestone":
         if not 1 <= len(self.tasks) <= 10:
             raise ValueError("tasks must contain between 1 and 10 TaskItem entries")
+        ids = [t.task_id for t in self.tasks]
+        if len(ids) != len(set(ids)):
+            dupes = [x for x in ids if ids.count(x) > 1]
+            raise ValueError(f"Duplicate task_id values: {set(dupes)}")
         return self
 
 

@@ -11,6 +11,12 @@ Core principles:
 - Respect what the user already knows — don't over-explain basics they've mastered
 - Decide the runtime for this project: "python" or "javascript" (default to "python" if unclear)
 
+CRITICAL — No overlapping milestones:
+- Each milestone MUST own a distinct, non-overlapping set of features. If milestone 1 handles user input, milestone 3 must NOT also handle user input variations.
+- NEVER have two milestones that both describe the same feature, even with different wording. BAD: M1 "accept r/p/s" + M3 "handle shortcuts". GOOD: M1 "accept rock/paper/scissors" + M3 "add shortcuts r/p/s and case-insensitive input".
+- Input validation, error handling, and polish must be woven into the milestone where the feature is FIRST built — never as a separate "Polish" or "Validation" milestone.
+- If a feature is built in milestone N, no later milestone should re-build, re-add, or re-polish that same feature.
+
 IMPORTANT — Keep it real:
 - If a project is simple (calculator, to-do list, quiz), keep the milestones simple too
 - Do NOT pad simple projects with unnecessary complexity like argparse, extensive exception handling, unit testing frameworks, or CLI argument parsing
@@ -78,6 +84,8 @@ CALIBRATION RULES:
    Don't: Splitting one feature into 6 tiny sub-features
    Don't: A whole milestone for "Error Handling and Edge Cases"
    Don't: Adding argparse, sys.argv, or CLI frameworks
+   Don't: Two milestones that describe the same feature (e.g., M1 "accept r/p/s" AND M3 "handle shortcuts")
+   Don't: A dedicated "Input Validation and Polish" milestone — weave validation into the feature milestone
    Do: "Build basic calculation engine" → "Add continuous operation mode" → "Handle errors gracefully"
    Do: Weave input validation naturally into the milestone where the input happens
 
@@ -275,8 +283,12 @@ PROJECT BLUEPRINT (shared code architecture for the entire project):
 PREVIOUS MILESTONES SUMMARY (what has already been generated — DO NOT repeat this content):
 {previous_milestones_summary}
 
+FEATURES ALREADY BUILT (from previous milestones — DO NOT recreate, re-teach, or re-build any of these):
+{already_built_features}
+
 ANTI-REPETITION AND CONTINUITY RULES:
-- The concepts listed as ALREADY TAUGHT in the previous milestones summary must NOT be re-explained in Part A. You may reference them briefly (e.g., "Using the `calculate()` function you built earlier...") but do NOT re-teach them.
+- NEVER create a task that re-builds a feature listed in "FEATURES ALREADY BUILT" above. The student already coded it. If you find yourself writing a task that overlaps, SKIP it and move to the next new feature.
+- If the blueprint assigns a concept to THIS milestone but a previous milestone already built it (according to the summary above), SKIP that concept entirely — the student's code already has it.
 - The student's code ALREADY contains the functions and variables listed in the previous milestones summary. Your first task MUST start by using or extending this existing code — do NOT create new variables for the same purpose.
 - Your last task in this milestone MUST leave the code in the state described in the blueprint's `expected_code_state` for this milestone position.
 - Do NOT include "Try It Out" examples for concepts that were already taught in previous milestones — only for NEW concepts introduced in this milestone.
