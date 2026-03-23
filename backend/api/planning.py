@@ -240,12 +240,17 @@ def generate_curriculum():
 
 
                             # Accumulate this milestone's summary for the next iteration
-                            accumulated_summary += CurriculumPlanner._build_milestone_summary(milestone_obj, milestone_position) + "\n\n"
+                            new_summary = CurriculumPlanner._build_milestone_summary(milestone_obj, milestone_position)
+                            accumulated_summary += new_summary + "\n\n"
+                            print(f"[BG] Rolling summary now {len(accumulated_summary)} chars")
 
-                            from db.supabase_client import supabase
-                            existing_milestone_query = supabase.table("milestones").select("*").eq(
-                                "project_id", project["id"]
-                            ).eq("position", milestone_position).execute()
+                            from db.supabase_client import supabase, execute_with_retry
+                            existing_milestone_query = execute_with_retry(
+                                "bg_get_milestone",
+                                lambda mp=milestone_position: supabase.table("milestones").select("*").eq(
+                                    "project_id", project["id"]
+                                ).eq("position", mp).execute(),
+                            )
 
                             if not existing_milestone_query.data:
                                 print(f"[BG] Milestone {milestone_position} not found in database")

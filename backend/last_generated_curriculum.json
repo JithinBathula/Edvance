@@ -1,125 +1,155 @@
 {
-  "project_title": "Mystery Bug Detective",
-  "project_brief": "A terminal-based quiz game where you play detective and spot bugs in broken Python code snippets. You'll choose the correct fix from multiple choices, get feedback on your answers, and track your score across puzzles loaded from a data file.",
+  "project_title": "Terminal Rock\u2013Paper\u2013Scissors (First to 3)",
+  "project_brief": "Build a classic Rock\u2013Paper\u2013Scissors game where you compete against the computer in a best-of-5 match. The game tracks scores, handles different input styles, and declares a winner when someone reaches 3 wins. Perfect for practising loops and conditionals!",
   "milestones": [
     {
-      "subheading_title": "Load and Display Puzzles from Data File",
-      "description": "Create a JSON file with 5+ bug puzzles (each has a broken code snippet, multiple-choice answers, and the correct answer). Write code to load this file and display the first puzzle with its choices to the player. You'll practice working with JSON files and dictionaries.",
+      "subheading_title": "Single Round Logic",
+      "description": "Get one complete round working: player types their choice (rock/paper/scissors or r/p/s), computer picks randomly, and the game announces who won that round with a clear explanation of why.",
       "tasks": [
         {
           "task_id": "1.1",
-          "instruction_theory": "**Part A: Explanation**\n\nBefore we can write code to load puzzles, we need to create the puzzle data! We'll use a **JSON file** \u2014 think of it like a recipe card that stores information in a neat, organized way that Python can easily read.\n\nJSON stands for \"JavaScript Object Notation\" but don't worry about the name \u2014 it's just a way to store data using curly braces `{}` and square brackets `[]`. It looks a lot like Python dictionaries and lists!\n\n**Part B: Try It Out**\n\nHere's what JSON looks like \u2014 it's just text that stores data:\n```json\n{\n  \"name\": \"Alex\",\n  \"age\": 11,\n  \"hobbies\": [\"coding\", \"games\"]\n}\n```\n\nNotice how it uses:\n- Curly braces `{}` to group things together (like a dictionary)\n- Square brackets `[]` for lists\n- Colons `:` to separate names from values\n- Commas `,` between items\n\nYou don't need to run anything yet \u2014 just understand the format!\n\n**Part C: Your Task**\n\nCreate a new file called `puzzles.json` (click the + button to add a new file) and paste this starter puzzle data:\n\n```json\n{\n  \"puzzles\": [\n    {\n      \"id\": 1,\n      \"code\": \"name = 'Alex'\\nprint(Name)\",\n      \"question\": \"Why does this code crash?\",\n      \"choices\": {\n        \"A\": \"Missing quotes around Alex\",\n        \"B\": \"Variable name is spelled differently (name vs Name)\",\n        \"C\": \"print() is not a real function\"\n      },\n      \"correct\": \"B\",\n      \"explanation\": \"Python cares about uppercase and lowercase! 'name' and 'Name' are different.\"\n    },\n    {\n      \"id\": 2,\n      \"code\": \"for i in range(5)\\n    print(i)\",\n      \"question\": \"What's missing from this loop?\",\n      \"choices\": {\n        \"A\": \"The colon : at the end of the for line\",\n        \"B\": \"The word 'loop' instead of 'for'\",\n        \"C\": \"Parentheses around the print\"\n      },\n      \"correct\": \"A\",\n      \"explanation\": \"for loops need a colon at the end: for i in range(5):\"\n    }\n  ]\n}\n```\n\n1. Create a new file named exactly `puzzles.json`\n2. Paste the JSON data above into that file\n3. Save the file",
+          "instruction_theory": "**Part A: Explanation**\n\nWe're building a Rock-Paper-Scissors game! Before we can play, we need to teach the computer how to make its own choice.\n\nThink of it like this: when you play with a friend, they pick rock, paper, or scissors in their head. The computer needs to do the same thing \u2014 but since computers can't think, we use **randomness** to pick for them!\n\nIn Python, we use a special tool called `random` that can pick things randomly for us. It's like having a magic dice that can choose from a list of options.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nimport random\n\nfruits = [\"apple\", \"banana\", \"orange\"]\npicked = random.choice(fruits)\nprint(\"The computer picked: \" + picked)\n```\nRun it a few times! You should see different fruits each time, like:\n`The computer picked: banana`\n\nThe `random.choice()` function picks one random item from a list \u2014 perfect for our game!\n\n**Part C: Your Task**\n\n1. At the top of your file, type `import random` to bring in the random tool\n2. Create a list called `choices` that contains `\"rock\"`, `\"paper\"`, and `\"scissors\"`\n3. Use `random.choice(choices)` to pick a random choice and store it in a variable called `computer_choice`\n4. Print `\"Computer chose: \"` followed by the value of `computer_choice`",
           "coding_requirements": [
-            "Create a file named exactly `puzzles.json`",
-            "The file contains valid JSON with a `puzzles` array containing at least 2 puzzle objects",
-            "Each puzzle has: id, code, question, choices (with A/B/C), correct, and explanation"
+            "Import the `random` module at the top of main.py",
+            "Create a list called `choices` containing \"rock\", \"paper\", and \"scissors\"",
+            "Create a variable called `computer_choice` that stores a random pick from `choices`",
+            "Print the computer's choice using the exact format: \"Computer chose: \" followed by the choice"
           ],
           "hints": [
-            "Make sure your file is named `puzzles.json` (not `puzzle.json` or `puzzles.txt`)",
-            "If you see red squiggly lines in the JSON, check that every opening brace `{` has a closing `}` and every quote has a matching quote",
-            "Don't forget commas between items, but NOT after the last item in a list!"
+            "Make sure to spell `import random` exactly \u2014 it's all lowercase with a space in between!",
+            "Lists use square brackets and commas: `[\"rock\", \"paper\", \"scissors\"]`",
+            "If you see 'NameError: name random is not defined', you forgot the `import random` line at the top!"
           ],
           "test_specification": {
-            "expected_state": "A file called puzzles.json exists with valid JSON containing at least 2 puzzles",
-            "verification_code": "import json\nwith open('puzzles.json', 'r') as f:\n    data = json.load(f)\nassert 'puzzles' in data and len(data['puzzles']) >= 2"
+            "expected_state": "Running the program prints 'Computer chose: ' followed by either rock, paper, or scissors (randomly chosen)",
+            "verification_code": "import random\nchoices = [\"rock\", \"paper\", \"scissors\"]\ncomputer_choice = random.choice(choices)\nassert computer_choice in choices, \"computer_choice should be rock, paper, or scissors\""
           },
-          "id": "629e961f-5f5b-486b-88f4-13c83c1d68da"
+          "id": "8346c47c-2ff6-45e1-8f5e-6c24787bf782"
         },
         {
           "task_id": "1.2",
-          "instruction_theory": "**Part A: Explanation**\n\nAwesome! Now that we have our puzzle data saved, let's write Python code to **load** it. Python has a built-in tool called `json` that can read JSON files and turn them into dictionaries and lists we can use.\n\nIt's like having a translator that reads the recipe card and tells Python what's on it!\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code in `main.py`:\n```python\nimport json\n\nwith open('puzzles.json', 'r') as file:\n    data = json.load(file)\n\nprint(type(data))\nprint(data)\n```\n\nYou should see:\n```\n<class 'dict'>\n{'puzzles': [{'id': 1, 'code': \"name = 'Alex'\\nprint(Name)\" ... }]}\n```\n\nThe `json.load()` function reads the file and converts it into a Python dictionary!\n\n**Part C: Your Task**\n\n1. In `main.py`, add `import json` at the top\n2. Use `with open('puzzles.json', 'r') as file:` to open the file\n3. Use `data = json.load(file)` to load the JSON into a variable called `data`\n4. Create a variable called `puzzles` that stores just the list of puzzles: `puzzles = data['puzzles']`\n5. Print how many puzzles loaded: `print('Loaded', len(puzzles), 'puzzles!')`",
+          "instruction_theory": "**Part A: Explanation**\n\nNow we need to get the player's choice! In a real game, you'd show your hand \u2014 but in our terminal game, the player types their choice using the keyboard.\n\nWe'll use `input()` to ask the player what they want to pick. The `input()` function waits for the player to type something and press Enter, then gives us back what they typed.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nname = input(\"What is your name? \")\nprint(\"Hello, \" + name + \"!\")\n```\nType your name and press Enter. You should see something like:\n`Hello, Alex!`\n\n**Part C: Your Task**\n\nKeep your code from the previous task, and add these lines **before** the computer choice code:\n\n1. Use `input()` to ask `\"Enter your choice (rock/paper/scissors): \"` and store the answer in a variable called `player_choice`\n2. Print `\"You chose: \"` followed by the value of `player_choice`\n3. Make sure the computer choice code still runs after the player input\n\nYour program should now ask for input first, then show both choices!",
           "coding_requirements": [
-            "Import the `json` module at the top of main.py",
-            "Load puzzles.json using `with open()` and `json.load()`",
-            "Store the puzzle list in a variable called `puzzles`",
-            "Print the number of puzzles loaded"
+            "Use `input()` with the prompt \"Enter your choice (rock/paper/scissors): \" and store the result in `player_choice`",
+            "Print the player's choice using the format: \"You chose: \" followed by their choice",
+            "Keep the computer choice code from task 1.1 running after the player input"
           ],
           "hints": [
-            "Make sure `puzzles.json` is in the same folder as `main.py`",
-            "The `'r'` in `open('puzzles.json', 'r')` means 'read mode' \u2014 we're just reading, not changing the file",
-            "If you get `FileNotFoundError`, double-check the filename spelling matches exactly"
+            "The space after the colon in your prompt (`\"Enter your choice (rock/paper/scissors): \"`) makes it look nicer when the player types!",
+            "Remember: `input()` always gives you text (a string), even if the player types a number",
+            "If nothing seems to happen when you run, the program is waiting for you to type! Look for the input box below your code"
           ],
           "test_specification": {
-            "expected_state": "Running main.py prints 'Loaded 2 puzzles!' (or more if you added extra puzzles)",
-            "verification_code": "import json\nwith open('puzzles.json', 'r') as f:\n    data = json.load(f)\npuzzles = data['puzzles']\nassert len(puzzles) >= 2"
+            "expected_state": "Running the program asks for player input, then prints both the player's choice and the computer's random choice",
+            "verification_code": "# Manual test: program should prompt for input, then display both choices\nplayer_choice = \"rock\"  # simulated input\nassert isinstance(player_choice, str), \"player_choice should be a string\""
           },
-          "id": "e8da1482-9cc9-4374-b9b7-fdb666b678bd"
+          "id": "46080b8f-b3b2-4b8e-bdc0-01ee4fc46f41"
         },
         {
           "task_id": "1.3",
-          "instruction_theory": "**Part A: Explanation**\n\nNow let's display a puzzle to the player! Each puzzle in our list is a **dictionary** with keys like `code`, `question`, and `choices`. We can access these using square brackets, like `puzzle['code']`.\n\nThink of it like a filing cabinet \u2014 you ask for a specific folder by name, and it gives you what's inside!\n\n**Part B: Try It Out**\n\nAdd this after your existing code and run it:\n```python\nfirst_puzzle = puzzles[0]\nprint(first_puzzle['question'])\n```\n\nYou should see: `Why does this code crash?`\n\nWe used `puzzles[0]` to get the first puzzle (remember, lists start counting at 0!), then `['question']` to get just the question text.\n\n**Part C: Your Task**\n\n1. Get the first puzzle and store it in a variable called `current_puzzle`: `current_puzzle = puzzles[0]`\n2. Print a header: `print('\\n=== MYSTERY BUG DETECTIVE ===')`\n3. Print `print('\\nPuzzle #' + str(current_puzzle['id']))`\n4. Print `print('\\nBuggy Code:')`\n5. Print the actual code: `print(current_puzzle['code'])`\n6. Print the question: `print('\\nQuestion:', current_puzzle['question'])`",
+          "instruction_theory": "**Part A: Explanation**\n\nNow for the fun part \u2014 deciding who wins! Rock-Paper-Scissors has simple rules:\n- **Rock beats Scissors** (rock smashes scissors)\n- **Scissors beats Paper** (scissors cut paper)\n- **Paper beats Rock** (paper covers rock)\n- If both players pick the same thing, it's a **tie**!\n\nWe'll use `if`, `elif`, and `else` to check all these possibilities. Think of it like a flowchart: \"If this happens, do this. Otherwise, if that happens, do that.\"\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nweather = \"sunny\"\n\nif weather == \"rainy\":\n    print(\"Bring an umbrella!\")\nelif weather == \"sunny\":\n    print(\"Wear sunglasses!\")\nelse:\n    print(\"Have a nice day!\")\n```\nYou should see: `Wear sunglasses!`\n\nThe `==` checks if two things are equal. Only ONE of the print statements runs!\n\n**Part C: Your Task**\n\nAfter printing both choices, add code to decide the winner:\n\n1. First, check if it's a tie: `if player_choice == computer_choice:` \u2014 print `\"It's a tie!\"`\n2. Add `elif` checks for when the **player wins**:\n   - If player chose `\"rock\"` and computer chose `\"scissors\"` \u2192 print `\"Rock smashes scissors - you win!\"`\n   - If player chose `\"scissors\"` and computer chose `\"paper\"` \u2192 print `\"Scissors cut paper - you win!\"`\n   - If player chose `\"paper\"` and computer chose `\"rock\"` \u2192 print `\"Paper covers rock - you win!\"`\n3. Add a final `else:` that prints `\"Computer wins!\"` for all other cases",
           "coding_requirements": [
-            "Store the first puzzle in a variable called `current_puzzle`",
-            "Print the game title header",
-            "Print the puzzle ID, the buggy code, and the question"
+            "Add an `if` statement that checks for a tie and prints \"It's a tie!\"",
+            "Add three `elif` statements for the three ways the player can win, each with a descriptive message",
+            "Add an `else` statement that prints \"Computer wins!\" for remaining cases"
           ],
           "hints": [
-            "Use `str()` to convert numbers to text when combining with strings: `str(current_puzzle['id'])`",
-            "The `\\n` creates a blank line \u2014 it makes the output easier to read",
-            "If you see `KeyError`, check that you spelled the key exactly right (like `'code'` not `'Code'`)"
+            "To check two conditions at once, use `and`: `if player_choice == \"rock\" and computer_choice == \"scissors\":`",
+            "Make sure you use `==` (double equals) for comparing, not `=` (single equals which is for storing values)",
+            "Getting unexpected results? Add a `print(player_choice, computer_choice)` line to see exactly what values you're comparing!"
           ],
           "test_specification": {
-            "expected_state": "Running main.py shows the game title, puzzle number, the buggy code snippet, and the question",
-            "verification_code": "# Visual check: output should include '=== MYSTERY BUG DETECTIVE ===' and show puzzle code"
+            "expected_state": "Running the program asks for input, shows both choices, and correctly announces the winner with an explanation of why they won",
+            "verification_code": "# Test win condition logic\nplayer_choice = \"rock\"\ncomputer_choice = \"scissors\"\nif player_choice == computer_choice:\n    result = \"tie\"\nelif (player_choice == \"rock\" and computer_choice == \"scissors\"):\n    result = \"player wins\"\nassert result == \"player wins\", \"Rock should beat scissors\""
           },
-          "id": "09b6ace3-d221-4372-91ce-536e32a8d771"
+          "id": "b619cc67-1ae9-4758-b712-e5a4524d7b82"
         },
         {
           "task_id": "1.4",
-          "instruction_theory": "**Part A: Explanation**\n\nAlmost there! Now we need to show the multiple-choice answers. The `choices` in each puzzle is another dictionary with keys like `'A'`, `'B'`, `'C'`. We need to loop through and display each one.\n\nSince you already know loops, this will be a breeze! We'll use `.items()` to get both the letter AND the answer text at the same time.\n\n**Part B: Try It Out**\n\nTry this quick example:\n```python\nmy_choices = {'A': 'Apple', 'B': 'Banana', 'C': 'Cherry'}\nfor letter, answer in my_choices.items():\n    print(letter + ': ' + answer)\n```\n\nYou should see:\n```\nA: Apple\nB: Banana\nC: Cherry\n```\n\nThe `.items()` method gives us pairs \u2014 the key (letter) and the value (answer) together!\n\n**Part C: Your Task**\n\n1. After printing the question, print `print('\\nChoices:')`\n2. Get the choices dictionary: `choices = current_puzzle['choices']`\n3. Loop through the choices and print each one:\n```python\nfor letter, answer in choices.items():\n    print(letter + ': ' + answer)\n```\n4. Run your code \u2014 you should see the full puzzle displayed with all answer choices!",
+          "instruction_theory": "**Part A: Explanation**\n\nOur game works, but there's a problem: what if the player types `Rock` with a capital R, or just `r` as a shortcut? Right now, our game would say they lose because `\"Rock\"` doesn't equal `\"rock\"`!\n\nLet's make our game friendlier by accepting different ways to type the choices. We'll use `.lower()` to convert everything to lowercase, so `\"ROCK\"`, `\"Rock\"`, and `\"rock\"` all become `\"rock\"`.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nword = \"HELLO\"\nlowercase_word = word.lower()\nprint(lowercase_word)\n```\nYou should see: `hello`\n\nThe `.lower()` method turns any text into all lowercase letters!\n\n**Part C: Your Task**\n\n1. Right after you get `player_choice` from input, add a line that converts it to lowercase:\n   `player_choice = player_choice.lower()`\n\n2. Now let's handle short forms! After converting to lowercase, add these checks:\n   - `if player_choice == \"r\":` then set `player_choice = \"rock\"`\n   - `elif player_choice == \"p\":` then set `player_choice = \"paper\"`\n   - `elif player_choice == \"s\":` then set `player_choice = \"scissors\"`\n\n3. Test your game by typing `R`, `PAPER`, or `s` \u2014 they should all work now!",
           "coding_requirements": [
-            "Store the choices in a variable called `choices`",
-            "Use a for loop with `.items()` to loop through the choices",
-            "Print each choice in the format `A: answer text`"
+            "Convert `player_choice` to lowercase using `.lower()` right after getting input",
+            "Add if/elif statements to convert \"r\" to \"rock\", \"p\" to \"paper\", and \"s\" to \"scissors\"",
+            "The rest of the game logic should work with these converted values"
           ],
           "hints": [
-            "Make sure `choices = current_puzzle['choices']` comes AFTER you create `current_puzzle`",
-            "The `.items()` method works on dictionaries \u2014 it won't work on lists",
-            "If your choices print in a weird order, that's okay! Dictionaries don't always keep order, but the game will still work"
+            "The order matters! Convert to lowercase FIRST, then check for r/p/s. Otherwise \"R\" won't match \"r\"",
+            "You're replacing the value of `player_choice` \u2014 that's okay! The variable just holds the new, cleaned-up value",
+            "Test with different inputs: try `ROCK`, `r`, `Paper`, `S` \u2014 they should all work correctly now"
           ],
           "test_specification": {
-            "expected_state": "Running main.py displays the complete first puzzle: title, puzzle ID, buggy code, question, and all choices (A, B, C)",
-            "verification_code": "# Visual check: output should show choices like 'A: Missing quotes...' etc."
+            "expected_state": "The game accepts uppercase letters (ROCK), lowercase letters (rock), and short forms (r/p/s) and plays correctly with any of these inputs",
+            "verification_code": "# Test input normalization\nplayer_choice = \"R\"\nplayer_choice = player_choice.lower()\nif player_choice == \"r\":\n    player_choice = \"rock\"\nassert player_choice == \"rock\", \"R should be converted to rock\""
           },
-          "id": "d26b5106-6bb3-452b-bfc8-2c143aefa793"
+          "id": "4559abb7-5937-48d7-ad82-016a4c9681d7"
+        },
+        {
+          "task_id": "1.5",
+          "instruction_theory": "**Part A: Explanation**\n\nLet's clean up our code by putting the computer's choice logic into a **function**. A function is like a mini-program inside your program \u2014 you give it a name, and whenever you need it, you just call that name!\n\nThis makes our code tidier and easier to reuse later when we add more rounds.\n\n**Part B: Try It Out**\n\nClick the \u25b6 Run button to try this code:\n```python\nimport random\n\ndef pick_snack():\n    snacks = [\"chips\", \"cookies\", \"fruit\"]\n    return random.choice(snacks)\n\nmy_snack = pick_snack()\nprint(\"You got: \" + my_snack)\n```\nYou should see something like: `You got: cookies`\n\nThe `return` keyword sends a value back to wherever the function was called!\n\n**Part C: Your Task**\n\n1. Near the top of your file (after `import random`), create a function called `get_computer_choice()`:\n   ```python\n   def get_computer_choice():\n       choices = [\"rock\", \"paper\", \"scissors\"]\n       return random.choice(choices)\n   ```\n\n2. In your main game code, replace the old computer choice lines with:\n   `computer_choice = get_computer_choice()`\n\n3. Run your game \u2014 it should work exactly the same, but now the code is more organised!\n\nYour final code should: ask for player input, convert it to lowercase, handle r/p/s shortcuts, get the computer's choice using the function, and announce the winner.",
+          "coding_requirements": [
+            "Create a function called `get_computer_choice()` that returns a random choice from [\"rock\", \"paper\", \"scissors\"]",
+            "Call `get_computer_choice()` and store the result in `computer_choice`",
+            "The complete program should handle input (with lowercase and shortcuts), get computer choice via the function, and determine the winner"
+          ],
+          "hints": [
+            "Make sure your function is defined BEFORE you try to call it \u2014 Python reads from top to bottom!",
+            "The `def` line and `return` line need to be indented correctly. Everything inside the function should be indented",
+            "If you get 'NameError: get_computer_choice is not defined', check that you spelled the function name exactly the same when defining and calling it"
+          ],
+          "test_specification": {
+            "expected_state": "The complete single-round game works: accepts various input formats, uses get_computer_choice() function, and correctly determines and announces the winner",
+            "verification_code": "import random\ndef get_computer_choice():\n    choices = [\"rock\", \"paper\", \"scissors\"]\n    return random.choice(choices)\nresult = get_computer_choice()\nassert result in [\"rock\", \"paper\", \"scissors\"], \"Function should return rock, paper, or scissors\""
+          },
+          "id": "2f548d9a-bef1-441f-8f2c-d8b5208b058c"
         }
       ],
-      "id": "01b948c4-9036-4153-9e6d-1d4f51ca5952",
+      "id": "a5bf0dde-0aca-4352-8ae8-663825d28c78",
       "status": "ready"
     },
     {
-      "id": "642faba6-7838-4b22-9fd6-655cede63719",
-      "subheading_title": "Build the Quiz Loop with Answer Checking",
-      "description": "Create a loop that goes through each puzzle, takes the player's input (A/B/C), checks if it matches the correct answer, and shows whether they got it right along with a brief explanation of the bug. This is where your loop and conditional skills come together.",
+      "id": "8ab130cb-e35c-4cb4-9271-707de8309dfc",
+      "subheading_title": "Match Loop with Score Tracking",
+      "description": "Wrap the round logic in a loop that continues until someone reaches 3 wins. Display the current score after each round so players can track progress throughout the match.",
       "tasks": [],
       "status": "generating"
     },
     {
-      "id": "2faafeb7-d369-4a60-a4fb-d2d820a226fa",
-      "subheading_title": "Add Score Tracking and Game Summary",
-      "description": "Track the player's score throughout the game (+1 for correct answers) and display a final summary when all puzzles are done. Also add a friendly error message if the puzzle file is missing, so the game doesn't crash unexpectedly.",
+      "id": "a5d154e9-9e82-4e7a-a866-13e13e6128e8",
+      "subheading_title": "Input Validation and Polish",
+      "description": "Handle invalid inputs gracefully by re-prompting the player instead of crashing. Accept variations like uppercase letters and short forms. Announce the final winner clearly when the match ends.",
+      "tasks": [],
+      "status": "generating"
+    },
+    {
+      "id": "02f5cc29-73b7-4c3c-86c9-cf21628e80cb",
+      "subheading_title": "Replay and Stats Summary",
+      "description": "After a match ends, ask if the player wants to play again. Track overall statistics across matches (total wins, losses, ties) and display a simple summary when the player decides to quit.",
       "tasks": [],
       "status": "generating"
     }
   ],
-  "project_id": "a0cef0b5-f478-45fc-9f2e-c25e62c9b16d",
+  "project_id": "603e2c83-da9c-4345-ac5c-67e2654a742a",
   "outline": {
     "milestones": [
       {
-        "description": "Create a JSON file with 5+ bug puzzles (each has a broken code snippet, multiple-choice answers, and the correct answer). Write code to load this file and display the first puzzle with its choices to the player. You'll practice working with JSON files and dictionaries.",
-        "subheading_title": "Load and Display Puzzles from Data File"
+        "description": "Get one complete round working: player types their choice (rock/paper/scissors or r/p/s), computer picks randomly, and the game announces who won that round with a clear explanation of why.",
+        "subheading_title": "Single Round Logic"
       },
       {
-        "description": "Create a loop that goes through each puzzle, takes the player's input (A/B/C), checks if it matches the correct answer, and shows whether they got it right along with a brief explanation of the bug. This is where your loop and conditional skills come together.",
-        "subheading_title": "Build the Quiz Loop with Answer Checking"
+        "description": "Wrap the round logic in a loop that continues until someone reaches 3 wins. Display the current score after each round so players can track progress throughout the match.",
+        "subheading_title": "Match Loop with Score Tracking"
       },
       {
-        "description": "Track the player's score throughout the game (+1 for correct answers) and display a final summary when all puzzles are done. Also add a friendly error message if the puzzle file is missing, so the game doesn't crash unexpectedly.",
-        "subheading_title": "Add Score Tracking and Game Summary"
+        "description": "Handle invalid inputs gracefully by re-prompting the player instead of crashing. Accept variations like uppercase letters and short forms. Announce the final winner clearly when the match ends.",
+        "subheading_title": "Input Validation and Polish"
+      },
+      {
+        "description": "After a match ends, ask if the player wants to play again. Track overall statistics across matches (total wins, losses, ties) and display a simple summary when the player decides to quit.",
+        "subheading_title": "Replay and Stats Summary"
       }
     ],
-    "project_brief": "A terminal-based quiz game where you play detective and spot bugs in broken Python code snippets. You'll choose the correct fix from multiple choices, get feedback on your answers, and track your score across puzzles loaded from a data file.",
-    "project_title": "Mystery Bug Detective",
+    "project_brief": "Build a classic Rock\u2013Paper\u2013Scissors game where you compete against the computer in a best-of-5 match. The game tracks scores, handles different input styles, and declares a winner when someone reaches 3 wins. Perfect for practising loops and conditionals!",
+    "project_title": "Terminal Rock\u2013Paper\u2013Scissors (First to 3)",
     "vm_type": "python"
   },
   "vm_type": "python"
