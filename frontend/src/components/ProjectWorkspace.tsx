@@ -342,6 +342,7 @@ export function ProjectWorkspace({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const filesLoaded = useRef(false);
   const lastProjectSignature = useRef<string>('');
+  const milestonePollingDone = useRef(false);
   const editorRef = useRef<EditorIDEHandle>(null);
   const taskListPanelRef = useRef<ImperativePanelHandle>(null);
 
@@ -566,14 +567,27 @@ export function ProjectWorkspace({
   // Poll for milestone updates (tasks are generated async)
   useEffect(() => {
     if (!project.milestones || project.milestones.length === 0) return;
+    if (milestonePollingDone.current) return;
 
     const hasGeneratingMilestones = project.milestones.some(
       (m: any) => !m.tasks || m.tasks.length === 0
     );
 
-    if (!hasGeneratingMilestones) return;
+    if (!hasGeneratingMilestones) {
+      milestonePollingDone.current = true;
+      return;
+    }
+
+    const pollStart = Date.now();
+    const POLL_TIMEOUT = 10 * 60 * 1000; // 5 minutes
 
     const pollInterval = setInterval(async () => {
+      if (Date.now() - pollStart > POLL_TIMEOUT) {
+        clearInterval(pollInterval);
+        milestonePollingDone.current = true;
+        return;
+      }
+
       try {
         const response = await authFetch(`/progress/projects/${initialProject.id}/full`);
         const data = await response.json();
@@ -591,6 +605,7 @@ export function ProjectWorkspace({
 
           if (!stillGenerating) {
             clearInterval(pollInterval);
+            milestonePollingDone.current = true;
           }
         }
       } catch (err) {
@@ -599,7 +614,7 @@ export function ProjectWorkspace({
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [project.milestones, initialProject.id]);
+  }, [initialProject.id]);
 
   // Load saved files ONCE on project load
   useEffect(() => {
