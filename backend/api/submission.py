@@ -12,7 +12,7 @@ from agents.concept_tracker import ConceptTrackerAgent
 from db.supabase_client import get_student_all_concept_names, get_task_by_id, update_progress, get_project_by_id, supabase, increment_xp_atomic, get_project_milestones, get_milestone_tasks, record_concept_signal, get_chat_history
 
 # Set to False to disable post-submission task adaptation (for testing blueprint consistency)
-ENABLE_TASK_ADAPTATION = False
+ENABLE_TASK_ADAPTATION = True
 
 
 def _merge_feedback(user_id: str, task_id: str, new_message: str) -> dict:
