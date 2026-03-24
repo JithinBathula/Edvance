@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-import time
 from typing import Any, Dict, List, Sequence, Optional
 
 from dotenv import load_dotenv
@@ -12,19 +11,7 @@ from pydantic_classes.planning import CurriculumGenerationError, Milestone, Proj
 from schemas.planning import OUTLINE_SCHEMA, MILESTONE_SCHEMA, BLUEPRINT_SCHEMA
 load_dotenv()
 
-# ── Pipeline logger — writes to backend/pipeline_debug.log ──────────────
-_pipeline_log = logging.getLogger("pipeline_debug")
-_pipeline_log.setLevel(logging.DEBUG)
-_pipeline_log.propagate = False          # don't flood Flask's root logger
-if not _pipeline_log.handlers:
-    _fh = logging.FileHandler(
-        os.path.join(os.path.dirname(__file__), "pipeline_debug.log"),
-        mode="a", encoding="utf-8",
-    )
-    _fh.setFormatter(logging.Formatter(
-        "%(asctime)s  [%(levelname)s]  %(message)s", datefmt="%H:%M:%S"
-    ))
-    _pipeline_log.addHandler(_fh)
+logger = logging.getLogger(__name__)
 
 class CurriculumPlanner:
     def __init__(self,model: str = "anthropic/claude-opus-4.5") -> None:
@@ -147,17 +134,8 @@ class CurriculumPlanner:
         ]
 
         try:
-            _pipeline_log.info("=" * 60)
-            _pipeline_log.info("PASS 1: OUTLINE GENERATION")
-            _pipeline_log.info("=" * 60)
-            t0 = time.time()
             content = self._invoke_llm_structured(messages, "outline", OUTLINE_SCHEMA, temperature=0.25)
             outline = OutlineProject.model_validate_json(content)
-            _pipeline_log.info("Outline generated in %.1fs", time.time() - t0)
-            _pipeline_log.info("Title: %s", outline.project_title)
-            _pipeline_log.info("Milestones (%d):", len(outline.milestones))
-            for i, m in enumerate(outline.milestones, 1):
-                _pipeline_log.info("  %d. %s — %s", i, m.subheading_title, m.description[:80])
             return outline
         except ValidationError as exc:
             raise CurriculumGenerationError(f"Outline validation failed: {exc}") from exc
@@ -199,25 +177,8 @@ class CurriculumPlanner:
         ]
 
         try:
-            _pipeline_log.info("")
-            _pipeline_log.info("=" * 60)
-            _pipeline_log.info("PASS 1.5: BLUEPRINT GENERATION")
-            _pipeline_log.info("=" * 60)
-            t0 = time.time()
             content = self._invoke_llm_structured(messages, "blueprint", BLUEPRINT_SCHEMA, temperature=0.2)
             bp = ProjectBlueprint.model_validate_json(content)
-            _pipeline_log.info("Blueprint generated in %.1fs", time.time() - t0)
-            _pipeline_log.info("Architecture: %s", bp.architecture_overview[:200])
-            _pipeline_log.info("Naming: %s", bp.naming_conventions)
-            _pipeline_log.info("Shared vars: %s", bp.shared_variables)
-            _pipeline_log.info("Shared funcs: %s", bp.shared_functions)
-            _pipeline_log.info("Concept progression (%d concepts):", len(bp.concept_progression))
-            for c in bp.concept_progression:
-                _pipeline_log.info("  - '%s' → milestone %d", c.concept, c.introduced_in_milestone)
-            _pipeline_log.info("Milestone blueprints:")
-            for mb in bp.milestone_blueprints:
-                _pipeline_log.info("  M%d: funcs=%s, vars=%s", mb.milestone_position, mb.key_functions, mb.key_variables)
-                _pipeline_log.info("      end state: %s", mb.expected_code_state[:120])
             return bp
         except ValidationError as exc:
             raise CurriculumGenerationError(f"Blueprint validation failed: {exc}") from exc
@@ -272,6 +233,17 @@ class CurriculumPlanner:
             f"DO NOT REPEAT IN LATER MILESTONES:",
         ])
         lines.extend(do_not_repeat)
+
+        # Function checkpoints: capture requirements that describe function/structure modifications
+        func_checkpoints = []
+        for task in milestone.tasks:
+            for req in task.coding_requirements:
+                if any(kw in req.lower() for kw in ["function", "should now", "update ", "modify "]):
+                    func_checkpoints.append(f"  - {req}")
+        if func_checkpoints:
+            lines.append("FUNCTION CHECKPOINTS (current state of modified functions):")
+            lines.extend(func_checkpoints)
+
         lines.append("---")
 
         return "\n".join(lines)
@@ -343,17 +315,14 @@ class CurriculumPlanner:
         ]
 
         try:
-            _pipeline_log.info("")
-            _pipeline_log.info("-" * 60)
-            _pipeline_log.info("PASS 2: TASKS FOR MILESTONE %d — %s", milestone_position, milestone.subheading_title)
-            _pipeline_log.info("-" * 60)
-            _pipeline_log.info("Has blueprint: %s | Summary length: %d chars", blueprint is not None, len(summary_text))
-            t0 = time.time()
             content = self._invoke_llm_structured(messages, "tasks", MILESTONE_SCHEMA, temperature=0.35)
             m = Milestone.model_validate_json(content)
-            _pipeline_log.info("Milestone %d generated in %.1fs — %d tasks", milestone_position, time.time() - t0, len(m.tasks))
+            # Validate instruction_theory format
             for task in m.tasks:
-                _pipeline_log.info("  %s: %s", task.task_id, task.coding_requirements[0][:90] if task.coding_requirements else "(no reqs)")
+                required_sections = ["**Part A: Explanation**", "**Part B: Try It Out**", "**Part C: Your Task**"]
+                missing = [s for s in required_sections if s not in task.instruction_theory]
+                if missing:
+                    logger.warning("Task %s missing instruction_theory sections: %s", task.task_id, missing)
             return m
         except ValidationError as exc:
             raise CurriculumGenerationError(
@@ -405,13 +374,8 @@ class CurriculumPlanner:
             milestones.append(milestone)
             new_summary = self._build_milestone_summary(milestone, idx)
             accumulated_summary += new_summary + "\n\n"
-            _pipeline_log.info("Rolling summary after M%d (%d chars total):\n%s", idx, len(accumulated_summary), new_summary)
 
         try:
-            _pipeline_log.info("")
-            _pipeline_log.info("=" * 60)
-            _pipeline_log.info("CURRICULUM COMPLETE — %d milestones, %d total tasks", len(milestones), sum(len(m.tasks) for m in milestones))
-            _pipeline_log.info("=" * 60)
             return ProjectCurriculum(
                 project_title=outline.project_title,
                 project_brief=outline.project_brief,
@@ -466,7 +430,6 @@ class CurriculumPlanner:
         )
 
         first_milestone_summary = self._build_milestone_summary(first_milestone, 1)
-        _pipeline_log.info("First milestone summary (will seed background thread):\n%s", first_milestone_summary)
 
         try:
             curriculum = ProjectCurriculum(

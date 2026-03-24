@@ -6,7 +6,7 @@ Your role: Create a minimal sequence of milestones that gets the learner from ze
 Core principles:
 - Keep it SHORT — match the actual project scope (simple calculator = 3-4 milestones, not 10)
 - Milestones should be outcome-oriented and build toward a working project
-- NO generic filler milestones ("Setup", "Testing", "Polishing")
+- NO generic filler milestones ("Setup", "Testing", "Polishing", "Finishing Touches", "Polish the Experience", "Improve UX")
 - Each milestone should add concrete, visible functionality
 - Respect what the user already knows — don't over-explain basics they've mastered
 - Decide the runtime for this project: "python" or "javascript" (default to "python" if unclear)
@@ -16,6 +16,11 @@ CRITICAL — No overlapping milestones:
 - NEVER have two milestones that both describe the same feature, even with different wording. BAD: M1 "accept r/p/s" + M3 "handle shortcuts". GOOD: M1 "accept rock/paper/scissors" + M3 "add shortcuts r/p/s and case-insensitive input".
 - Input validation, error handling, and polish must be woven into the milestone where the feature is FIRST built — never as a separate "Polish" or "Validation" milestone.
 - If a feature is built in milestone N, no later milestone should re-build, re-add, or re-polish that same feature.
+
+MILESTONE SUBSTANCE TEST — every milestone must pass this:
+- Does this milestone add a NEW user-facing CAPABILITY the program couldn't do before?
+- Welcome/goodbye messages, round counters, reformatted output, and "nicer" print statements are NOT capabilities — fold them into the milestone where the related feature is first built.
+- If you could remove the milestone and the program would NOT lose a FEATURE, that milestone should not exist as a separate milestone.
 
 IMPORTANT — Keep it real:
 - If a project is simple (calculator, to-do list, quiz), keep the milestones simple too
@@ -86,6 +91,9 @@ CALIBRATION RULES:
    Don't: Adding argparse, sys.argv, or CLI frameworks
    Don't: Two milestones that describe the same feature (e.g., M1 "accept r/p/s" AND M3 "handle shortcuts")
    Don't: A dedicated "Input Validation and Polish" milestone — weave validation into the feature milestone
+   Don't: A milestone whose tasks are all print formatting, welcome/goodbye messages, or cosmetic message changes
+   Don't: "Polish the Game Experience", "Finishing Touches", or "Improve the User Experience"
+   Do: Fold welcome messages, formatting, and UI polish into the milestone where the related feature is built
    Do: "Build basic calculation engine" → "Add continuous operation mode" → "Handle errors gracefully"
    Do: Weave input validation naturally into the milestone where the input happens
 
@@ -122,6 +130,7 @@ CRITICAL RULES:
 - Each milestone's code state must be a natural extension of the previous milestone's end state. No milestone should require rewriting code from a previous milestone.
 - Keep naming appropriate to the student's level — beginners get simple names like `score`, `name`, `choice`; advanced students can use more descriptive names.
 - The file structure should be simple — most student projects use a single `main.py` file.
+- Design functions that accept parameters and return values — do NOT rely on `global` variables. For example, `play_round(player_score, computer_score)` returning updated scores is better than using `global player_score` inside the function. If the project has shared state, pass it as a dictionary parameter or use simple function parameters + return values. The `global` keyword should be avoided entirely in student code.
 
 Return only valid JSON following the schema.
 """
@@ -231,6 +240,15 @@ CRITICAL RULES:
 - Basic error handling is fine as part of a task, but never make an entire task just about try/except
 - Keep it simple — if a project is a calculator, it should feel like a calculator, not enterprise software
 - Hints should be friendly and specific — no jargon, no "ensure proper implementation"
+- AVOID the `global` keyword — it confuses beginners and teaches bad habits:
+  * Do NOT use `global` in student code unless there is absolutely no alternative
+  * Instead, design functions that take values as PARAMETERS and RETURN results:
+    GOOD: `score = play_round(score)` — pass score in, get updated score back
+    BAD:  `global score` inside `play_round()` then modifying it
+    GOOD: `def add_item(inventory, item): inventory.append(item); return inventory`
+    BAD:  `global inventory` inside a function then calling `.append()`
+  * For game loops or programs with shared state, pass the state as parameters or use a single state dictionary that gets passed around — do NOT scatter `global` declarations across functions
+  * If you absolutely must use `global` (extremely rare), explain clearly WHY in Part A and that it's an exception, not normal practice
 
 Return only valid JSON following the schema.
 """
@@ -314,7 +332,15 @@ TASK GENERATION RULES:
    
 2. **instruction_theory — The Main Teaching Content:**
    This is what the student reads. It MUST follow the Learn → Try → Do structure.
-   Format it with markdown. Use **bold** for emphasis, `backticks` for code, and clear headings.
+   Format it with markdown. Use **bold** for emphasis, `backticks` for code.
+
+   You MUST use these EXACT bold headings in every instruction_theory — no substitutions:
+   - **Part A: Explanation**
+   - **Part B: Try It Out**
+   - **Part C: Your Task**
+
+   Do NOT use ## markdown headers instead. Do NOT rename these sections. Do NOT skip any section.
+   If a concept is already known, Part A can be 1-2 sentences and Part B can be shortened, but all three headings MUST still appear.
 
    STRUCTURE (use these exact section headings in the content):
 
@@ -402,11 +428,14 @@ TASK GENERATION RULES:
    ---
 
 3. **coding_requirements — Precise Submission Checklist:**
-   - 2-4 bullet points maximum
+   - 2-5 bullet points maximum
    - Each point = one specific, testable thing
    - Use EXACT names: "Create a function called `calculate(num1, num2, operation)`"
    - NOT vague: "Implement the calculation logic"
-   - These must match the TODO from instruction_theory Part C
+   - These requirements MUST match the TODO from instruction_theory Part C exactly — if Part C says it, a requirement must cover it
+   - COMPLETENESS RULE: If Part C tells the student to do something to ALL items in a collection (e.g., "add a key to every dictionary entry", "handle all menu options"), the requirements MUST account for EVERY item — not just a few examples. Omitting items leads to crashes when other code tries to access the missing keys.
+   - CHECKPOINT RULE: If this task modifies a function or data structure from a PREVIOUS task, include one requirement that states the complete expected behavior after modification (not just the delta). This prevents students from losing track of cumulative changes.
+   - NO PHANTOM FEATURES: Never reference commands, features, or formats that the student hasn't been told to implement in this or a previous task.
 
 4. **hints — Friendly Troubleshooting Tips:**
    - 2-3 hints maximum
