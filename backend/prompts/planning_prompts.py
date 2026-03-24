@@ -131,6 +131,7 @@ CRITICAL RULES:
 - Keep naming appropriate to the student's level — beginners get simple names like `score`, `name`, `choice`; advanced students can use more descriptive names.
 - The file structure should be simple — most student projects use a single `main.py` file.
 - Design functions that accept parameters and return values — do NOT rely on `global` variables. For example, `play_round(player_score, computer_score)` returning updated scores is better than using `global player_score` inside the function. If the project has shared state, pass it as a dictionary parameter or use simple function parameters + return values. The `global` keyword should be avoided entirely in student code.
+- When a function's parameters must GROW across milestones (e.g., milestone 1 creates `add_item(items)` but milestone 3 needs it to also accept `filename`), the later milestone's `key_functions` must list the UPDATED signature `add_item(items, filename)` — not the original. This signals to the task generator that it must include a signature-update step.
 
 Return only valid JSON following the schema.
 """
@@ -239,6 +240,7 @@ CRITICAL RULES:
 - No argparse, sys.argv, or CLI argument parsing
 - Basic error handling is fine as part of a task, but never make an entire task just about try/except
 - Keep it simple — if a project is a calculator, it should feel like a calculator, not enterprise software
+- Every task MUST require the student to write or modify code that persists in the final program. Tasks with ONLY observational requirements ("the program should...", "data persists...") are not valid — fold verification into the previous task's final step. Throwaway test code (print statements that exist solely to demonstrate a value and would be deleted later) must NOT appear in coding_requirements — put demos in Part B instead.
 - Hints should be friendly and specific — no jargon, no "ensure proper implementation"
 - AVOID the `global` keyword — it confuses beginners and teaches bad habits:
   * Do NOT use `global` in student code unless there is absolutely no alternative
@@ -249,6 +251,8 @@ CRITICAL RULES:
     BAD:  `global inventory` inside a function then calling `.append()`
   * For game loops or programs with shared state, pass the state as parameters or use a single state dictionary that gets passed around — do NOT scatter `global` declarations across functions
   * If you absolutely must use `global` (extremely rare), explain clearly WHY in Part A and that it's an exception, not normal practice
+- SIGNATURE EVOLUTION: When a task adds behavior to an existing function that requires data NOT in its parameter list, you MUST include a step that updates the function signature AND every call site. Do NOT silently rely on module-level variables.
+  Example: If `add_item(items)` needs to call `save(filename)`, add a step: "Update `add_item(items)` to `add_item(items, filename)` and update every place you call it."
 
 Return only valid JSON following the schema.
 """
@@ -436,6 +440,7 @@ TASK GENERATION RULES:
    - COMPLETENESS RULE: If Part C tells the student to do something to ALL items in a collection (e.g., "add a key to every dictionary entry", "handle all menu options"), the requirements MUST account for EVERY item — not just a few examples. Omitting items leads to crashes when other code tries to access the missing keys.
    - CHECKPOINT RULE: If this task modifies a function or data structure from a PREVIOUS task, include one requirement that states the complete expected behavior after modification (not just the delta). This prevents students from losing track of cumulative changes.
    - NO PHANTOM FEATURES: Never reference commands, features, or formats that the student hasn't been told to implement in this or a previous task.
+   - SELF-CONTAINED RULE: Every variable used in a coding_requirement must either (a) be a parameter of the function being written, (b) be defined in another requirement of the SAME task, or (c) already exist from a previous task. If Part C introduces an intermediate variable (like `index = number - 1`) and a requirement references `index`, computing `index` must ALSO be a requirement. The auto-grader only sees coding_requirements, not instruction_theory.
 
 4. **hints — Friendly Troubleshooting Tips:**
    - 2-3 hints maximum
@@ -456,6 +461,7 @@ TASK GENERATION RULES:
    - Use the SAME variable and function names across all tasks in this milestone
    - Reference previous tasks: "Using the `calculate` function you created in the previous task..."
    - The code at the end of the last task should be the complete working milestone
+   - FUNCTIONAL AT EVERY STEP: When splitting a feature across tasks, each task's code must be callable and do something meaningful. Do NOT create a task that defines a function collecting partial input with no output — the function should complete a useful sub-operation (return a value, print a result). If task N.3 creates a function, calling it after N.3 should produce a sensible result, not a half-built stub.
 
 7. **Balance:**
    - Tasks should be roughly similar in effort (don't have one tiny task and one huge task)

@@ -203,15 +203,16 @@ class CurriculumPlanner:
             all_reqs_flat.extend(task.coding_requirements)
 
         # Extract function names from requirements (look for patterns like `func_name()`)
-        func_pattern = re.compile(r'`(\w+)\([^)]*\)`')
+        func_pattern = re.compile(r'`(\w+\([^)]*\))`')
         functions_created = sorted(set(func_pattern.findall(" ".join(all_reqs_flat))))
 
         # Extract variable names (look for patterns like `var_name`)
         var_pattern = re.compile(r'`(\w+)`')
         all_backtick = set(var_pattern.findall(" ".join(all_reqs_flat)))
         # Filter out things that look like functions or Python keywords
+        func_names_only = {sig.split("(")[0] for sig in functions_created}
         keywords = {"if", "elif", "else", "while", "for", "def", "return", "import", "True", "False", "None", "and", "or", "not", "in", "print"}
-        variables_used = sorted(all_backtick - set(functions_created) - keywords)
+        variables_used = sorted(all_backtick - func_names_only - keywords)
 
         # Build DO NOT REPEAT list from all requirements
         do_not_repeat = []
@@ -243,6 +244,14 @@ class CurriculumPlanner:
         if func_checkpoints:
             lines.append("FUNCTION CHECKPOINTS (current state of modified functions):")
             lines.extend(func_checkpoints)
+
+        # Function signatures: capture full signatures from coding requirements
+        sig_pattern = re.compile(r'`(\w+\([^)]*\))`')
+        all_signatures = sorted(set(sig_pattern.findall(" ".join(all_reqs_flat))))
+        if all_signatures:
+            lines.append("CURRENT FUNCTION SIGNATURES (exact parameter lists):")
+            for sig in all_signatures:
+                lines.append(f"  - {sig}")
 
         lines.append("---")
 
