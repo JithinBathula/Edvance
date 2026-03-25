@@ -351,8 +351,10 @@ IMPORTANT GUIDELINES:
 - If they created specific functions, reference them by name
 - Keep the learning objectives the same, just adapt the language to match their code
 - Make it feel like a natural continuation of THEIR code, not generic instructions
--Reference specific line numbers to guide where code should be added or changed (e.g., "Below your show_room() function on line 17, add a new function...") (e.g., "Update the while loop starting at line 25 to also handle...")
--When referencing line numbers, also describe WHAT is on that line so it's clear even if lines shift slightly
+-When telling students to ADD new code, say "After line X (where you have ...), add:" — never say "Update line X" when you mean "add below line X"
+-When telling students to CHANGE existing code, say "Change line X from ... to ..."
+-Always describe WHAT is on that line so it's clear even if lines shift slightly
+-Never assume students know the difference between "update" and "add after" — be explicit
 
 Return a JSON with the adapted task in this exact format:
 {{
@@ -363,8 +365,20 @@ Return a JSON with the adapted task in this exact format:
   "test_specification": {{
     "expected_state": "What should exist after this task",
     "verification_code": "Python code to verify correctness"
+    "test_cases": [
+      {{"input": "function_call(args)", "expected_output": "expected_value"}},
+      {{"input": "function_call(args)", "expected_output": "expected_value"}}
+    ]
   }}
 }}
+
+IMPORTANT for test_cases:
+- Adapt the function names in test case "input" fields to match the student's actual function/variable names
+- Keep the same test logic but use THEIR naming conventions
+- If the original test calls calculate() but the student named it calc(), update the test to call calc()
+- If the task involves a game loop or interactive loop with input(), set test_cases to an empty array [] — these cannot be tested automatically
+
+
 """
 
         messages = [

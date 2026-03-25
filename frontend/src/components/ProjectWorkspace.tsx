@@ -1228,7 +1228,12 @@ export function ProjectWorkspace({
                     <Button
                       onClick={handleCompleteTask}
                       disabled={saving || evaluating}
-                      className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-slate-300 disabled:to-slate-400 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:cursor-not-allowed"
+                      className={`w-full px-6 py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:cursor-not-allowed ${
+                        completedTasks.includes(safeCurrentTask.id)
+                          ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600'
+                          : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-slate-300 disabled:to-slate-400'
+                      }`}
+
                     >
                       {saving ? (
                         <>

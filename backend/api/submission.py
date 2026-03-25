@@ -4,6 +4,7 @@ Handles code submission evaluation for task progression.
 """
 import logging
 import threading
+from services.test_runner import run_test_cases
 
 from flask import Blueprint, request, jsonify, g
 
@@ -189,13 +190,42 @@ def evaluate_submission():
                         f"# === {f['name']} ===\n{f.get('content', '')}"
                         for f in files
                     )
+        # Run hidden test cases against student code
+        test_cases = test_specification.get('test_cases', [])
+        test_run = None
+        if test_cases:
+            test_run = run_test_cases(code, test_cases, timeout=10.0)
+            if test_run:
+                import json as _json
+                log_entry = {
+                    "task_id": task_id,
+                    "all_passed": test_run.all_passed,
+                    "error": test_run.error_message,
+                    "results": [
+                        {
+                            "input": r.input_expr,
+                            "expected": r.expected,
+                            "actual": r.actual,
+                            "passed": r.passed,
+                            "error": r.error,
+                        }
+                        for r in test_run.results
+                    ],
+                }
+                with open("test_run_log.json", "a") as f:
+                    f.write(_json.dumps(log_entry, indent=2) + "\n---\n")
 
         result = evaluator.evaluate(
             user_code=code,
             task_instructions=task_instructions,
             test_specification=test_specification,
-            coding_requirements=coding_requirements
+            coding_requirements=coding_requirements,
+            test_run=test_run
         )
+
+        # Override LLM pass/fail with test results if tests ran
+        if test_run is not None and test_run.error_message != "No test cases to run":
+            result.is_correct = test_run.all_passed
 
         # Define XP reward constant 
         XP_PER_TASK = 10

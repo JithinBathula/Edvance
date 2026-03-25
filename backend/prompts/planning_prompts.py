@@ -146,7 +146,9 @@ CRITICAL RULES:
 - No argparse, sys.argv, or CLI argument parsing
 - Basic error handling is fine as part of a task, but never make an entire task just about try/except
 - Keep it simple — if a project is a calculator, it should feel like a calculator, not enterprise software
+- Every task MUST require the student to create or modify a function that returns a value. Never make a task that only uses print() without a function. This ensures all tasks are testable with automated test cases.
 - Hints should be friendly and specific — no jargon, no "ensure proper implementation"
+- Every task MUST require the student to create or modify a function that returns a value. Never make a task that only uses print() without a function. This ensures all tasks are testable with automated test cases.
 
 Return only valid JSON following the schema.
 """
@@ -317,8 +319,25 @@ TASK GENERATION RULES:
    - NO jargon — if you must use a technical term, explain it in parentheses
 
 5. **test_specification:**
-   - expected_state: Plain language description of what should work (e.g., "Running the program shows the menu and waits for input")
+   - expected_state: Plain language description of what should work (e.g., "The calculate function returns correct results for all operations")
    - verification_code: Simple Python snippet (2-5 lines) to test the code works
+   - test_cases: Array of 3-5 hidden test cases that will be run against the student's code. Each test case has:
+     - input: A Python expression calling the student's function, e.g. "calculate(10, 5, 'add')"
+     - expected_output: The expected return value as a Python literal, e.g. "15"
+
+   RULES for test_cases:
+   - input MUST call a function defined in coding_requirements
+   - expected_output MUST be a valid Python literal (int, str, list, dict, bool, float)
+   - Include at least one basic case and one edge case
+   - Tests run via: result = eval(input); expected = eval(expected_output); assert result == expected
+   - Example:
+     "test_cases": [
+       {{"input": "calculate(10, 5, 'add')", "expected_output": "15"}},
+       {{"input": "calculate(10, 5, 'subtract')", "expected_output": "5"}},
+       {{"input": "calculate(10, 0, 'multiply')", "expected_output": "0"}}
+     ]
+   - Do NOT generate test_cases for functions that contain interactive loops (while loops with input()). These will timeout in automated testing. Leave test_cases as an empty array [] for such tasks — they will be evaluated by the AI instead.
+
 
 6. **Continuity Between Tasks:**
    - Task 1.2 should BUILD ON the code from 1.1 — don't start from scratch
@@ -347,6 +366,10 @@ RESPONSE FORMAT (JSON ONLY):
       "test_specification": {{
         "expected_state": "<what should work when done>",
         "verification_code": "<simple test code>"
+        "test_cases": [
+          {{"input": "<function_call_expression>", "expected_output": "<expected_return_value>"}},
+          {{"input": "<function_call_expression>", "expected_output": "<expected_return_value>"}}
+        ]
       }}
     }}
   ]
@@ -361,4 +384,7 @@ FINAL QUALITY CHECKLIST:
 - [ ] Did I avoid: installations, pip, argparse, excessive error handling?
 - [ ] Is my language appropriate for this student's age and level?
 - [ ] Would a student actually enjoy reading this and feel confident to try?
+- [ ] Does every task require creating/modifying a function (not just print)?
+- [ ] Do test_cases call functions from coding_requirements with valid inputs?
+- [ ] Are there 3-5 test_cases per task including edge cases?
 """

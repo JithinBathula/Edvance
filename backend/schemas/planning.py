@@ -70,7 +70,6 @@ MILESTONE_SCHEMA = {
                     "coding_requirements",
                     "hints",
                     "test_specification",
-                    "solution_code",
                 ],
                 "additionalProperties": False,
             },

@@ -21,7 +21,6 @@ class TaskItem(BaseModel):
     coding_requirements: List[str] = Field(default_factory=list)
     hints: List[str] = Field(default_factory=list)
     test_specification: TestSpecification
-    solution_code: str = ""
 
     @field_validator("coding_requirements", "hints")
     @classmethod

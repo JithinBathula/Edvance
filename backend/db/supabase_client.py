@@ -284,7 +284,6 @@ def create_task(
     hints: List[str],
     test_specification: Dict[str, Any],
     starter_code: Optional[str] = None,
-    solution_code: str = ""
 ) -> Dict[str, Any]:
     """
     Create a new task within a milestone.
@@ -298,7 +297,6 @@ def create_task(
         "hints": hints,
         "test_specification": test_specification,
         "starter_code": starter_code,
-        "solution_code": solution_code,
     }
     
     result = supabase.table("tasks").insert(task_data).execute()
