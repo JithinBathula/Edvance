@@ -60,5 +60,8 @@ instance/
 *.tmp
 
 
+# Generated JSON files
+*.json
+
 #Jithin Start shell command
 jithinstart.sh

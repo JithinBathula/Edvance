@@ -23,7 +23,7 @@ export function MilestonePlannerList({
   useEffect(() => {
     if (count === 0) return;
     if (active < 0) onActiveChange(0);
-    if (active > count - 1) onActiveChange(count - 1);
+    if (active > count) onActiveChange(count);
   }, [active, count, onActiveChange]);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export function MilestonePlannerList({
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        onActiveChange(Math.min(active + 1, count - 1));
+        onActiveChange(Math.min(active + 1, count));
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
@@ -89,8 +89,8 @@ export function MilestonePlannerList({
           </button>
           <button
             type="button"
-            onClick={() => onActiveChange(Math.min(active + 1, count - 1))}
-            disabled={active === count - 1}
+            onClick={() => onActiveChange(Math.min(active + 1, count))}
+            disabled={active === count}
             className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-30"
             title="Next milestone (↓ or S)"
           >
@@ -201,7 +201,7 @@ export function MilestonePlannerList({
                       {/* Milestone title */}
                       <div
                         className={cn(
-                          "mt-0.5 text-base font-semibold leading-snug",
+                          "mt-0.5 text-[18px] font-semibold leading-snug",
                           isActive ? "text-amber-700" : isDone ? "text-white" : "text-gray-700"
                         )}
                       >
@@ -211,7 +211,7 @@ export function MilestonePlannerList({
                       {/* Milestone description */}
                       <div
                         className={cn(
-                          "mt-1 text-sm leading-relaxed",
+                          "mt-1 text-[15px] leading-relaxed",
                           isActive ? "text-gray-700" : isDone ? "text-white" : "text-gray-500"
                         )}
                       >
