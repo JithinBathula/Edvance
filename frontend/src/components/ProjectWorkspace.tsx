@@ -1354,8 +1354,6 @@ export function ProjectWorkspace({
                       )}
                     </Button>
                   </div>
-                </div>
-              )}
               </>
               )}
             </div>

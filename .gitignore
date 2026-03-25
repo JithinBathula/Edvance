@@ -149,3 +149,6 @@ vite.config.ts.timestamp-*
 backend/repos/
 
 .claude/
+
+# JSON files
+*.json
