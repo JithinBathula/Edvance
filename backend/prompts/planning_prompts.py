@@ -31,8 +31,18 @@ REQUIREMENTS SESSION (verbatim JSON):
 STUDENT PROFILE:
 {user_profile}
 
+ESTIMATED DURATION: 
+{estimated_duration}
+
+
 CALIBRATION RULES:
 1. **Scope Check First:**
+   If an estimated duration is provided, use it to calibrate the number of milestones:
+   - 30-60min projects = 2-3 milestones MAX
+   - 1-2hr projects = 3-4 milestones MAX
+   - 2-3hr projects = 4-5 milestones MAX
+   - 3-5hr projects = 5-7 milestones MAX
+   If no duration is provided, fall back to scope:
    - Simple projects (calculator, to-do list, basic game) = 3-4 milestones MAX
    - Medium projects (multi-feature app, data processing) = 4-6 milestones
    - Complex projects (full-stack with auth, multi-feature apps) = 6-8 milestones
@@ -195,18 +205,23 @@ Goal: {description}
 TASK GENERATION RULES:
 
 1. **Right Number of Tasks:**
-   - Simple milestone (basic feature) = 3 tasks
-   - Medium milestone (new concept + implementation) = 3-5 tasks
-   - Complex milestone (multiple moving parts) = 4-6 tasks
-   - DO NOT artificially split into 7+ tasks unless genuinely complex
 
+   - 30-60 min → ~6 tasks TOTAL across all milestones
+   - 1-2 hours → ~10 tasks TOTAL across all milestones
+   - 3-5 hours → ~20 tasks TOTAL across all milestones
+   - 6-12 hours → ~30 tasks TOTAL across all milestones
+   This milestone is {milestone_position} of {total_milestones}.
+   Divide the target evenly across milestones. This milestone is {milestone_position} of {total_milestones},
+   so aim for roughly (total target / {total_milestones}) tasks in THIS milestone.
+   If no duration is provided, default to 3-5 tasks per milestone.
+   
    **TASK QUALITY — Every task must produce real, MEANINGFUL, testable functionality:**
    - Each task must result in a function, calculation, condition, loop, or data structure that does something — not just display static text
    - NEVER create a task whose entire goal is to `print()` a banner, menu, or welcome message — that is not a real task
    - `print()` is fine to show results, but it cannot BE the task
    - If displaying output is needed (e.g. a menu), fold it into the task that teaches the underlying Python concept — output alone is never a task
    - Ask yourself: "Can I write a test that verifies this task does the right thing with specific inputs?" If no, the task is too shallow — combine it with the next one
-
+   
 2. **instruction_theory — The Main Teaching Content:**
    This is what the student reads. It MUST follow the Task Description → Example structure.
    Format it with markdown. Use **bold** for emphasis, `backticks` for code, and clear headings.

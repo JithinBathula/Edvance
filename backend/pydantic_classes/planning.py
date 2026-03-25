@@ -33,8 +33,8 @@ class Milestone(BaseModel):
 
     @model_validator(mode="after")
     def validate_tasks(self) -> "Milestone":
-        if not 3 <= len(self.tasks) <= 7:
-            raise ValueError("tasks must contain between 3 and 7 TaskItem entries")
+        if not 1 <= len(self.tasks) <= 10:
+            raise ValueError("tasks must contain between 1 and 10 TaskItem entries")
         return self
 
 

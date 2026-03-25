@@ -245,6 +245,8 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   const [isDragging, setIsDragging] = useState(false);
 
   // --- Refs ---
+  const guidingAnswersRef = useRef(guidingAnswers);
+  guidingAnswersRef.current = guidingAnswers; 
   const hasInitializedChat = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -256,8 +258,19 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
   // --- Derived ---
   const isGuidingPhase = currentStep < GUIDING_QUESTIONS.length;
   const currentQuestion = GUIDING_QUESTIONS[currentStep];
-  const isInputDisabled = isLoading || isInitializingAI || isProcessingHandoff || (isGuidingPhase && !currentQuestion?.inputType);
+  const isSendDisabled = isLoading || isInitializingAI || isProcessingHandoff || (isGuidingPhase && !currentQuestion?.inputType);
   const userProfile = buildUserProfile(user);
+
+  const focusComposer = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      textarea.focus({ preventScroll: true });
+      const cursorPosition = textarea.value.length;
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    });
+  }, []);
 
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
@@ -292,6 +305,13 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
       el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
     }
   }, [input]);
+
+  useEffect(() => {
+    if (isProcessingHandoff) return;
+    if (isGuidingPhase && currentQuestion?.options) return;
+
+    focusComposer();
+  }, [focusComposer, isGuidingPhase, currentQuestion, isProcessingHandoff, currentStep, messages.length]);
 
   // Revoke object URLs on unmount to prevent memory leaks
   useEffect(() => {
@@ -392,6 +412,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
             if (reqJson.ready_to_plan) {
               console.log('[Handoff Poll] Ready to plan reached', { attempt });
               sessionData = reqJson.requirements.session_data;
+              sessionData.timeline = guidingAnswersRef.current.timeline || '';
               break;
             }
           } catch (err) {
@@ -490,6 +511,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
 
     setInput('');
     setIsLoading(true);
+    focusComposer();
 
     const filesToSend = [...attachedFiles];
     setAttachedFiles([]);
@@ -622,6 +644,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
     const newAnswers = { ...guidingAnswers, [currentQ.key]: value };
     setGuidingAnswers(newAnswers);
     setInput('');
+    focusComposer();
 
     proceedToNextStep(newAnswers, label || value);
     console.groupEnd();
@@ -830,7 +853,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
                     className="w-full min-h-[60px] max-h-[120px] resize-none pr-16 pb-14 pt-4 break-words overflow-y-auto"
                     placeholder={currentQuestion.placeholder}
                     value={input}
-                    disabled={isInputDisabled}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -845,7 +867,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
                     variant="default"
                     size="icon"
                     onClick={() => input.trim() && handleGuidingStep(input.trim())}
-                    disabled={isInputDisabled || !input.trim()}
+                    disabled={isSendDisabled || !input.trim()}
                     className="absolute right-4 top-4 h-[42px] w-[42px] bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
                   > 
                     <Send className="w-4 h-4" />
@@ -908,7 +930,6 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask questions or drop a file..."
-                  disabled={isInputDisabled}
                   className="w-full min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -944,7 +965,7 @@ export function CustomProjectChat({ user, onProjectCreated, onBack, embedded, on
                   variant="default"
                   size="icon"
                   onClick={() => handleSendMessage()}
-                  disabled={isInputDisabled || (!input.trim() && attachedFiles.length === 0)}
+                  disabled={isSendDisabled || (!input.trim() && attachedFiles.length === 0)}
                   className="shrink-0 bg-teal-600 hover:bg-teal-700 h-10 w-10 transition-all duration-200 pointer-events-auto cursor-pointer rounded-xl"
                 >
                   <Send className="w-4 h-4" />

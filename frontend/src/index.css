@@ -2918,3 +2918,48 @@ body {
   border-color: #34d399;
 }
 
+/* Monaco find-button hovers are rendered in a shared context-view overlay.
+   Hide the hover popup and disable that overlay's hit-testing only while at
+   least one find widget is visible, so the close button stays unobstructed. */
+body.edvance-monaco-find-widget-open .context-view.monaco-component,
+body.edvance-monaco-find-widget-open .context-view.monaco-component * {
+  pointer-events: none !important;
+}
+
+body.edvance-monaco-find-widget-open .context-view.monaco-component .workbench-hover-container {
+  display: none !important;
+}
+
+/* ============================================
+   Intel Mac GPU Compositing Bug Mitigations
+   Chrome on Intel Mac GPUs crashes when backdrop-filter and stacked
+   filter:blur() elements are used together. Disable them gracefully.
+   The 'intel-mac' class is added to <html> by src/utils/gpuDetect.ts.
+   ============================================ */
+
+/* Kill backdrop-filter on the navbar and any card that uses it */
+.intel-mac .backdrop-blur-xl,
+.intel-mac .backdrop-blur-lg,
+.intel-mac .backdrop-blur-md,
+.intel-mac .backdrop-blur-sm,
+.intel-mac .backdrop-blur,
+.intel-mac [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  /* Compensate with a more opaque background so it still looks solid */
+  background-color: rgba(255, 255, 255, 0.97) !important;
+}
+
+/* Disable decorative blur glow elements (blur-xl, blur-2xl, blur-3xl) */
+.intel-mac .blur-xl,
+.intel-mac .blur-2xl,
+.intel-mac .blur-3xl,
+.intel-mac [class*="blur-"] {
+  filter: none !important;
+  opacity: 0 !important;
+}
+
+/* Reduce will-change surface area to avoid excessive GPU layer creation */
+.intel-mac [class*="will-change"] {
+  will-change: auto !important;
+}

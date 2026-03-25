@@ -5,6 +5,7 @@ import { Sparkles, Rocket, Zap, Terminal, ArrowRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { HeroSectionProps } from './types';
 import { LANDING_EASE, staggerContainer, staggerItem } from './motionConfig';
+import codyUrl from '../../assets/cody.svg';
 
 function FloatingCodeToken({ text, className, delay, reducedMotion }: { text: string; className: string; delay: number; reducedMotion: boolean }) {
   return (
@@ -27,43 +28,7 @@ function FloatingCodeToken({ text, className, delay, reducedMotion }: { text: st
 }
 
 function CodyMascot({ size = 48 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="44" r="7" fill="#6DD4A0" />
-      <circle cx="12" cy="44" r="7" fill="url(#codyShine)" />
-      <circle cx="22" cy="38" r="8" fill="#5EC492" />
-      <circle cx="22" cy="38" r="8" fill="url(#codyShine)" />
-      <circle cx="33" cy="34" r="8.5" fill="#4DB884" />
-      <circle cx="33" cy="34" r="8.5" fill="url(#codyShine)" />
-      <circle cx="45" cy="28" r="11" fill="#3AAC76" />
-      <circle cx="45" cy="28" r="11" fill="url(#codyShine)" />
-      <circle cx="38" cy="31" r="2.5" fill="#FF9E9E" opacity="0.4" />
-      <circle cx="52" cy="31" r="2.5" fill="#FF9E9E" opacity="0.4" />
-      <circle cx="41" cy="25" r="3" fill="white" />
-      <circle cx="49" cy="25" r="3" fill="white" />
-      <circle cx="42" cy="24.5" r="1.8" fill="#1B5E6B" />
-      <circle cx="50" cy="24.5" r="1.8" fill="#1B5E6B" />
-      <circle cx="42.7" cy="23.8" r="0.7" fill="white" />
-      <circle cx="50.7" cy="23.8" r="0.7" fill="white" />
-      <path d="M42 30.5 Q45 34 48 30.5" stroke="#1B5E6B" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-      <line x1="42" y1="18" x2="38" y2="11" stroke="#3AAC76" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="37.5" cy="10" r="2.5" fill="#F59E0B" />
-      <line x1="48" y1="18" x2="52" y2="11" stroke="#3AAC76" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="52.5" cy="10" r="2.5" fill="#F59E0B" />
-      <circle cx="10" cy="51" r="1.5" fill="#3AAC76" />
-      <circle cx="14" cy="51" r="1.5" fill="#3AAC76" />
-      <circle cx="20" cy="46" r="1.5" fill="#3AAC76" />
-      <circle cx="24" cy="46" r="1.5" fill="#3AAC76" />
-      <circle cx="31" cy="43" r="1.5" fill="#3AAC76" />
-      <circle cx="35" cy="43" r="1.5" fill="#3AAC76" />
-      <defs>
-        <radialGradient id="codyShine" cx="0.35" cy="0.35" r="0.65">
-          <stop offset="0%" stopColor="white" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-    </svg>
-  );
+  return <img src={codyUrl} alt="Cody" width={size} height={size} />;
 }
 
 function HeroVisual() {

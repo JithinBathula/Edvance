@@ -52,6 +52,72 @@ function postResult(success: boolean, error?: string) {
   self.postMessage({ type: 'result', success, error });
 }
 
+const PYODIDE_INTERNAL_FRAME_PATTERNS = [
+  '/_pyodide/',
+  'pyodide/_base.py',
+  'pyodide.code',
+  'pyodide_js',
+];
+
+function isPyodideInternalFrame(line: string) {
+  return (
+    line.startsWith('  File "') &&
+    PYODIDE_INTERNAL_FRAME_PATTERNS.some((pattern) => line.includes(pattern))
+  );
+}
+
+function isTracebackContextLine(line: string) {
+  return line.startsWith('    ') || line.trim() === '';
+}
+
+function normalizePythonError(error: unknown) {
+  const rawMessage =
+    typeof error === 'string'
+      ? error
+      : (error as { message?: string })?.message || String(error);
+
+  const message = rawMessage.replace(/\r\n/g, '\n').trim();
+  if (!message) return 'Execution failed.';
+
+  const lines = message.split('\n');
+  const cleaned: string[] = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    let line = lines[i];
+    const trimmed = line.trim();
+
+    if (i === 0 && line.startsWith('PythonError:')) {
+      line = line.replace(/^PythonError:\s*/, '');
+      if (!line) continue;
+    }
+
+    if (trimmed === 'PythonError' || trimmed === 'PythonError:') {
+      continue;
+    }
+
+    if (isPyodideInternalFrame(line)) {
+      while (i + 1 < lines.length && isTracebackContextLine(lines[i + 1])) {
+        i += 1;
+      }
+      continue;
+    }
+
+    cleaned.push(line);
+  }
+
+  const normalized = cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (normalized) {
+    return normalized;
+  }
+
+  const fallback = message
+    .replace(/^PythonError:\s*/, '')
+    .replace(/\n?PythonError:?$/, '')
+    .trim();
+
+  return fallback || 'Execution failed.';
+}
+
 async function loadPyodideRuntime(): Promise<any> {
   if (pyodide) return pyodide;
   if (pyodideLoading) return pyodideLoading;
@@ -99,6 +165,9 @@ async function runCode(files: Array<{ name: string; content: string }>, entryFil
 
     postStatus('running');
 
+    // Set CWD to root so open('file.json') finds files written to /file.json
+    py.FS.chdir('/');
+
     // Write all project files to Pyodide's in-memory filesystem
     for (const file of files) {
       const path = file.name.startsWith('/') ? file.name : `/${file.name}`;
@@ -129,6 +198,8 @@ async function runCode(files: Array<{ name: string; content: string }>, entryFil
 import sys
 import ast
 import builtins
+import inspect
+import traceback
 from js import _pyodide_post_stdout, _pyodide_post_stderr, _pyodide_request_input
 
 class _WorkerStdout:
@@ -242,6 +313,71 @@ def _transform_for_async_input(source):
             break
 
     return ast.unparse(tree)
+
+_EDVANCE_INTERNAL_TRACEBACK_MARKERS = (
+    "/_pyodide/",
+    "pyodide/_base.py",
+    "pyodide.code",
+    "pyodide_js",
+)
+
+def __edvance_is_user_frame(frame):
+    filename = getattr(frame, "filename", "") or ""
+    name = getattr(frame, "name", "") or ""
+    if name.startswith("__edvance_"):
+        return False
+    if any(marker in filename for marker in _EDVANCE_INTERNAL_TRACEBACK_MARKERS):
+        return False
+    return filename == "<exec>" or filename.startswith("/")
+
+def __edvance_format_tb_exception(tb_exc):
+    output = []
+
+    cause = getattr(tb_exc, "__cause__", None)
+    context = getattr(tb_exc, "__context__", None)
+    suppress_context = getattr(tb_exc, "__suppress_context__", False)
+
+    if cause is not None:
+        output.append(__edvance_format_tb_exception(cause))
+        output.append("\\nThe above exception was the direct cause of the following exception:\\n\\n")
+    elif context is not None and not suppress_context:
+        output.append(__edvance_format_tb_exception(context))
+        output.append("\\nDuring handling of the above exception, another exception occurred:\\n\\n")
+
+    exc_type = getattr(tb_exc, "exc_type", None)
+    is_syntax_error = isinstance(exc_type, type) and issubclass(exc_type, SyntaxError)
+
+    if not is_syntax_error:
+        user_frames = [frame for frame in tb_exc.stack if __edvance_is_user_frame(frame)]
+        if not user_frames:
+            user_frames = [
+                frame for frame in tb_exc.stack
+                if not ((getattr(frame, "name", "") or "").startswith("__edvance_"))
+            ]
+        if user_frames:
+            output.extend(traceback.StackSummary.from_list(user_frames).format())
+
+    output.extend(tb_exc.format_exception_only())
+    return "".join(output).rstrip()
+
+def __edvance_format_exception(exc):
+    tb_exc = traceback.TracebackException.from_exception(exc)
+
+    if isinstance(exc, SyntaxError):
+        return "".join(tb_exc.format_exception_only()).rstrip()
+    return __edvance_format_tb_exception(tb_exc)
+
+async def __edvance_run_user_code(source, filename):
+    try:
+        code = compile(source, filename, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        result = eval(code, globals(), globals())
+        if inspect.isawaitable(result):
+            await result
+        return None
+    except SystemExit:
+        return "__SYSTEM_EXIT__"
+    except BaseException as exc:
+        return __edvance_format_exception(exc)
 `);
 
     // Add the project root to sys.path for imports
@@ -272,8 +408,26 @@ if '' not in sys.path:
       `_transform_for_async_input(__raw_user_code)`
     );
     const codeToRun = typeof transformed === 'string' ? transformed : rawCode;
+    const executionFilename =
+      entryFile === 'snippet.py' || entryFile === '/snippet.py' ? '<exec>' : entry;
 
-    await py.runPythonAsync(codeToRun);
+    py.globals.set('__user_code_to_run', codeToRun);
+    py.globals.set('__user_execution_filename', executionFilename);
+
+    const executionError = await py.runPythonAsync(
+      `await __edvance_run_user_code(__user_code_to_run, __user_execution_filename)`
+    );
+
+    if (executionError === '__SYSTEM_EXIT__') {
+      postResult(true);
+      return;
+    }
+
+    if (typeof executionError === 'string' && executionError.trim()) {
+      postStderr(executionError);
+      postResult(false, executionError);
+      return;
+    }
 
     postResult(true);
   } catch (err: any) {
@@ -283,13 +437,9 @@ if '' not in sys.path:
       postResult(true);
       return;
     }
-    // Filter out Pyodide internals from the traceback
-    const cleaned = message
-      .split('\n')
-      .filter((line: string) => !line.includes('pyodide/_base.py') && !line.includes('pyodide.code'))
-      .join('\n');
-    postStderr(cleaned || message);
-    postResult(false, cleaned || message);
+    const cleaned = normalizePythonError(err);
+    postStderr(cleaned);
+    postResult(false, cleaned);
   } finally {
     postStatus('done');
   }
