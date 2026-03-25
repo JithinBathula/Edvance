@@ -2918,6 +2918,18 @@ body {
   border-color: #34d399;
 }
 
+/* Monaco find-button hovers are rendered in a shared context-view overlay.
+   Hide the hover popup and disable that overlay's hit-testing only while at
+   least one find widget is visible, so the close button stays unobstructed. */
+body.edvance-monaco-find-widget-open .context-view.monaco-component,
+body.edvance-monaco-find-widget-open .context-view.monaco-component * {
+  pointer-events: none !important;
+}
+
+body.edvance-monaco-find-widget-open .context-view.monaco-component .workbench-hover-container {
+  display: none !important;
+}
+
 /* ============================================
    Intel Mac GPU Compositing Bug Mitigations
    Chrome on Intel Mac GPUs crashes when backdrop-filter and stacked
@@ -2951,4 +2963,3 @@ body {
 .intel-mac [class*="will-change"] {
   will-change: auto !important;
 }
-

@@ -35,6 +35,7 @@ import {
 } from './ui/dropdown-menu';
 import { usePyodide, type OutputLine } from '../hooks/usePyodide';
 import { getAccessToken } from '../utils/authFetch';
+import { attachMonacoFindWidgetGuard } from '../utils/monacoFindWidgetGuard';
 
 // --- Utility functions (from CodeSandboxIDE, zero external deps) ---
 
@@ -193,6 +194,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const xtermContainerRef = useRef<HTMLDivElement>(null);
   const prevOutputLenRef = useRef(0);
+  const findWidgetCleanupRef = useRef<(() => void) | null>(null);
 
   const { runCode, stopCode, output, isRunning, status, clearOutput, inputPrompt, submitInput } = usePyodide();
 
@@ -423,6 +425,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   useEffect(() => {
     return () => {
       if (filesChangeDebounceRef.current) clearTimeout(filesChangeDebounceRef.current);
+      findWidgetCleanupRef.current?.();
     };
   }, []);
 
@@ -458,6 +461,18 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   const handleMonacoMount = useCallback((editor: any, monaco: Monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    findWidgetCleanupRef.current?.();
+    if (typeof document !== 'undefined') {
+      const editorDomNode = editor.getDomNode?.();
+      if (editorDomNode) {
+        // Monaco renders delayed button hovers in a shared context-view overlay.
+        // We track when find is open so CSS can disable that overlay's hit-testing
+        // only for this state, which keeps the find-widget close button clickable.
+        const cleanup = attachMonacoFindWidgetGuard(editorDomNode);
+        findWidgetCleanupRef.current = cleanup;
+        editor.onDidDispose(cleanup);
+      }
+    }
     // Define custom dark theme
     monaco.editor.defineTheme('edvance-dark', {
       base: 'vs-dark',

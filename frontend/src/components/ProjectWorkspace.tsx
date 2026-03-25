@@ -36,6 +36,7 @@ import {
 import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
 import { WorkspaceTour } from './WorkspaceTour';
+import codyUrl from '../assets/cody.svg';
 
 // Shared markdown components for task content rendering
 const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
@@ -1377,12 +1378,15 @@ export function ProjectWorkspace({
       {!isChatOpen && (
         <button
           onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
-          style={{ backgroundColor: '#4285f4' }}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg border border-slate-200 bg-white flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl z-50"
           title="Open AI Chat"
           data-tour="chat-button"
         >
-          <MessageCircle className="w-6 h-6 text-white" />
+          <img
+            src={codyUrl}
+            alt="Open Cody chat"
+            className="h-12 w-12"
+          />
         </button>
       )}
 
