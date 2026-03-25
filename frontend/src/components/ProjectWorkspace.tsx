@@ -6,7 +6,6 @@ import { ProjectFile } from "../types/workspace";
 import { AIChatbot } from "./AIChatbot";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { Progress } from "./ui/progress";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui/resizable";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { toast } from "sonner";
@@ -16,7 +15,6 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
-  ChevronRight,
   Trophy,
   Sparkles,
   PanelLeftClose,
@@ -32,6 +30,8 @@ import {
   Lock,
   GraduationCap,
   Play,
+  Lightbulb,
+  Code2,
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
@@ -50,11 +50,14 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
       {children}
     </h2>
   ),
-  h3: ({ children }: any) => (
-    <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2 first:mt-0 leading-snug">
-      {children}
-    </h3>
-  ),
+  h3: ({ children }: any) => {
+    if (String(children).trim() === 'Key Concepts') return null;
+    return (
+      <h3 className="font-semibold text-[15px] mt-4 mb-2" style={{ color: '#d97706' }}>
+        {children}
+      </h3>
+    );
+  },
   p: ({ children }: any) => (
     <p className="text-gray-600 text-[15px] leading-relaxed mb-3 last:mb-0">
       {children}
@@ -88,7 +91,7 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
     </ul>
   ),
   ol: ({ children }: any) => (
-    <ol className="list-decimal ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+    <ol className="task-ol space-y-2.5">
       {children}
     </ol>
   ),
@@ -113,81 +116,39 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
   hr: () => <hr className="my-4 border-gray-200" />,
 });
 
-// Split task description into parts (Part A, Part B, Part C) for collapsible rendering
-function splitIntoParts(text: string): { intro: string; parts: { label: string; title: string; content: string; icon: string }[] } {
-  const partRegex = /\*\*Part\s+([A-C]):\s*(.+?)\*\*/g;
-  const matches = [...text.matchAll(partRegex)];
+// Case-insensitive, space-tolerant section marker finder
+function findMarker(text: string, label: string): RegExpExecArray | null {
+  return new RegExp(`\\*\\*\\s*${label}\\s*:?\\s*\\*\\*[^\\S\\n]*\\n+`, 'i').exec(text);
+}
 
-  if (matches.length === 0) {
-    return { intro: text, parts: [] };
+// Split text into sections by **Task Description**, **Key Concepts**, **Your Task**, **Example** markers
+function splitIntoParts(text: string): { intro: string; keyConcepts: string; taskSteps: string; example: string } {
+  const tdMatch       = findMarker(text, 'Task Description');
+  const kcMatch       = findMarker(text, 'Key Concepts');
+  const yourTaskMatch = findMarker(text, 'Your Task');
+  const exMatch       = findMarker(text, 'Example');
+
+  // No markers — old format, render as-is
+  if (!tdMatch && !kcMatch && !yourTaskMatch && !exMatch) {
+    return { intro: text, keyConcepts: '', taskSteps: '', example: '' };
   }
 
-  const intro = text.slice(0, matches[0].index).trim();
-  const icons: Record<string, string> = { A: '', B: '', C: '' };
-  const parts = matches.map((match, i) => {
-    const startAfterHeader = match.index! + match[0].length;
-    const end = i + 1 < matches.length ? matches[i + 1].index! : text.length;
-    return {
-      label: `Part ${match[1]}`,
-      title: match[2].trim(),
-      content: text.slice(startAfterHeader, end).trim(),
-      icon: icons[match[1]] || '',
-    };
-  });
+  // Slice between two adjacent markers (end of `from` → start of `to`)
+  const between = (from: RegExpExecArray | null, to: RegExpExecArray | null): string => {
+    const start = from ? from.index + from[0].length : 0;
+    const end   = to ? to.index : text.length;
+    return text.slice(start, end).trim();
+  };
 
-  return { intro, parts };
+  const intro       = between(tdMatch, kcMatch ?? yourTaskMatch ?? exMatch);
+  const keyConcepts = kcMatch       ? between(kcMatch, yourTaskMatch ?? exMatch) : '';
+  const taskSteps   = yourTaskMatch ? between(yourTaskMatch, exMatch) : '';
+  const example     = exMatch       ? text.slice(exMatch.index + exMatch[0].length).trim() : '';
+
+  return { intro, keyConcepts, taskSteps, example };
 }
 
-// Collapsible section component for task parts
-function CollapsiblePart({
-  label,
-  title,
-  icon,
-  content,
-  isOpen,
-  onToggle,
-  contextCode,
-}: {
-  label: string;
-  title: string;
-  icon: string;
-  content: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  contextCode?: string;
-}) {
-  const isPartB = label === 'Part B';
-  const components = markdownComponents(isPartB, isPartB ? contextCode : undefined);
-
-  return (
-    <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-      >
-        <span className="text-base">{icon}</span>
-        <span className="font-semibold text-gray-800 text-[15px] flex-1">
-          {label}: {title}
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
-        />
-      </button>
-      {isOpen && (
-        <div className="px-4 pb-4 pt-1 border-t border-gray-100">
-          <div className="task-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-              {content}
-            </ReactMarkdown>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Component to format task description with full markdown rendering,
-// code highlighting, and structured Learn → Try → Do content
+// Component to format task description: Task Description always visible, Example collapsible
 function FormattedDescription({
   text,
   contextCode,
@@ -195,29 +156,18 @@ function FormattedDescription({
   text: string;
   contextCode?: string;
 }) {
-  const { intro, parts } = splitIntoParts(text);
+  const { intro, keyConcepts, taskSteps, example } = splitIntoParts(text);
+  const [tryItOpen, setTryItOpen] = useState(false);
+  const [conceptsOpen, setConceptsOpen] = useState(true);
 
-  // Track which parts are open; reset when text changes (new task)
-  const [openParts, setOpenParts] = useState<Set<number>>(() => new Set([0]));
-
-  // Reset collapse state when text changes (new task)
+  // Reset when task changes
   useEffect(() => {
-    setOpenParts(new Set([0]));
+    setTryItOpen(false);
+    setConceptsOpen(true);
   }, [text]);
 
-  const components = markdownComponents();
-
-  const togglePart = (index: number) => {
-    setOpenParts(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
+  const plainComponents = markdownComponents();
+  const interactiveComponents = markdownComponents(true, contextCode);
 
   return (
     <>
@@ -238,37 +188,124 @@ function FormattedDescription({
           font-weight: normal !important;
           font-size: inherit !important;
         }
+        .task-ol {
+          counter-reset: task-counter;
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        .task-ol > li {
+          counter-increment: task-counter;
+          position: relative;
+          padding-left: 2rem;
+          color: #374151;
+          font-size: 15px;
+          line-height: 1.6;
+        }
+        .task-ol > li::before {
+          content: counter(task-counter) ".";
+          position: absolute;
+          left: 0;
+          font-weight: 700;
+          color: #ea580c;
+          font-size: 15px;
+        }
+        .hint-lightbulb:hover {
+          background: rgba(13, 148, 136, 0.15) !important;
+          color: #0f766e !important;
+          border-color: rgba(13, 148, 136, 0.4) !important;
+          box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15), 0 0 8px rgba(13, 148, 136, 0.25);
+          transform: scale(1.1);
+        }
       `}</style>
 
-      {/* Render intro content (before any parts) */}
+      {/* Intro paragraph — always visible */}
       {intro && (
-        <div className="task-content mb-4">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        <div className="task-content mb-3">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {intro}
           </ReactMarkdown>
         </div>
       )}
 
-      {/* Render collapsible parts */}
-      {parts.length > 0 ? (
-        <div className="space-y-0">
-          {parts.map((part, index) => (
-            <CollapsiblePart
-              key={`${part.label}-${index}`}
-              label={part.label}
-              title={part.title}
-              icon={part.icon}
-              content={part.content}
-              isOpen={openParts.has(index)}
-              onToggle={() => togglePart(index)}
-              contextCode={contextCode}
+      {/* Key Concepts — collapsible */}
+      {keyConcepts && (
+        <div className="border border-amber-50 rounded-lg mb-3 overflow-hidden">
+          <button
+            onClick={() => setConceptsOpen(prev => !prev)}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-amber-50 transition-colors"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="font-semibold text-amber-700 text-[14px] flex-1">Key Concepts</span>
+            <ChevronDown
+              className={`w-4 h-4 text-amber-400 transition-transform duration-200 ${conceptsOpen ? '-rotate-180' : ''}`}
             />
-          ))}
+          </button>
+          {conceptsOpen && (
+            <div className="px-4 pb-3 pt-1 border-t border-amber-100 bg-amber-50/30">
+              <div className="task-content">
+                {keyConcepts.split('\n').filter(l => l.trim()).map((line, i) => (
+                  <div key={i}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{...plainComponents, p: ({children}: any) => <p className="text-gray-600 text-[15px] leading-relaxed mb-0">{children}</p>}}>
+                      {line.replace(/^- /, '')}
+                    </ReactMarkdown>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        /* Fallback: no parts detected, render as plain markdown */
+      )}
+
+      {/* Task steps — always visible */}
+      {taskSteps && (
+        <div className="task-content mb-4">
+          <div className="mb-3 mt-5">
+            <p className="font-bold text-lg text-gray-900">Your Task:</p>
+          </div>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
+            {(() => {
+              let n = 0;
+              let inFence = false;
+              return taskSteps.split('\n').map(line => {
+                if (/^```/.test(line)) { inFence = !inFence; return line; }
+                if (!inFence) return line.replace(/^(\d+)\. /, () => `${++n}. `);
+                return line;
+              }).join('\n');
+            })()}
+          </ReactMarkdown>
+        </div>
+      )}
+
+      {/* Example — collapsed by default */}
+      {example && (
+        <div className="border border-teal-200 rounded-lg mb-4 overflow-hidden">
+          <button
+            onClick={() => setTryItOpen(prev => !prev)}
+            className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-teal-50 transition-colors"
+          >
+            <Code2 className="w-4 h-4 text-teal-600 shrink-0" />
+            <span className="font-semibold text-teal-800 text-[15px] flex-1">Example</span>
+            <ChevronDown
+              className={`w-4 h-4 text-teal-400 transition-transform duration-200 ${tryItOpen ? '-rotate-180' : ''}`}
+            />
+          </button>
+          {tryItOpen && (
+            <div className="px-4 pb-4 pt-1 border-t border-teal-100 bg-teal-50/30">
+              <div className="task-content">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={interactiveComponents}>
+                  {example}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Fallback: no sections detected */}
+      {!intro && !keyConcepts && !taskSteps && !example && (
         <div className="task-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {text}
           </ReactMarkdown>
         </div>
@@ -1179,7 +1216,45 @@ export function ProjectWorkspace({
                 </div>
               ) : (
               <>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4 leading-snug">{safeCurrentTask.title}</h2>
+              <div className="flex items-start gap-2 mb-4">
+                <h2 className="text-2xl font-semibold text-gray-900 leading-snug flex-1">{safeCurrentTask.title}</h2>
+                {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
+                  <div
+                    className="relative shrink-0 mt-1"
+                    onMouseEnter={() => setShowHints(true)}
+                    onMouseLeave={() => setShowHints(false)}
+                  >
+                    <button
+                      className="hint-lightbulb w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                      style={{ background: 'rgba(13, 148, 136, 0.08)', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.2)' }}
+                      title="Show hints"
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                    </button>
+                    {showHints && (
+                      <div
+                        className="absolute bg-black/80 right-0 top-10 z-20 w-80 rounded-xl shadow-2xl p-4 backdrop-blur-sm"
+                        style={{ border: '1px solid rgba(13, 148, 136, 0.3)' }}
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <Lightbulb className="w-4 h-4" style={{ color: '#2dd4bf' }} />
+                          <span className="font-semibold text-sm" style={{ color: '#5eead4' }}>Hints</span>
+                        </div>
+                        <div className="space-y-3">
+                          {safeCurrentTask.hints.map((hint, idx) => (
+                            <div key={idx} className="flex items-start gap-3">
+                              <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5" style={{ backgroundColor: 'rgba(13, 148, 136, 0.2)', color: '#2dd4bf', border: '1px solid rgba(13, 148, 136, 0.35)' }}>
+                                {idx + 1}
+                              </span>
+                              <p className="text-[13px] leading-relaxed flex-1" style={{ color: '#cbd5e1' }}>{hint}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div ref={taskContentRef} data-tour="task-description" className="max-w-none mb-6 relative">
                 <FormattedDescription key={safeCurrentTask.id} text={safeCurrentTask.description} contextCode={projectFiles.map(f => f.content || '').join('\n')} />
               </div>
@@ -1247,40 +1322,6 @@ export function ProjectWorkspace({
                   <p className="text-blue-900 text-[15px] leading-relaxed">{safeCurrentTask.feedback.teacher_feedback}</p>
                 </div>
               )}
-
-              {safeCurrentTask.hints && safeCurrentTask.hints.length > 0 && (
-                <div className="mb-6">
-                  <button
-                    onClick={() => setShowHints(!showHints)}
-                    className="flex items-center gap-2 text-base font-medium transition-colors"
-                    style={{ color: '#0891b2' }}
-                  >
-                    {showHints ? (
-                      <ChevronDown className="w-5 h-5" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5" />
-                    )}
-                    {showHints ? "Hide Hints" : "Show Hints"}
-                  </button>
-                  {showHints && (
-                    <div className="mt-3 rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(to bottom right, #ecfeff, white)', border: '1px solid #cffafe' }}>
-                      <div className="space-y-5">
-                        {safeCurrentTask.hints.map((hint, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-start gap-4"
-                            >
-                              <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 mt-0.5" style={{ backgroundColor: '#cffafe', color: '#0891b2' }}>
-                                {idx + 1}
-                              </span>
-                              <p className="text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
-                                {hint}
-                              </p>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Complete & Continue Button */}
                   <div className="mt-6">

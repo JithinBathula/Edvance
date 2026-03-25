@@ -56,11 +56,11 @@ class CurriculumPlanner:
     def _format_user_profile(user_profile: Dict[str, Any]) -> str:
         """Format all onboarding fields into a readable string for LLM prompts."""
         level_labels = {
-            "level-1": "Level 1 – Knows basics (print, variables)",
-            "level-2": "Level 2 – Knows conditions (if/else)",
-            "level-3": "Level 3 – Knows loops (for/while)",
-            "level-4": "Level 4 – Knows functions & data structures",
-            "level-5": "Level 5 – Advanced (OOP, files, libraries)",
+            "level-1": "Level 1 – No coding experience, every concept is new",
+            "level-2": "Level 2 – Understands basic syntax (e.g. print, variables, input)",
+            "level-3": "Level 3 – Can control program flow (e.g. if/else, for/while loops)",
+            "level-4": "Level 4 – Can organize code into reusable parts (e.g. functions, lists, dictionaries)",
+            "level-5": "Level 5 – Can build complex programs (e.g. OOP, file I/O, libraries, APIs)",
         }
         education_labels = {
             "primary": "Primary 5-6",

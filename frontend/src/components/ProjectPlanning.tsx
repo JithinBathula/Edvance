@@ -56,7 +56,7 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
     }, [outline]);
 
     const count = outline?.milestones?.length ?? 0;
-    const allDone = count > 0 && activeStep === count - 1; // reached last step
+    const allDone = count > 0 && activeStep >= count - 1; // reached or passed last step
 
     // Generate outline on mount or use provided one
     useEffect(() => {
@@ -342,10 +342,10 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
             <Card className="p-8 bg-transparent border-none mb-6">
                 <div className="mb-6">
                     <div className="flex items-center gap-2.5">
-                        <h2 className="text-2xl font-bold text-slate-800">{outline.project_title}</h2>
+                        <h2 className="text-3xl font-bold text-slate-800">{outline.project_title}</h2>
                         <Sparkles className="w-5 h-5 text-amber-500" />
                     </div>
-                    <p className="text-slate-500 mt-2 leading-relaxed">{outline.project_brief}</p>
+                    <p className="text-slate-500 mt-2 text-[16px] leading-relaxed">{outline.project_brief}</p>
                 </div>
 
                 <div className="space-y-4">
