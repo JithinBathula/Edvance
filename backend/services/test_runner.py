@@ -67,7 +67,15 @@ def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dic
         expected_output = tc.get("expected_output", "")
 
         try:
-            actual = eval(input_expr, namespace)
+            # Handle multi-statement test cases (semicolons)
+            if ';' in input_expr:
+                parts = input_expr.rsplit(';', 1)
+                setup = parts[0].strip()
+                expr = parts[1].strip()
+                exec(setup, namespace)
+                actual = eval(expr, namespace)
+            else:
+                actual = eval(input_expr, namespace)
             expected = eval(expected_output, namespace)
 
             passed = actual == expected

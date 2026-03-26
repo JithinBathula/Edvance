@@ -337,6 +337,9 @@ TASK GENERATION RULES:
        {{"input": "calculate(10, 0, 'multiply')", "expected_output": "0"}}
      ]
    - Do NOT generate test_cases for functions that contain interactive loops (while loops with input()). These will timeout in automated testing. Leave test_cases as an empty array [] for such tasks — they will be evaluated by the AI instead.
+   - Do NOT treat invalid inputs as passing cases. If a function should reject empty strings, bad types, or out-of-range values, the test case should expect an error or a rejection, not accept it as correct.
+   - expected_output MUST be a valid Python expression. Strings must include quotes: use "'hello'" not "hello". Numbers are fine as-is: "50", "True", "[1,2,3]". Otherwise eval() will treat it as a variable name.
+
 
 
 6. **Continuity Between Tasks:**

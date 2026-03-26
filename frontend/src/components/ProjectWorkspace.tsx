@@ -39,22 +39,22 @@ import { RunnableCodeBlock } from './RunnableCodeBlock';
 // Shared markdown components for task content rendering
 const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
   h1: ({ children }: any) => (
-    <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0 leading-snug">
+    <h1 className="text-xl font-bold text-gray-900 mt-8 mb-4 first:mt-0 leading-snug">
       {children}
     </h1>
   ),
   h2: ({ children }: any) => (
-    <h2 className="text-lg font-bold text-gray-800 mt-6 mb-2 first:mt-0 leading-snug">
+    <h2 className="text-lg font-bold text-gray-800 mt-7 mb-3 first:mt-0 leading-snug">
       {children}
     </h2>
   ),
   h3: ({ children }: any) => (
-    <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2 first:mt-0 leading-snug">
+    <h3 className="text-base font-semibold text-gray-800 mt-6 mb-2 first:mt-0 leading-snug">
       {children}
     </h3>
   ),
   p: ({ children }: any) => (
-    <p className="text-gray-600 text-[15px] leading-relaxed mb-3 last:mb-0">
+    <p className="text-gray-600 text-[15px] leading-[1.8] mb-4 last:mb-0">
       {children}
     </p>
   ),
@@ -66,7 +66,6 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
     <code className="inline-code">{children}</code>
   ),
   pre: ({ children }: any) => {
-    // When interactive, detect Python code blocks and render RunnableCodeBlock
     if (interactive && children?.props?.className) {
       const className: string = children.props.className || '';
       if (className.includes('python')) {
@@ -75,26 +74,26 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
       }
     }
     return (
-      <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
+      <pre className="code-block bg-[#1e1e2e] text-[#cdd6f4] p-5 rounded-xl text-sm font-mono mb-5 leading-relaxed border border-[#313244] shadow-sm" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
         {children}
       </pre>
     );
   },
   ul: ({ children }: any) => (
-    <ul className="list-disc ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+    <ul className="list-disc ml-6 mb-5 space-y-2 text-gray-600 text-[15px]">
       {children}
     </ul>
   ),
   ol: ({ children }: any) => (
-    <ol className="list-decimal ml-6 mb-4 space-y-1.5 text-gray-600 text-[15px]">
+    <ol className="list-decimal ml-6 mb-5 space-y-2 text-gray-600 text-[15px]">
       {children}
     </ol>
   ),
   li: ({ children }: any) => (
-    <li className="leading-relaxed">{children}</li>
+    <li className="leading-[1.8] pl-1">{children}</li>
   ),
   blockquote: ({ children }: any) => (
-    <blockquote className="border-l-4 border-orange-300 bg-orange-50/50 pl-4 py-2 my-3 rounded-r">
+    <blockquote className="border-l-4 border-orange-300 bg-orange-50/50 pl-4 py-3 my-4 rounded-r">
       {children}
     </blockquote>
   ),
@@ -108,7 +107,7 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
       {children}
     </a>
   ),
-  hr: () => <hr className="my-4 border-gray-200" />,
+  hr: () => <hr className="my-6 border-gray-200" />,
 });
 
 // Split task description into parts (Part A, Part B, Part C) for collapsible rendering
@@ -172,7 +171,7 @@ function CollapsiblePart({
         />
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+        <div className="px-5 pb-5 pt-2 border-t border-gray-100">
           <div className="task-content">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
               {content}
@@ -221,20 +220,25 @@ function FormattedDescription({
     <>
       <style>{`
         .inline-code {
-          background: linear-gradient(135deg, #f0e6ff 0%, #e8f0ff 100%);
-          color: #f97316;
-          padding: 0.125rem 0.375rem;
-          border-radius: 0.25rem;
+          background: #f1f5f9;
+          color: #ea580c;
+          padding: 0.15rem 0.45rem;
+          border-radius: 0.375rem;
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 0.875em;
-          font-weight: 500;
+          font-size: 0.85em;
+          font-weight: 600;
+          border: 1px solid #e2e8f0;
         }
+        /* Reset inline-code styles inside code blocks */
+        .task-content pre code,
+        .task-content pre .inline-code,
         .task-content .code-block code {
           background: transparent !important;
           color: inherit !important;
           padding: 0 !important;
           font-weight: normal !important;
           font-size: inherit !important;
+          border: none !important;
         }
       `}</style>
 

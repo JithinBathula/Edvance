@@ -3,6 +3,7 @@ Submission Evaluation API routes.
 Handles code submission evaluation for task progression.
 """
 import logging
+import os
 import threading
 from services.test_runner import run_test_cases
 
@@ -212,7 +213,8 @@ def evaluate_submission():
                         for r in test_run.results
                     ],
                 }
-                with open("test_run_log.json", "a") as f:
+                os.makedirs("logs", exist_ok=True)
+                with open("logs/test_run_log.json", "a") as f:
                     f.write(_json.dumps(log_entry, indent=2) + "\n---\n")
 
         result = evaluator.evaluate(
