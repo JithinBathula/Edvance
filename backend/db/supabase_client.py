@@ -243,8 +243,11 @@ def create_milestone(
         "description": description
     }
     
-    result = supabase.table("milestones").insert(milestone_data).execute()
-    
+    result = execute_with_retry(
+        "create_milestone",
+        lambda: supabase.table("milestones").insert(milestone_data).execute(),
+    )
+
     if result.data:
         return result.data[0]
     raise Exception("Failed to create milestone")
@@ -299,8 +302,11 @@ def create_task(
         "starter_code": starter_code
     }
     
-    result = supabase.table("tasks").insert(task_data).execute()
-    
+    result = execute_with_retry(
+        "create_task",
+        lambda: supabase.table("tasks").insert(task_data).execute(),
+    )
+
     if result.data:
         return result.data[0]
     raise Exception("Failed to create task")

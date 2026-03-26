@@ -35,6 +35,10 @@ class Milestone(BaseModel):
     def validate_tasks(self) -> "Milestone":
         if not 1 <= len(self.tasks) <= 10:
             raise ValueError("tasks must contain between 1 and 10 TaskItem entries")
+        ids = [t.task_id for t in self.tasks]
+        if len(ids) != len(set(ids)):
+            dupes = [x for x in ids if ids.count(x) > 1]
+            raise ValueError(f"Duplicate task_id values: {set(dupes)}")
         return self
 
 
@@ -48,6 +52,30 @@ class ProjectCurriculum(BaseModel):
         if not self.milestones:
             raise ValueError("milestones must not be empty")
         return self
+
+
+class ConceptEntry(BaseModel):
+    concept: str
+    introduced_in_milestone: int
+    reinforced_in_milestones: List[str] = Field(default_factory=list)
+
+
+class MilestoneBlueprintEntry(BaseModel):
+    milestone_position: int
+    expected_code_state: str
+    key_functions: List[str] = Field(default_factory=list)
+    key_variables: List[str] = Field(default_factory=list)
+    builds_on: str
+
+
+class ProjectBlueprint(BaseModel):
+    architecture_overview: str
+    file_structure: List[str] = Field(default_factory=list)
+    naming_conventions: str
+    shared_variables: List[str] = Field(default_factory=list)
+    shared_functions: List[str] = Field(default_factory=list)
+    concept_progression: List[ConceptEntry] = Field(default_factory=list)
+    milestone_blueprints: List[MilestoneBlueprintEntry] = Field(default_factory=list)
 
 
 class OutlineMilestone(BaseModel):
