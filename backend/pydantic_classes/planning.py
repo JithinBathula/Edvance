@@ -13,6 +13,7 @@ class TestSpecification(BaseModel):
     expected_state: str
     verification_code: str
     test_cases: List[TestCase] = Field(default_factory=list)
+    input_mock: str | List[str] = Field(default="")
 
 
 class TaskItem(BaseModel):

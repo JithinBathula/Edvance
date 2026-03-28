@@ -29,6 +29,24 @@ def strip_file_markers(code: str) -> str:
     return re.sub(r'^# === .+ ===\s*$', '', code, flags=re.MULTILINE).strip()
 
 
+def _make_input_mock(input_mock: str | list[str]):
+    """
+    Build a mock input() function.
+    - str: every input() call returns that string.
+    - list[str]: each input() call returns the next value;
+      repeats the last value if exhausted.
+    """
+    if isinstance(input_mock, list):
+        it = iter(input_mock)
+        last = [input_mock[-1] if input_mock else ""]
+        def _mock(*a):
+            try:
+                return next(it)
+            except StopIteration:
+                return last[0]
+        return _mock
+    return lambda *a: input_mock
+
 def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dict,  input_mock: str = "") -> None:
     """
     Run test cases against student code in an isolated namespace.
@@ -37,7 +55,7 @@ def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dic
     results: list[TestCaseResult] = []
 
     # Build isolated namespace with input() mocked to prevent blocking
-    namespace: dict = {"__builtins__": __builtins__, "input": lambda *a: input_mock}
+    namespace: dict = {"__builtins__": __builtins__, "input": _make_input_mock(input_mock)}
 
     # Capture stdout during exec (prevents print output leaking)
     captured_stdout = io.StringIO()
@@ -102,7 +120,7 @@ def run_test_cases(
     student_code: str,
     test_cases: list[dict],
     timeout: float = 10.0,
-    input_mock: str = "",
+    input_mock: str | list[str] = "",
 ) -> TestRunResult:
     """
     Execute student code and run test cases against it.

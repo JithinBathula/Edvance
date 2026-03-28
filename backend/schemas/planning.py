@@ -59,7 +59,12 @@ MILESTONE_SCHEMA = {
                                     "additionalProperties": False,
                                 },
                             },
-                            "input_mock": {"type": "string"},
+                            "input_mock": {
+                                "oneOf": [
+                                    {"type": "string"},
+                                    {"type": "array", "items": {"type": "string"}}
+                                ]
+                            },
 
                         },
                         "required": ["expected_state", "verification_code", "test_cases"],

@@ -121,3 +121,68 @@ class TestRunTestCases:
         result = run_test_cases(code, test_cases)
         assert result.all_passed is False
         assert "NameError" in result.results[0].error
+
+    def test_input_mock_sequential_list(self):
+        """List input_mock returns values in order for each input() call."""
+        code = (
+            "def collect_inputs():\n"
+            "    items = []\n"
+            "    while True:\n"
+            "        val = input()\n"
+            "        if val == 'quit':\n"
+            "            break\n"
+            "        items.append(val)\n"
+            "    return items\n"
+        )
+        test_cases = [
+            {"input": "collect_inputs()", "expected_output": "['a', 'b', 'c']"},
+        ]
+        result = run_test_cases(code, test_cases, input_mock=["a", "b", "c", "quit"])
+        assert result.all_passed is True
+
+    def test_input_mock_list_exhausted_repeats_last(self):
+        """When list is exhausted, repeats the last value."""
+        code = (
+            "def ask_three():\n"
+            "    a = input()\n"
+            "    b = input()\n"
+            "    c = input()\n"
+            "    return [a, b, c]\n"
+        )
+        test_cases = [
+            {"input": "ask_three()", "expected_output": "['x', 'y', 'y']"},
+        ]
+        result = run_test_cases(code, test_cases, input_mock=["x", "y"])
+        assert result.all_passed is True
+
+    def test_choice_and_loop_separation(self):
+        """Test choice function separately from loop function."""
+        code = (
+            "def check_answer(answer):\n"
+            "    return answer == '3'\n"
+            "\n"
+            "def play():\n"
+            "    score = 0\n"
+            "    while True:\n"
+            "        ans = input()\n"
+            "        if ans == 'quit':\n"
+            "            break\n"
+            "        if check_answer(ans):\n"
+            "            score += 1\n"
+            "    return score\n"
+        )
+        # Test choice function directly — no input_mock needed
+        choice_tests = [
+            {"input": "check_answer('3')", "expected_output": "True"},
+            {"input": "check_answer('5')", "expected_output": "False"},
+        ]
+        result = run_test_cases(code, choice_tests)
+        assert result.all_passed is True
+
+        # Test loop function with sequential input_mock
+        loop_tests = [
+            {"input": "play()", "expected_output": "2"},
+        ]
+        result = run_test_cases(code, loop_tests, input_mock=["3", "wrong", "3", "quit"])
+        assert result.all_passed is True
+
