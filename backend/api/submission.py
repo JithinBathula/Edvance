@@ -195,7 +195,9 @@ def evaluate_submission():
         test_cases = test_specification.get('test_cases', [])
         test_run = None
         if test_cases:
-            test_run = run_test_cases(code, test_cases, timeout=10.0)
+            input_mock = test_specification.get('input_mock', '')
+            test_run = run_test_cases(code, test_cases, timeout=10.0, input_mock=input_mock)
+
             if test_run:
                 import json as _json
                 log_entry = {

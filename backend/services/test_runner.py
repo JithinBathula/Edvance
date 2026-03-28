@@ -29,7 +29,7 @@ def strip_file_markers(code: str) -> str:
     return re.sub(r'^# === .+ ===\s*$', '', code, flags=re.MULTILINE).strip()
 
 
-def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dict) -> None:
+def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dict,  input_mock: str = "") -> None:
     """
     Run test cases against student code in an isolated namespace.
     Called inside a thread for timeout protection.
@@ -37,7 +37,7 @@ def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dic
     results: list[TestCaseResult] = []
 
     # Build isolated namespace with input() mocked to prevent blocking
-    namespace: dict = {"__builtins__": __builtins__, "input": lambda *a: ""}
+    namespace: dict = {"__builtins__": __builtins__, "input": lambda *a: input_mock}
 
     # Capture stdout during exec (prevents print output leaking)
     captured_stdout = io.StringIO()
@@ -102,6 +102,7 @@ def run_test_cases(
     student_code: str,
     test_cases: list[dict],
     timeout: float = 10.0,
+    input_mock: str = "",
 ) -> TestRunResult:
     """
     Execute student code and run test cases against it.
@@ -122,7 +123,7 @@ def run_test_cases(
 
     thread = threading.Thread(
         target=_execute_tests,
-        args=(clean_code, test_cases, result_holder),
+        args=(clean_code, test_cases, result_holder, input_mock),
         daemon=True,
     )
     thread.start()

@@ -339,6 +339,8 @@ TASK GENERATION RULES:
    - Do NOT generate test_cases for functions that contain interactive loops (while loops with input()). These will timeout in automated testing. Leave test_cases as an empty array [] for such tasks — they will be evaluated by the AI instead.
    - Do NOT treat invalid inputs as passing cases. If a function should reject empty strings, bad types, or out-of-range values, the test case should expect an error or a rejection, not accept it as correct.
    - expected_output MUST be a valid Python expression. Strings must include quotes: use "'hello'" not "hello". Numbers are fine as-is: "50", "True", "[1,2,3]". Otherwise eval() will treat it as a variable name.
+   - If the task involves a loop with input(), add an "input_mock" field to test_specification with the value that exits the loop (e.g., "5", "quit", "exit"). This allows automated tests to run without hanging.
+   - When a task involves a loop with input(), design the task so the core logic is in a separate function that can be called directly (e.g., process_choice(choice) that handles the logic, called by run_game_loop() which handles the loop). This allows test cases to test the logic directly.
 
 
 
