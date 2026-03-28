@@ -338,7 +338,7 @@ TASK GENERATION RULES:
      ]
    - You CAN generate test_cases for tasks with input() loops — use input_mock to simulate the user inputs (see below).
    - Do NOT treat invalid inputs as passing cases. If a function should reject empty strings, bad types, or out-of-range values, the test case should expect an error or a rejection, not accept it as correct.
-   - expected_output MUST be a valid Python expression. Strings must include quotes: use "'hello'" not "hello". Numbers are fine as-is: "50", "True", "[1,2,3]". Otherwise eval() will treat it as a variable name.
+   - expected_output MUST be a valid Python expression. Strings must include quotes: use "'hello'" not "hello" or 'hello'. Numbers are fine as-is: "50", "True", "[1,2,3]". Otherwise eval() will treat it as a variable name.
    - If the task involves a loop with input(), add an "input_mock" field to test_specification. This can be:
      - A single string: every input() call returns that value (e.g., "quit")
      - A list of strings: each input() call returns the next value in order (e.g., ["3", "wrong", "quit"])
@@ -349,6 +349,7 @@ TASK GENERATION RULES:
      Write test_cases that test BOTH:
      - The choice function directly (e.g., `process_choice('add')`) — these don't need input_mock
      - The loop function with input_mock to verify it exits correctly and returns the right result
+    - Test cases should check EXACT return values or structure, not just substring existence. Use == comparisons, not "in" checks. For example, test get_menu()[0] == "Add task" instead of "Add task" in get_menu().
 
 
 6. **Continuity Between Tasks:**

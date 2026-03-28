@@ -228,8 +228,9 @@ def evaluate_submission():
         )
 
         # Override LLM pass/fail with test results if tests ran
-        if test_run is not None and test_run.error_message != "No test cases to run":
-            result.is_correct = test_run.all_passed
+        if test_run is not None and test_run.all_passed:
+            result.is_correct = True
+
 
         # Define XP reward constant 
         XP_PER_TASK = 10

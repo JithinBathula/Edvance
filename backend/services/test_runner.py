@@ -94,9 +94,16 @@ def _execute_tests(student_code: str, test_cases: list[dict], result_holder: dic
                 actual = eval(expr, namespace)
             else:
                 actual = eval(input_expr, namespace)
-            expected = eval(expected_output, namespace)
+                try:
+                    expected = eval(expected_output, namespace)
+                except SyntaxError:
+                    expected = expected_output  # LLM forgot quotes
+                except Exception:
+                    raise  # real error, don't hide it
 
-            passed = actual == expected
+
+
+            passed = str(actual).strip() == str(expected).strip()
             results.append(TestCaseResult(
                 input_expr=input_expr,
                 expected=repr(expected),
