@@ -160,7 +160,25 @@ def run_test_cases(
             error_message="Code execution timed out (possible infinite loop)",
         )
 
-    return result_holder.get("result", TestRunResult(
+    result = result_holder.get("result")
+
+    # If exec() crashed with ValueError and input_mock was empty,
+    # retry with a default numeric mock (handles int(input()) cases)
+    if result and not result.all_passed and result.error_message and "ValueError" in result.error_message and not input_mock:
+        result_holder = {}
+        thread = threading.Thread(
+            target=_execute_tests,
+            args=(clean_code, test_cases, result_holder, "1"),
+            daemon=True,
+        )
+        thread.start()
+        thread.join(timeout=timeout)
+
+        if not thread.is_alive():
+            result = result_holder.get("result", result)
+
+    return result or TestRunResult(
         all_passed=False,
         error_message="Test execution failed unexpectedly",
-    ))
+    )
+

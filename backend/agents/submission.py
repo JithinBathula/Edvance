@@ -79,19 +79,15 @@ class SubmissionEvaluator:
         else:
             coding_req_text = "No specific coding requirements provided."
 
-        # Build test results summary for LLM context
+        # Only pass test results to LLM when all tests passed
         test_results_text = ""
-        if test_run is not None and test_run.results:
+        if test_run is not None and test_run.all_passed:
             lines = []
             for r in test_run.results:
-                status = "PASSED" if r.passed else "FAILED"
-                line = f"  {status}: {r.input_expr} → expected {r.expected}, got {r.actual}"
-                if r.error:
-                    line += f" (error: {r.error})"
+                line = f"  PASSED: {r.input_expr}"
                 lines.append(line)
             test_results_text = "\n".join(lines)
-        elif test_run is not None and test_run.error_message:
-            test_results_text = f"  Error: {test_run.error_message}"
+
             
         messages = [
             {"role": "system", "content": prompts.submission_system_prompt},
