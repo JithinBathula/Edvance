@@ -80,3 +80,76 @@ MILESTONE_SCHEMA = {
     "required": ["subheading_title", "description", "tasks"],
     "additionalProperties": False,
 }
+
+BLUEPRINT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "architecture_overview": {"type": "string"},
+        "file_structure": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "naming_conventions": {"type": "string"},
+        "shared_variables": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "shared_functions": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "concept_progression": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "concept": {"type": "string"},
+                    "introduced_in_milestone": {"type": "integer"},
+                    "reinforced_in_milestones": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": ["concept", "introduced_in_milestone", "reinforced_in_milestones"],
+                "additionalProperties": False,
+            },
+        },
+        "milestone_blueprints": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "milestone_position": {"type": "integer"},
+                    "expected_code_state": {"type": "string"},
+                    "key_functions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "key_variables": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "builds_on": {"type": "string"},
+                },
+                "required": [
+                    "milestone_position",
+                    "expected_code_state",
+                    "key_functions",
+                    "key_variables",
+                    "builds_on",
+                ],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": [
+        "architecture_overview",
+        "file_structure",
+        "naming_conventions",
+        "shared_variables",
+        "shared_functions",
+        "concept_progression",
+        "milestone_blueprints",
+    ],
+    "additionalProperties": False,
+}

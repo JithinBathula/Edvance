@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Send, Bot, User, AlertTriangle, X, Sparkles, Loader2, RotateCcw } from 'lucide-react';
@@ -56,6 +56,9 @@ export function AIChatbot({
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prefillProcessedRef = useRef<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerFrameRef = useRef<HTMLDivElement>(null);
+  const composerWidthRef = useRef<number | null>(null);
 
   // Load chat history when component mounts or userId/projectId changes
   useEffect(() => {
@@ -95,6 +98,48 @@ export function AIChatbot({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const resizeComposer = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = '0px';
+
+    const styles = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(styles.lineHeight) || 24;
+    const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+    const borderTop = Number.parseFloat(styles.borderTopWidth) || 0;
+    const borderBottom = Number.parseFloat(styles.borderBottomWidth) || 0;
+    const minHeight = lineHeight + paddingTop + paddingBottom + borderTop + borderBottom;
+    const maxHeight = lineHeight * 8 + paddingTop + paddingBottom + borderTop + borderBottom;
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+
+    textarea.style.height = `${Math.max(nextHeight, minHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }, []);
+
+  useLayoutEffect(() => {
+    resizeComposer();
+  }, [input, resizeComposer]);
+
+  useEffect(() => {
+    const frame = composerFrameRef.current;
+    if (!frame || typeof ResizeObserver === 'undefined') return;
+
+    composerWidthRef.current = frame.getBoundingClientRect().width;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = entry.contentRect.width;
+      if (nextWidth === composerWidthRef.current) return;
+
+      composerWidthRef.current = nextWidth;
+      resizeComposer();
+    });
+
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [resizeComposer]);
 
   const sendMessage = async (message: string) => {
     if (!message.trim() || isLoading) return;
@@ -282,24 +327,39 @@ export function AIChatbot({
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-        <div className="relative flex items-end gap-2">
+        <div
+          ref={composerFrameRef}
+          className="rounded-2xl border border-gray-200 bg-gray-50/80 px-3 py-3 shadow-sm transition-all focus-within:border-teal-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-teal-100/80"
+        >
           <Textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             placeholder="Ask me anything..."
             disabled={isLoading}
-            className="pr-10 min-h-[40px] max-h-[120px] resize-none overflow-y-auto break-words [overflow-wrap:anywhere]"
+            className="w-full resize-none border-0 bg-transparent px-0 py-0 text-sm leading-6 text-gray-800 placeholder:text-gray-400 shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-60 break-words [overflow-wrap:anywhere]"
             rows={1}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            size="icon"
-            className="absolute right-1 bottom-1 w-8 h-8 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-colors"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] leading-4 text-gray-400">
+              Enter sends
+            </p>
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              aria-label="Send message"
+              className="ml-auto h-10 rounded-xl bg-teal-600 px-3 text-white hover:bg-teal-700"
+            >
+              <Send className="w-4 h-4" />
+              <span>Send</span>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

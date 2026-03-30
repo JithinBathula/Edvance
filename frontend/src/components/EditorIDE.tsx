@@ -35,6 +35,7 @@ import {
 } from './ui/dropdown-menu';
 import { usePyodide, type OutputLine } from '../hooks/usePyodide';
 import { getAccessToken } from '../utils/authFetch';
+import { attachMonacoFindWidgetGuard } from '../utils/monacoFindWidgetGuard';
 
 // --- Utility functions (from CodeSandboxIDE, zero external deps) ---
 
@@ -46,6 +47,7 @@ const detectLanguage = (filename: string) => {
   if (lower.endsWith('.html')) return 'html';
   if (lower.endsWith('.css')) return 'css';
   if (lower.endsWith('.json')) return 'json';
+  if (lower.endsWith('.csv')) return 'text';
   return 'text';
 };
 
@@ -74,7 +76,12 @@ const resolveMode = (files: ProjectFile[], vmType?: string) => {
 const isAllowedFile = (filename: string, mode: 'python' | 'web') => {
   const lower = filename.toLowerCase();
   if (mode === 'python') {
-    return lower.endsWith('.py') || lower.endsWith('.json') || lower.endsWith('.txt');
+    return (
+      lower.endsWith('.py') ||
+      lower.endsWith('.json') ||
+      lower.endsWith('.txt') ||
+      lower.endsWith('.csv')
+    );
   }
   return (
     lower.endsWith('.js') ||
@@ -83,7 +90,8 @@ const isAllowedFile = (filename: string, mode: 'python' | 'web') => {
     lower.endsWith('.tsx') ||
     lower.endsWith('.html') ||
     lower.endsWith('.css') ||
-    lower.endsWith('.json')
+    lower.endsWith('.json') ||
+    lower.endsWith('.csv')
   );
 };
 
@@ -118,6 +126,7 @@ const monacoLanguage = (filename: string): string => {
   if (lower.endsWith('.css')) return 'css';
   if (lower.endsWith('.json')) return 'json';
   if (lower.endsWith('.md')) return 'markdown';
+  if (lower.endsWith('.csv')) return 'plaintext';
   return 'plaintext';
 };
 
@@ -130,6 +139,7 @@ function FileIcon({ filename }: { filename: string }) {
   if (lower.endsWith('.html')) return <FileText className="w-3.5 h-3.5 text-orange-400" />;
   if (lower.endsWith('.css')) return <FileText className="w-3.5 h-3.5 text-blue-300" />;
   if (lower.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 text-green-400" />;
+  if (lower.endsWith('.csv')) return <FileText className="w-3.5 h-3.5 text-emerald-300" />;
   return <File className="w-3.5 h-3.5 text-slate-400" />;
 }
 
@@ -184,6 +194,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const xtermContainerRef = useRef<HTMLDivElement>(null);
   const prevOutputLenRef = useRef(0);
+  const findWidgetCleanupRef = useRef<(() => void) | null>(null);
 
   const { runCode, stopCode, output, isRunning, status, clearOutput, inputPrompt, submitInput } = usePyodide();
 
@@ -414,6 +425,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   useEffect(() => {
     return () => {
       if (filesChangeDebounceRef.current) clearTimeout(filesChangeDebounceRef.current);
+      findWidgetCleanupRef.current?.();
     };
   }, []);
 
@@ -449,6 +461,18 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   const handleMonacoMount = useCallback((editor: any, monaco: Monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    findWidgetCleanupRef.current?.();
+    if (typeof document !== 'undefined') {
+      const editorDomNode = editor.getDomNode?.();
+      if (editorDomNode) {
+        // Monaco renders delayed button hovers in a shared context-view overlay.
+        // We track when find is open so CSS can disable that overlay's hit-testing
+        // only for this state, which keeps the find-widget close button clickable.
+        const cleanup = attachMonacoFindWidgetGuard(editorDomNode);
+        findWidgetCleanupRef.current = cleanup;
+        editor.onDidDispose(cleanup);
+      }
+    }
     // Define custom dark theme
     monaco.editor.defineTheme('edvance-dark', {
       base: 'vs-dark',
@@ -506,13 +530,15 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
       fileName += '.py';
     }
 
-    if (filteredFiles.some((f) => f.name === fileName)) return;
+    if (localFiles.some((f) => f.name === fileName)) return;
 
     const defaultContent = fileName.endsWith('.json')
       ? '{}'
-      : mode === 'python'
-        ? '# New file\n'
-        : '';
+      : fileName.endsWith('.csv')
+        ? ''
+        : mode === 'python'
+          ? '# New file\n'
+          : '';
     const newFile: ProjectFile = {
       name: fileName,
       content: defaultContent,
@@ -644,6 +670,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
                 onClick={handleRun}
                 disabled={readOnly}
                 className="bg-emerald-500/90 hover:bg-emerald-400 text-white"
+                data-tour="run-button"
               >
                 <Play className="w-4 h-4 mr-1" />
                 Run
@@ -665,7 +692,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* File Explorer Sidebar */}
           {sidebarOpen && (
-            <div className="ide-sidebar">
+            <div className="ide-sidebar" data-tour="file-explorer">
               <div className="ide-sidebar-header" style={{ justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                   <Code2 className="w-3.5 h-3.5" />
@@ -781,6 +808,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
                 onClick={() => setSidebarOpen(true)}
                 className="p-2 hover:bg-slate-700/50 text-white hover:text-white"
                 title="Show Files"
+                data-tour="file-explorer-toggle"
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
