@@ -187,6 +187,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filesChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingFilesRef = useRef<ProjectFile[] | null>(null);
+  const latestFilesRef = useRef<ProjectFile[]>(files);
   const lastLocalEditAtRef = useRef(0);
   const monacoRef = useRef<Monaco | null>(null);
   const editorRef = useRef<any>(null);
@@ -213,6 +214,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
     if (isEditorFocused && isRecentLocalEdit) return;
 
     setLocalFiles(files);
+    latestFilesRef.current = files;
     if (!files.some((f) => f.name === activeFile) && files.length > 0) {
       setActiveFile(files[0].name);
       setOpenFiles([files[0].name]);
@@ -430,9 +432,9 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
   }, []);
 
   useImperativeHandle(ref, () => ({
-    getLatestFiles: () => localFiles, 
+    getLatestFiles: () => latestFilesRef.current,
     flushPendingFileChanges,
-  }), [localFiles, flushPendingFileChanges]);
+  }), [flushPendingFileChanges]);
 
 
   const currentFile = localFiles.find((f) => f.name === activeFile);
@@ -447,6 +449,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
             ? { ...f, content: value, language: detectLanguage(f.name) }
             : f
         );
+        latestFilesRef.current = updated;
         if (mode === 'python') {
           emitFilesChangeDebounced(updated);
         } else {
@@ -552,6 +555,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
     }
 
     setLocalFiles(updatedFiles);
+    latestFilesRef.current = updatedFiles;
     emitFilesChangeImmediate(updatedFiles);
     setNewFileName('');
     setShowNewFile(false);
@@ -596,6 +600,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
     if (filteredFiles.length <= 1) return; // Don't delete the last file
     const updated = localFiles.filter((f) => f.name !== name);
     setLocalFiles(updated);
+    latestFilesRef.current = updated;
     emitFilesChangeImmediate(updated);
     setOpenFiles((prev) => prev.filter((f) => f !== name));
     if (activeFile === name) {
@@ -618,6 +623,7 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
       f.name === oldName ? { ...f, name: newName, language: detectLanguage(newName) } : f
     );
     setLocalFiles(updated);
+    latestFilesRef.current = updated;
     emitFilesChangeImmediate(updated);
     setOpenFiles((prev) => prev.map((f) => (f === oldName ? newName : f)));
     if (activeFile === oldName) setActiveFile(newName);
