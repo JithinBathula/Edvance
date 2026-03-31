@@ -7,7 +7,6 @@ import edvanceLogoSrc from '../../assets/edvance-logo.svg';
 import {
     Home,
     Users,
-    BookOpen,
     Settings,
     LogOut,
     Flame,
@@ -17,7 +16,7 @@ import {
     RotateCcw,
 } from 'lucide-react';
 
-type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
+type NavTab = 'Home' | 'Classes' | 'Settings';
 
 interface StudentLayoutProps {
     children: ReactNode;
@@ -35,7 +34,6 @@ type LightStats = {
 const navItems: { icon: typeof Home; label: NavTab }[] = [
     { icon: Home, label: 'Home' },
     { icon: Users, label: 'Classes' },
-    { icon: BookOpen, label: 'Projects' },
 ];
 
 export function StudentLayout({ children, user, onLogout, onRestart }: StudentLayoutProps) {
@@ -47,7 +45,6 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
         const p = location.pathname;
         if (p === '/student-dashboard') return 'Home';
         if (p === '/student/classes') return 'Classes';
-        if (p === '/student/projects') return 'Projects';
         if (p === '/student/settings') return 'Settings';
         return null;
     })();
@@ -134,7 +131,6 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
     const navRoutes: Record<NavTab, string> = {
         Home: '/student-dashboard',
         Classes: '/student/classes',
-        Projects: '/student/projects',
         Settings: '/student/settings',
     };
 
