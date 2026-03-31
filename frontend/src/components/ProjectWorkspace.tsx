@@ -265,11 +265,28 @@ function FormattedDescription({
           </div>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {(() => {
+              // Renumber list items AND indent code blocks/non-list lines
+              // under the preceding list item so the markdown parser treats
+              // the whole thing as one continuous ordered list.
               let n = 0;
               let inFence = false;
+              let seenListItem = false;
               return taskSteps.split('\n').map(line => {
-                if (/^```/.test(line)) { inFence = !inFence; return line; }
-                if (!inFence) return line.replace(/^(\d+)\. /, () => `${++n}. `);
+                if (/^```/.test(line)) {
+                  inFence = !inFence;
+                  return seenListItem ? '    ' + line : line;
+                }
+                if (!inFence && /^\d+\. /.test(line)) {
+                  seenListItem = true;
+                  return line.replace(/^\d+\. /, () => `${++n}. `);
+                }
+                // Indent non-list-item lines inside the preceding list item
+                if (seenListItem && !inFence && line.trim() !== '') {
+                  return '    ' + line;
+                }
+                if (seenListItem && inFence) {
+                  return '    ' + line;
+                }
                 return line;
               }).join('\n');
             })()}

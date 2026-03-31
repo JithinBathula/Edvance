@@ -1,116 +1,131 @@
 {
-  "project_title": "AI Quiz Buddy",
-  "project_brief": "Build a fun quiz app where you type any topic and the AI creates 5 multiple-choice questions just for you. Answer the questions, get scored, and see which ones you got right \u2014 all in the terminal!",
+  "project_title": "AI Quest Generator (Choose-Your-Path)",
+  "project_brief": "Build a terminal-based adventure game where you pick a theme, and AI generates short story scenes with two choices each turn. Your choices shape the story, and at the end, the complete adventure is saved to a text file.",
   "milestones": [
     {
-      "subheading_title": "Get topic and check it's appropriate",
-      "description": "Ask the user to type a quiz topic using input(), then use a simple list of blocked words to make sure the topic is school-friendly before continuing. You'll learn about variables, input, and if statements.",
+      "subheading_title": "Generate AI scenes with player choices",
+      "description": "Set up theme selection from a preset list, then use the openai package to generate a kid-friendly scene with exactly 2 numbered choices. You'll learn to call an API and parse its response while building the core game loop that takes player input and validates it.",
       "tasks": [
         {
           "task_id": "1.1",
-          "instruction_theory": "**Task Description**\n\nEvery quiz needs a topic! Before we can make questions about dinosaurs or space, we need to ask the user what they want to learn about. Let's start by getting their topic and storing it.\n\n**Key Concepts**\n\n- `input(\"message\")` \u2014 shows a message and waits for the user to type something, then gives you what they typed.\n- `variable = value` \u2014 stores information under a name so you can use it later.\n\n**Your Task**\n\n1. Use `input()` to ask the user: `What topic would you like a quiz about? `\n2. Store their answer in a variable called `topic`\n3. Print `You chose: ` followed by the topic they entered\n\n**Example**\n\nClick \u25b6 Run to try this:\n```python\nfavourite_food = input(\"What is your favourite food? \")\nprint(\"Yum! You like \" + favourite_food)\n```\nYou should see the question, then after you type something like `pizza` and press Enter:\n```\nYum! You like pizza\n```",
+          "instruction_theory": "**Task Description**\n\nEvery adventure starts with picking a theme! We'll create a list of fun, kid-friendly themes and let the player choose one. This is the foundation of your quest generator.\n\n**Key Concepts**\n\n- `my_list = [\"a\", \"b\", \"c\"]` \u2014 creates a list that stores multiple items you can access later.\n- `for i, item in enumerate(list, 1):` \u2014 loops through a list and gives you both the number (starting at 1) and the item.\n- `int(text)` \u2014 converts text from `input()` into a number so you can use it for math or indexing.\n\n**Your Task**\n\n1. Create a list called `themes` containing exactly these 4 strings: `\"Space Explorer\"`, `\"Pirate Adventure\"`, `\"Mystery Detective\"`, `\"Jungle Safari\"`\n2. Print `\"Choose your adventure theme:\"` on its own line\n3. Use a `for` loop with `enumerate(themes, 1)` to print each theme with its number, like `1. Space Explorer`\n4. Use `input(\"Enter 1, 2, 3, or 4: \")` to get the player's choice and store it in a variable called `choice`\n5. Convert `choice` to an integer, subtract 1 to get the list index, and store the selected theme in a variable called `theme`\n6. Print `\"You chose: \"` followed by the `theme`\n\n**Example**\n\nClick \u25b6 Run to see how `enumerate` works:\n```python\nfruits = [\"apple\", \"banana\", \"cherry\"]\nfor number, fruit in enumerate(fruits, 1):\n    print(str(number) + \". \" + fruit)\n```\nYou should see:\n```\n1. apple\n2. banana\n3. cherry\n```",
           "coding_requirements": [
-            "Use input() with the prompt: What topic would you like a quiz about? ",
-            "Store the user's answer in a variable called topic",
-            "Print You chose: followed by the topic"
+            "Create a list called `themes` with exactly 4 strings: `\"Space Explorer\"`, `\"Pirate Adventure\"`, `\"Mystery Detective\"`, `\"Jungle Safari\"`",
+            "Print `\"Choose your adventure theme:\"` then use a `for` loop with `enumerate(themes, 1)` to display each theme numbered 1-4",
+            "Use `input(\"Enter 1, 2, 3, or 4: \")` to get the player's choice and store it in `choice`",
+            "Convert `choice` to an integer, subtract 1 to get the index, and store the result of `themes[index]` in a variable called `theme`",
+            "Print `\"You chose: \"` followed by the value of `theme`"
           ],
           "hints": [
-            "Don't forget the space after the question mark inside input() \u2014 it makes the typing area look nicer!",
-            "Use the + symbol to join text together, like: \"You chose: \" + topic",
-            "Make sure you spell `topic` exactly the same way each time you use it."
+            "Lists start at index 0, so if the player enters `1`, you need `themes[0]` \u2014 that's why we subtract 1.",
+            "Don't forget `int()` around your input \u2014 without it, `choice` is text and you can't do math with it.",
+            "The `enumerate(themes, 1)` means numbering starts at 1, not 0 \u2014 perfect for user-friendly menus!"
           ],
           "test_specification": {
-            "expected_state": "The program asks for a topic, stores it in a variable called topic, and prints it back",
-            "verification_code": "# Simulating input\ntopic = \"dinosaurs\"\nexpected_output = \"You chose: \" + topic\nprint(expected_output == \"You chose: dinosaurs\")"
+            "expected_state": "The themes list exists with 4 items, and selecting option 2 stores 'Pirate Adventure' in theme",
+            "verification_code": "themes = [\"Space Explorer\", \"Pirate Adventure\", \"Mystery Detective\", \"Jungle Safari\"]\nchoice = \"2\"\nindex = int(choice) - 1\ntheme = themes[index]\nassert theme == \"Pirate Adventure\"\nassert len(themes) == 4"
           },
-          "id": "3e8b3952-fe95-4e0a-9948-7c17fcaa0604"
+          "id": "44a950e0-6d68-4454-aa9e-2fcf01c531f1"
         },
         {
           "task_id": "1.2",
-          "instruction_theory": "**Task Description**\n\nWe want our quiz to be school-friendly, so we need a list of words that aren't allowed. Python can store multiple items in something called a list \u2014 think of it like a shopping list, but for words!\n\n**Key Concepts**\n\n- `[\"item1\", \"item2\", \"item3\"]` \u2014 a list holds multiple items inside square brackets, separated by commas.\n- `text.lower()` \u2014 changes text to all lowercase letters (so \"HELLO\" becomes \"hello\").\n\n**Your Task**\n\n1. Keep your code from the previous task\n2. Create a list called `blocked_words` containing these three words: `\"violence\"`, `\"weapons\"`, `\"drugs\"`\n3. Create a variable called `topic_lower` that stores the topic in lowercase using `.lower()`\n4. Print `Checking: ` followed by `topic_lower`\n\n**Example**\n\nClick \u25b6 Run to try this:\n```python\nmy_list = [\"apple\", \"banana\", \"cherry\"]\nprint(my_list)\n\nword = \"HELLO\"\nword_lower = word.lower()\nprint(word_lower)\n```\nYou should see:\n```\n['apple', 'banana', 'cherry']\nhello\n```",
+          "instruction_theory": "**Task Description**\n\nNow we'll connect to the AI that will generate our story scenes! The platform provides a special AI service \u2014 you just need to set it up and send a message. This is how your game will create unique adventures.\n\n**Key Concepts**\n\n- `os.environ.get(\"NAME\")` \u2014 gets a secret value stored by the system (like a password the platform provides).\n- `client.chat.completions.create(...)` \u2014 sends a message to the AI and gets a response back.\n\n**Your Task**\n\n1. At the very top of your file, add these imports:\n```python\nimport os\nfrom openai import OpenAI\n```\n\n2. Right after the imports, add this setup code:\n```python\ntoken = os.environ.get(\"AUTH_TOKEN\")\nbase_url = os.environ.get(\"BASE_URL\")\nclient = OpenAI(base_url=base_url, api_key=token)\n```\n\n3. After your theme selection code from the previous task, create a variable called `story` and set it to an empty list: `[]`\n\n4. Test the AI connection by adding this code after `story`:\n```python\nresponse = client.chat.completions.create(\n    model=\"gemini-model\",\n    messages=[{\"role\": \"user\", \"content\": \"Say hello in one sentence.\"}]\n)\nprint(response.choices[0].message.content)\n```\n\n5. Run your code \u2014 you should see the theme menu, make a choice, then see a greeting from the AI!\n\n**Example**\n\nHere's how the AI response structure works:\n```python\n# The AI returns a response object\n# response.choices[0].message.content contains the actual text\ntext = response.choices[0].message.content\nprint(text)  # Prints whatever the AI said\n```",
           "coding_requirements": [
-            "Create a list called blocked_words with: violence, weapons, drugs",
-            "Create topic_lower that stores topic.lower()",
-            "Print Checking: followed by topic_lower"
+            "Add `import os` and `from openai import OpenAI` at the top of the file",
+            "Add the three setup lines: `token = os.environ.get(\"AUTH_TOKEN\")`, `base_url = os.environ.get(\"BASE_URL\")`, and `client = OpenAI(base_url=base_url, api_key=token)`",
+            "Create a variable called `story` set to an empty list `[]` after the theme selection code",
+            "Call `client.chat.completions.create()` with `model=\"gemini-model\"` and a test message, then print `response.choices[0].message.content`"
           ],
           "hints": [
-            "Lists use square brackets [ ] not round brackets ( )",
-            "Each word in the list needs quotation marks around it: \"violence\"",
-            "The .lower() goes right after the variable name with no space: topic.lower()"
+            "The imports MUST be at the very top of your file, before any other code.",
+            "Make sure you spell `AUTH_TOKEN` and `BASE_URL` exactly \u2014 they're case-sensitive!",
+            "The `story` list will hold all the scenes and choices as you play \u2014 it starts empty."
           ],
           "test_specification": {
-            "expected_state": "blocked_words contains three strings, topic_lower contains the lowercase version of topic",
-            "verification_code": "blocked_words = [\"violence\", \"weapons\", \"drugs\"]\ntopic = \"DINOSAURS\"\ntopic_lower = topic.lower()\nprint(blocked_words == [\"violence\", \"weapons\", \"drugs\"] and topic_lower == \"dinosaurs\")"
+            "expected_state": "The OpenAI client is set up and a test message successfully returns a response from the AI",
+            "verification_code": "import os\nfrom openai import OpenAI\ntoken = os.environ.get(\"AUTH_TOKEN\")\nbase_url = os.environ.get(\"BASE_URL\")\nclient = OpenAI(base_url=base_url, api_key=token)\nresponse = client.chat.completions.create(model=\"gemini-model\", messages=[{\"role\": \"user\", \"content\": \"Say hello\"}])\nassert len(response.choices[0].message.content) > 0"
           },
-          "id": "7ddd56d3-ed40-4b04-a6bf-7ce0777b79ea"
+          "id": "3a4c62a6-9cae-43db-8146-fc37a82b33e7"
         },
         {
           "task_id": "1.3",
-          "instruction_theory": "**Task Description**\n\nNow we need to check if the topic contains any blocked words. Python can check if something is inside a list using the word `in`. We'll combine this with an `if` statement to make a decision!\n\n**Key Concepts**\n\n- `if condition:` \u2014 runs the indented code below only if the condition is true.\n- `else:` \u2014 runs if the `if` condition was false.\n- `item in list` \u2014 checks if an item exists inside a list (gives True or False).\n\n**Your Task**\n\n1. Keep all your code from the previous tasks\n2. After creating `topic_lower`, add an `if` statement that checks: `if topic_lower in blocked_words:`\n3. Inside the `if` block, print: `Sorry, that topic isn't allowed. Please choose a school-friendly topic!`\n4. Add an `else:` block that prints: `Great choice! Let's make a quiz about ` followed by `topic`\n\n**Example**\n\nClick \u25b6 Run to try this:\n```python\nfruits = [\"apple\", \"banana\", \"cherry\"]\nmy_fruit = \"banana\"\n\nif my_fruit in fruits:\n    print(\"Yes! That's a fruit.\")\nelse:\n    print(\"That's not in my fruit list.\")\n```\nYou should see:\n```\nYes! That's a fruit.\n```",
+          "instruction_theory": "**Task Description**\n\nTime to create the function that asks the AI to generate adventure scenes! This function will send a carefully crafted prompt that tells the AI exactly what kind of story content we want \u2014 kid-friendly scenes with exactly 2 choices.\n\n**Key Concepts**\n\n- `def function_name(param1, param2):` \u2014 creates a reusable block of code that takes inputs and can return a result.\n- `return value` \u2014 sends a value back to wherever the function was called.\n\n**Your Task**\n\n1. Remove the test AI call from the previous task (the one that says \"Say hello\")\n\n2. Create a function called `get_scene` that takes two parameters: `theme` and `story`\n\n3. Inside `get_scene`, create a variable called `prompt` with this exact text (use triple quotes for multi-line strings):\n```python\nprompt = f\"\"\"You are a storyteller for kids. Theme: {theme}.\nWrite a short scene (2-3 sentences) then give exactly 2 numbered choices.\nFormat:\nSCENE: [your scene here]\n1. [first choice]\n2. [second choice]\nKeep it fun and kid-friendly!\"\"\"\n```\n\n4. Inside the function, call the AI with this prompt and store the response\n\n5. Return `response.choices[0].message.content` from the function\n\n6. After the function definition, test it by calling: `scene = get_scene(theme, story)` and then `print(scene)`\n\n**Example**\n\nHere's how functions with parameters work:\n```python\ndef greet_hero(name, quest):\n    message = f\"Welcome, {name}! Your quest: {quest}\"\n    return message\n\nresult = greet_hero(\"Alex\", \"find the treasure\")\nprint(result)\n```\nYou should see:\n```\nWelcome, Alex! Your quest: find the treasure\n```",
           "coding_requirements": [
-            "Use if topic_lower in blocked_words: to check for blocked topics",
-            "Print the not allowed message inside the if block",
-            "Use else: and print the Great choice message with the topic"
+            "Create a function called `get_scene(theme, story)` that takes two parameters",
+            "Inside `get_scene`, create a `prompt` variable using an f-string that includes the `theme` and asks for a scene with exactly 2 numbered choices",
+            "Call `client.chat.completions.create()` inside the function with `model=\"gemini-model\"` and the prompt as the user message",
+            "Return `response.choices[0].message.content` from the function",
+            "Test the function by calling `scene = get_scene(theme, story)` and printing `scene`"
           ],
           "hints": [
-            "The code inside `if` and `else` must be indented (press Tab or use 4 spaces)",
-            "Don't forget the colon : at the end of both `if` and `else` lines",
-            "In the else block, use the original `topic` variable (not `topic_lower`) so it looks nice when printed"
+            "Use `f\"\"\"` (f-string with triple quotes) so you can include `{theme}` and write multiple lines easily.",
+            "The function must be defined BEFORE you call it \u2014 Python reads top to bottom.",
+            "Make sure your `return` statement is inside the function (indented under `def`)."
           ],
           "test_specification": {
-            "expected_state": "If topic_lower matches a blocked word, it prints the not allowed message; otherwise it prints the Great choice message",
-            "verification_code": "blocked_words = [\"violence\", \"weapons\", \"drugs\"]\ntopic_lower = \"violence\"\nis_blocked = topic_lower in blocked_words\ntopic_lower2 = \"dinosaurs\"\nis_allowed = topic_lower2 not in blocked_words\nprint(is_blocked == True and is_allowed == True)"
+            "expected_state": "The get_scene function returns AI-generated text containing a scene and two numbered choices",
+            "verification_code": "# Test that get_scene returns a non-empty string\nscene = get_scene(\"Space Explorer\", [])\nassert isinstance(scene, str)\nassert len(scene) > 10\nassert \"1.\" in scene or \"1)\" in scene"
           },
-          "id": "ab46cf35-09c4-40cf-a072-05cb0f6d280f"
+          "id": "ca14812a-bdb5-457a-ae39-2d3c90478f84"
+        },
+        {
+          "task_id": "1.4",
+          "instruction_theory": "**Task Description**\n\nPlayers need to pick choice 1 or 2, but what if they type something wrong like \"banana\"? We need a function that keeps asking until they enter a valid choice. This is called input validation.\n\n**Key Concepts**\n\n- `while condition:` \u2014 repeats code over and over until the condition becomes False.\n- `value in [\"a\", \"b\"]` \u2014 checks if a value matches any item in the list (returns True or False).\n\n**Your Task**\n\n1. Create a function called `get_choice()` that takes no parameters\n\n2. Inside, use a `while True:` loop that:\n   - Uses `input(\"Enter 1 or 2: \")` and stores it in a variable called `choice`\n   - Checks if `choice` is `\"1\"` or `\"2\"` using: `if choice in [\"1\", \"2\"]:`\n   - If valid, `return choice` (this exits the loop and function)\n   - If not valid, print `\"Please enter 1 or 2.\"`\n\n3. After the function, test it by calling: `player_choice = get_choice()` and then `print(\"You picked: \" + player_choice)`\n\n**Example**\n\nClick \u25b6 Run to see a validation loop in action:\n```python\nwhile True:\n    answer = input(\"Type 'yes' or 'no': \")\n    if answer in [\"yes\", \"no\"]:\n        print(\"Thanks! You said: \" + answer)\n        break  # exits the loop\n    print(\"That's not valid, try again.\")\n```\nTry typing something wrong first, then type `yes` or `no`.",
+          "coding_requirements": [
+            "Create a function called `get_choice()` that takes no parameters",
+            "Inside `get_choice`, use a `while True:` loop that calls `input(\"Enter 1 or 2: \")` and stores the result in `choice`",
+            "Check if `choice in [\"1\", \"2\"]` \u2014 if True, return `choice`",
+            "If the choice is not valid, print `\"Please enter 1 or 2.\"` and the loop continues",
+            "Test by calling `player_choice = get_choice()` and printing the result"
+          ],
+          "hints": [
+            "Use `return choice` instead of `break` \u2014 return exits both the loop AND the function at once.",
+            "Compare strings to strings: `choice in [\"1\", \"2\"]` not `choice in [1, 2]` \u2014 input gives you text!",
+            "The `while True:` runs forever until a `return` statement is reached."
+          ],
+          "test_specification": {
+            "expected_state": "The get_choice function returns '1' or '2' only after valid input, re-prompting on invalid input",
+            "verification_code": "# Simulate the validation logic\ndef test_validation(test_input):\n    return test_input in [\"1\", \"2\"]\n\nassert test_validation(\"1\") == True\nassert test_validation(\"2\") == True\nassert test_validation(\"3\") == False\nassert test_validation(\"banana\") == False"
+          },
+          "id": "13458328-b560-4307-b5de-7e98b85506a6"
         }
       ],
-      "id": "6bb65627-7433-4588-8ca1-a6bb31dfcfa4",
+      "id": "2e450989-1d01-49f0-8dd5-389990fcc638",
       "status": "ready"
     },
     {
-      "id": "b8397862-6c5d-4d0a-b9ed-00392bdd4227",
-      "subheading_title": "Generate quiz questions with AI",
-      "description": "Send the topic to the AI using the openai package and ask it to create 5 multiple-choice questions in a specific format. You'll learn how to call the AI and work with the text it returns.",
+      "id": "5aecb4ef-8752-476e-8069-9e0d7744782f",
+      "subheading_title": "Build the multi-turn adventure loop",
+      "description": "Expand the game to run 3-5 turns, passing the story history to each AI call so scenes connect logically. You'll track choices in a list and display the running story, with a simple fallback if the AI call fails.",
       "tasks": [],
       "status": "generating"
     },
     {
-      "id": "30ed57fb-00d4-4a4b-aa37-52cf5f19abcb",
-      "subheading_title": "Run the quiz and track score",
-      "description": "Show each question one at a time, let the user pick an answer, and keep track of how many they get right using a loop and a counter variable. You'll practice loops and comparing values.",
-      "tasks": [],
-      "status": "generating"
-    },
-    {
-      "id": "eb79f31e-79d2-4b20-a888-a1b70f32f2d8",
-      "subheading_title": "Show results and correct answers",
-      "description": "After all 5 questions, display the final score and reveal which answers were correct so the user can learn from their mistakes. You'll use print statements and stored data to create a nice summary.",
+      "id": "ea3bdb23-5580-4ece-ba70-aeb297ce8647",
+      "subheading_title": "Save the completed adventure to file",
+      "description": "When the adventure ends, write the full story path (theme, scenes, and choices) to a timestamped .txt file using basic file I/O, giving players a keepsake of their unique journey.",
       "tasks": [],
       "status": "generating"
     }
   ],
-  "project_id": "7424ca17-00f8-4040-a37a-942e7093e94c",
+  "project_id": "d709dd35-03e5-4e2a-b809-16afdae511fc",
   "outline": {
     "milestones": [
       {
-        "description": "Ask the user to type a quiz topic using input(), then use a simple list of blocked words to make sure the topic is school-friendly before continuing. You'll learn about variables, input, and if statements.",
-        "subheading_title": "Get topic and check it's appropriate"
+        "description": "Set up theme selection from a preset list, then use the openai package to generate a kid-friendly scene with exactly 2 numbered choices. You'll learn to call an API and parse its response while building the core game loop that takes player input and validates it.",
+        "subheading_title": "Generate AI scenes with player choices"
       },
       {
-        "description": "Send the topic to the AI using the openai package and ask it to create 5 multiple-choice questions in a specific format. You'll learn how to call the AI and work with the text it returns.",
-        "subheading_title": "Generate quiz questions with AI"
+        "description": "Expand the game to run 3-5 turns, passing the story history to each AI call so scenes connect logically. You'll track choices in a list and display the running story, with a simple fallback if the AI call fails.",
+        "subheading_title": "Build the multi-turn adventure loop"
       },
       {
-        "description": "Show each question one at a time, let the user pick an answer, and keep track of how many they get right using a loop and a counter variable. You'll practice loops and comparing values.",
-        "subheading_title": "Run the quiz and track score"
-      },
-      {
-        "description": "After all 5 questions, display the final score and reveal which answers were correct so the user can learn from their mistakes. You'll use print statements and stored data to create a nice summary.",
-        "subheading_title": "Show results and correct answers"
+        "description": "When the adventure ends, write the full story path (theme, scenes, and choices) to a timestamped .txt file using basic file I/O, giving players a keepsake of their unique journey.",
+        "subheading_title": "Save the completed adventure to file"
       }
     ],
-    "project_brief": "Build a fun quiz app where you type any topic and the AI creates 5 multiple-choice questions just for you. Answer the questions, get scored, and see which ones you got right \u2014 all in the terminal!",
-    "project_title": "AI Quiz Buddy",
+    "project_brief": "Build a terminal-based adventure game where you pick a theme, and AI generates short story scenes with two choices each turn. Your choices shape the story, and at the end, the complete adventure is saved to a text file.",
+    "project_title": "AI Quest Generator (Choose-Your-Path)",
     "vm_type": "python"
   },
   "vm_type": "python"
