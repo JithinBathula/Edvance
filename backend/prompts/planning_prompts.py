@@ -29,6 +29,12 @@ IMPORTANT — Keep it real:
 - The student is coding in a web-based IDE (like a browser code editor) — there are NO installations, NO pip install, NO terminal setup. Just code and run.
 - If the project involves AI/LLM features (chatbot, story generator, AI tutor, etc.), the platform provides a built-in AI proxy. Students use the pre-installed openai Python SDK to make real AI calls — no API key needed. So AI-powered projects are fully supported. Design milestones that USE the AI API, not rule-based alternatives.
 
+SKILL-LEVEL CALIBRATION (NON-NEGOTIABLE):
+- Level 1-2 (beginners): These students are learning from scratch. Projects MUST only use print, input, variables, basic math, and simple if/else. Do NOT include milestones requiring loops, lists, dictionaries, functions, classes, file I/O, or AI/LLM features. Every concept is new — milestones should introduce ONE concept at a time.
+- Level 3 (intermediate-low): Can use if/else, for/while loops, and basic lists. Do NOT include classes, file I/O, or AI/LLM features. Functions can be introduced as a stretch goal.
+- Level 4 (intermediate-high): Can use functions, lists, dictionaries. Can introduce classes and file I/O. AI/LLM projects are appropriate.
+- Level 5 (advanced): Can handle anything within platform limits. Challenge them with more complex architecture, not more hand-holding.
+
 Return only valid JSON following the schema.
 """
 
@@ -217,9 +223,10 @@ For each task, use this exact section order in the instruction_theory field:
 1. **Task Description** — 2 sentences of WHY (context only, not syntax explanation).
 
 2. **Key Concepts** — one bullet per NEW Python concept, max 3. Use markdown bullet list: `` - `syntax(param)` — what it returns or does. `` No paragraphs.
-   - Beginner (Level 1-2): always include.
-   - Intermediate (Level 3-4): include only if the concept is genuinely new.
-   - Advanced (Level 5+): skip entirely.
+   - Beginner (Level 1-2): ALWAYS include — explain every concept from scratch.
+   - Intermediate (Level 3): Include ONLY for concepts genuinely new at this level (e.g., nested loops, list methods). Do NOT explain variables, print, input, basic if/else, or simple loops.
+   - Intermediate (Level 4): Include ONLY for advanced concepts (e.g., classes, comprehensions). Do NOT explain functions, lists, dicts, or loops.
+   - Advanced (Level 5): SKIP this section entirely — they know the syntax.
 
 3. **Your Task** - A clear, numbered TODO list of what to code for submission
    - Use EXACT variable names, function names, and expected behaviors
@@ -231,6 +238,9 @@ For each task, use this exact section order in the instruction_theory field:
 4. **Example** — a small, self-contained snippet they can click ▶ Run on.
    - Show the EXACT expected output so they can verify it works.
    - This builds confidence before they start coding for real.
+   - Level 1-2: ALWAYS include — they need to see concepts in action before writing code.
+   - Level 3-4: ONLY include for genuinely new concepts. Skip for concepts they already know.
+   - Level 5: SKIP entirely unless demonstrating a very unusual pattern.
 
 CRITICAL RULES:
 - NEVER include code blocks in "Your Task" that show the solution, structure, or skeleton of what the student needs to write — no "here's the structure to follow" blocks. The ONLY code allowed in "Your Task" is import statements. Describe WHAT to build in plain text, not HOW to write it. The student must figure out the code themselves.
@@ -289,8 +299,39 @@ If the project does NOT use AI features, ignore this section entirely.
 STUDENT PROFILE:
 {user_profile}
 
-**CRITICAL: Use the full student profile to calibrate your teaching approach:**
-- Match explanation depth to their Python skill level
+**CRITICAL: Use the full student profile to calibrate your teaching approach. This is NOT optional — the student's level FUNDAMENTALLY changes how you write tasks:**
+
+LEVEL 1-2 (BEGINNER — every concept is new):
+- Explain EVERY concept: what a variable is, what print() does, what = means
+- Include Key Concepts section in EVERY task
+- Include Example section with runnable code in EVERY task
+- Use simple analogies (e.g., "a variable is like a box with a label")
+- Small steps — one new concept per task maximum
+- Lots of encouragement and context
+
+LEVEL 3 (KNOWS BASICS — loops and conditions are familiar):
+- Do NOT explain variables, print, input, if/else, basic loops — they already know these
+- Only include Key Concepts for genuinely NEW concepts (e.g., nested loops, list methods)
+- Skip Example section for concepts they already know — only include for new ones
+- Tasks can assume they know how to write a for loop or an if statement
+- Focus instructions on WHAT to build, not HOW to write basic syntax
+- Be more direct: "Create a function called X that does Y" — don't explain what a function is
+
+LEVEL 4 (INTERMEDIATE — functions and data structures are familiar):
+- Do NOT explain variables, loops, functions, lists, or dictionaries
+- Only include Key Concepts for advanced concepts (e.g., list comprehensions, dict methods, classes)
+- Tasks should be action-oriented: tell them what to build and what it should do
+- Can give multi-step tasks that combine several concepts
+- Skip Examples unless demonstrating a genuinely unfamiliar pattern
+
+LEVEL 5 (ADVANCED — knows Python well):
+- NEVER include Key Concepts section — they know the syntax
+- NEVER include Examples section — they can figure it out
+- Tasks are pure specifications: "Build X that does Y with Z behavior"
+- Can combine multiple concepts in a single task
+- Challenge them with design decisions, edge cases, and clean code
+
+ADDITIONAL CALIBRATION:
 - Use language appropriate for their education level (younger = simpler words, more analogies)
 - Leverage their prior experience (e.g. Scratch users understand logic flow but not text syntax)
 - Proactively address their stated challenges:
@@ -358,9 +399,10 @@ TASK GENERATION RULES:
    **Key Concepts**
    One bullet per NEW Python concept, max 3. Use markdown bullet list format:
    - `syntax(param)` — what it does in plain English.
-   - Beginner (Level 1-2): always include.
-   - Intermediate (Level 3-4): include only if the concept is genuinely new to this level.
-   - Advanced (Level 5+): omit this section entirely.
+   - Beginner (Level 1-2): ALWAYS include — explain every concept from scratch.
+   - Level 3: ONLY for genuinely new concepts (NOT variables, print, input, if/else, simple loops).
+   - Level 4: ONLY for advanced concepts (NOT functions, lists, dicts, loops).
+   - Level 5: OMIT this section entirely.
 
    **Your Task**
    The numbered task steps — what the student must actually build.
