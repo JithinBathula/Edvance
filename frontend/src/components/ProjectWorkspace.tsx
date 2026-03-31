@@ -1288,6 +1288,25 @@ export function ProjectWorkspace({
                 </div>
               )}
 
+              {/* Move to Next Task Banner — shown after task is completed and success modal is dismissed */}
+              {completedTasks.includes(safeCurrentTask.id) && !showSuccessModal && currentTaskIndex < tasks.length - 1 && (
+                <div className="mb-6 rounded-xl p-4 border border-emerald-200" style={{ background: 'linear-gradient(135deg, #ecfdf5, #d1fae5)' }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <span className="font-semibold text-emerald-800 text-sm">Task completed! Ready for the next one?</span>
+                    </div>
+                    <Button
+                      onClick={handleSuccessNext}
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium text-sm flex items-center gap-1.5"
+                    >
+                      Move to Next Task
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Ask Cody selection popup — always rendered, shown/hidden via ref to avoid re-renders */}
               <div
                 ref={askCodyPopupRef}

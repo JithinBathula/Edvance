@@ -20,7 +20,7 @@ load_dotenv()
 class SubmissionEvaluator:
     """Evaluates code submissions using LLM with structured output."""
     
-    def __init__(self, model: str = "anthropic/claude-sonnet-4") -> None:
+    def __init__(self, model: str = "anthropic/claude-sonnet-4-6") -> None:
         api_key = os.getenv("OPENROUTER_API_KEY")
         self.client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
         self.model = model
