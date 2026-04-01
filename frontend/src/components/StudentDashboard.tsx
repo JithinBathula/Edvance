@@ -99,6 +99,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 const DASHBOARD_TOUR_STORAGE_KEY = 'edvance_student_dashboard_tour_completed';
+const PROJECTS_PER_PAGE = 10;
 
 /* ───────────── Helpers ───────────── */
 
@@ -282,11 +283,13 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
+    const [currentPage, setCurrentPage] = useState(1);
     const [startingAssignment, setStartingAssignment] = useState<string | null>(null);
     const [showTour, setShowTour] = useState(false);
     const dashboardFetchInFlightRef = useRef(false);
     const dashboardRetryTimersRef = useRef<number[]>([]);
     const isMountedRef = useRef(true);
+    const projectsSectionRef = useRef<HTMLDivElement | null>(null);
     const canStartTour = !loading && !!data;
 
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
@@ -316,6 +319,10 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
             return () => window.clearTimeout(timer);
         }
     }, [data, loading, user.onboarding]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter]);
 
     const fetchDashboard = async (retries = 2) => {
         if (dashboardFetchInFlightRef.current) return;
@@ -400,6 +407,13 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         }
     }, [user.onboarding]);
 
+    const changeProjectsPage = (nextPage: number) => {
+        setCurrentPage(nextPage);
+        window.requestAnimationFrame(() => {
+            projectsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
+
     /* ── Content inside layout ── */
     const renderContent = () => {
         /* Loading */
@@ -436,6 +450,12 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         const filteredProjects = filter === 'all' ? allProjects
             : filter === 'in_progress' ? in_progress_projects
                 : completed_projects;
+        const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE));
+        const activePage = Math.min(currentPage, totalPages);
+        const paginatedProjects = filteredProjects.slice(
+            (activePage - 1) * PROJECTS_PER_PAGE,
+            activePage * PROJECTS_PER_PAGE,
+        );
 
         const filterTabs = [
             { key: 'in_progress' as const, label: 'In Progress', count: in_progress_projects.length },
@@ -522,7 +542,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                     <div className="grid grid-cols-12 gap-4">
 
                     {/* ══════ LEFT COLUMN (8 cols) — Projects ══════ */}
-                    <div className="col-span-8 flex flex-col gap-4">
+                    <div ref={projectsSectionRef} className="col-span-8 flex flex-col gap-4">
 
                         {/* Filter Tabs + Title */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
@@ -603,9 +623,10 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     </Card>
                                 </motion.div>
 
-                                {filteredProjects.length > 0 ? filteredProjects.map((project, i) => {
-                                    const color = PROJECT_COLORS[i % PROJECT_COLORS.length];
-                                    const emoji = PROJECT_EMOJIS[i % PROJECT_EMOJIS.length];
+                                {filteredProjects.length > 0 ? paginatedProjects.map((project, i) => {
+                                    const projectIndex = (activePage - 1) * PROJECTS_PER_PAGE + i;
+                                    const color = PROJECT_COLORS[projectIndex % PROJECT_COLORS.length];
+                                    const emoji = PROJECT_EMOJIS[projectIndex % PROJECT_EMOJIS.length];
                                     const isCompleted = project.completed_at != null;
                                     const sourceLabel = project.classroom_name
                                         ? `Class: ${project.classroom_name}`
@@ -708,6 +729,35 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                             <Button size="sm" onClick={onBack}>Browse Projects</Button>
                                         )}
                                     </Card>
+                                )}
+
+                                {filteredProjects.length > PROJECTS_PER_PAGE && (
+                                    <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                                        <p className="text-sm text-slate-500">
+                                            Showing {(activePage - 1) * PROJECTS_PER_PAGE + 1}-{Math.min(activePage * PROJECTS_PER_PAGE, filteredProjects.length)} of {filteredProjects.length}
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => changeProjectsPage(Math.max(activePage - 1, 1))}
+                                                disabled={activePage === 1}
+                                            >
+                                                Previous
+                                            </Button>
+                                            <span className="text-sm font-medium text-slate-600">
+                                                Page {activePage} of {totalPages}
+                                            </span>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => changeProjectsPage(Math.min(activePage + 1, totalPages))}
+                                                disabled={activePage === totalPages}
+                                            >
+                                                Next
+                                            </Button>
+                                        </div>
+                                    </div>
                                 )}
                             </motion.div>
                         </AnimatePresence>
