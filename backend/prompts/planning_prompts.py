@@ -329,16 +329,19 @@ Goal: {description}
 
 TASK GENERATION RULES:
 
-1. **Right Number of Tasks:**
+1. **Right Number of Tasks — HARD LIMIT:**
 
-   - 30-60 min → ~6 tasks TOTAL across all milestones
-   - 1-2 hours → ~10 tasks TOTAL across all milestones
-   - 3-5 hours → ~20 tasks TOTAL across all milestones
-   - 6-12 hours → ~30 tasks TOTAL across all milestones
-   This milestone is {milestone_position} of {total_milestones}.
-   Divide the target evenly across milestones. This milestone is {milestone_position} of {total_milestones},
-   so aim for roughly (total target / {total_milestones}) tasks in THIS milestone.
-   If no duration is provided, default to 3-5 tasks per milestone.
+   ESTIMATED DURATION: {estimated_duration}
+   THIS IS MILESTONE: {milestone_position} of {total_milestones}
+
+   Task count by duration (STRICT — do NOT exceed these):
+   - 30-60 min → 6 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+   - 1-2 hours → 10 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+   - 3-5 hours → 20 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+   - 6-12 hours → 30 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+
+   YOU MUST generate NO MORE THAN {max_tasks_this_milestone} tasks for this milestone.
+   If no duration is provided, default to 3-4 tasks per milestone.
    
    **TASK QUALITY — Every task must produce real, MEANINGFUL, testable functionality:**
    - Each task must result in a function, calculation, condition, loop, or data structure that does something — not just display static text
@@ -352,12 +355,13 @@ TASK GENERATION RULES:
    Format it with markdown. Use **bold** for emphasis, `backticks` for code.
 
    You MUST use these EXACT bold headings in every instruction_theory — no substitutions:
-   - **Part A: Explanation**
-   - **Part B: Try It Out**
-   - **Part C: Your Task**
+   - **Task Description**
+   - **Key Concepts** (Beginner/Intermediate only — omit for Advanced Level 5+)
+   - **Your Task**
+   - **Example**
 
    Do NOT use ## markdown headers instead. Do NOT rename these sections. Do NOT skip any section.
-   If a concept is already known, Part A can be 1-2 sentences and Part B can be shortened, but all three headings MUST still appear.
+   If a concept is already known, sections can be shortened, but all headings MUST still appear.
 
    STRUCTURE — output these exact section headings in this exact order:
 
@@ -377,6 +381,23 @@ TASK GENERATION RULES:
    - Use EXACT variable names and function names
    - Each step is one clear action
    - 2-5 steps max
+
+   *** CRITICAL FORMATTING RULE FOR YOUR TASK STEPS ***
+   When a step contains multiple sub-items (things to print, options to handle, fields to add),
+   you MUST put EACH sub-item on its OWN LINE as a markdown bullet indented under the step.
+   NEVER list sub-items inline separated by dashes on one long line.
+
+   WRONG (all on one line):
+   1. Create a function that: - Prints "Hello" - Prints "World" - Returns True
+
+   CORRECT (each sub-item on its own line):
+   1. Create a function that:
+      - Prints `"Hello"`
+      - Prints `"World"`
+      - Returns `True`
+   2. Call the function to test it
+
+   Use \\n (newlines) in the JSON string to separate each sub-item onto its own line.
 
    **Example**
    - A small, self-contained code snippet they can run with the ▶ Run button
@@ -406,8 +427,9 @@ TASK GENERATION RULES:
    **Your Task**
 
    1. Create two variables: `num1 = 10` and `num2 = 5`
-   2. Calculate their sum and store it in a variable called `result`
-   3. Print: `The answer is: ` followed by `str(result)`
+   2. Calculate and print:
+      - Add them together and store it in a variable called `result`
+      - Print: `The answer is: ` followed by `str(result)`
 
    **Example**
 
@@ -523,7 +545,7 @@ RESPONSE FORMAT (JSON ONLY):
   "tasks": [
     {{
       "task_id": "{milestone_position}.1",
-      "instruction_theory": "<Task Description → Key Concepts (optional, based on level) → Your Task → Example, with markdown formatting>",
+      "instruction_theory": "<Task Description → Key Concepts (optional, based on level) → Your Task → Example, with markdown formatting. REMEMBER: sub-items in Your Task MUST each be on their own line as indented bullets, never inline>",
       "coding_requirements": [
         "<precise, testable requirement with exact names>"
       ],

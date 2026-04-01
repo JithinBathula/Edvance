@@ -815,37 +815,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                             <WeakConceptsCard weakConcepts={weak_concepts ?? []} />
                         </motion.div>
 
-                        {/* XP Chart */}
-                        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
-                            <Card className="p-4 border-slate-100">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-1.5">
-                                        <TrendingUp className="w-4 h-4 text-teal-600" />
-                                        <span className="font-bold text-sm text-slate-800">XP History</span>
-                                    </div>
-                                    <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded font-medium">30d</span>
-                                </div>
-                                <div className="h-28 w-full">
-                                    <ChartContainer config={chartConfig} className="h-full w-full">
-                                        <BarChart data={xp_history} barCategoryGap="25%">
-                                            <defs>
-                                                <linearGradient id="xpGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.7} />
-                                                    <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.3} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                            <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                                            <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={22} />
-                                            <ChartTooltip content={<ChartTooltipContent />} />
-                                            <Bar dataKey="xp" fill="url(#xpGrad)" radius={[3, 3, 0, 0]} />
-                                        </BarChart>
-                                    </ChartContainer>
-                                </div>
-                            </Card>
-                        </motion.div>
-
-                        {/* Skills */}
+                        {/* Skills Learned */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
                             <Card className="p-4 border-slate-100">
                                 <div className="flex items-center gap-1.5 mb-3">

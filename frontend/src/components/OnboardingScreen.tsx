@@ -251,7 +251,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
 
               <RadioGroup
                 value={answers.pythonLevel}
-                onValueChange={(value: string) => setAnswers({ ...answers, pythonLevel: value })}
+                onValueChange={(value: string) => setAnswers({ ...answers, pythonLevel: value, biggestChallenges: [], learningMode: undefined })}
               >
                 <div className="space-y-3">
                   {[
@@ -276,10 +276,25 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                   ))}
                 </div>
               </RadioGroup>
+
+              {answers.pythonLevel && (() => {
+                const levelNum = parseInt(answers.pythonLevel.replace('level-', ''), 10) || 1;
+                if (levelNum >= 4) return (
+                  <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
+                    <strong>Heads up:</strong> At this level, we'll skip basic syntax explanations and won't offer step-by-step hand-holding. You'll get higher-level guidance and more independence.
+                  </div>
+                );
+                if (levelNum === 3) return (
+                  <div className="mt-4 p-3 rounded-lg bg-teal-50 border border-teal-200 text-sm text-teal-700">
+                    <strong>Nice!</strong> We'll keep syntax reminders light and focus more on combining concepts and problem-solving.
+                  </div>
+                );
+                return null;
+              })()}
             </div>
           )}
 
-          {/* Step 4: Biggest Challenges (Multi-select) */}
+          {/* Step 4: Biggest Challenges (Multi-select) — adapted to Python level */}
           {step === 4 && (
             <div className="space-y-6">
               <div>
@@ -288,12 +303,27 @@ export function OnboardingScreen({ user, onComplete }: Props) {
               </div>
 
               <div className="space-y-3">
-                {[
-                  { value: 'syntax', label: "I don't know the words", desc: 'I know what I want to do, but I forget the Python syntax/commands' },
-                  { value: 'planning', label: "I don't know the steps", desc: 'I know Python, but I struggle to break a big problem into small steps' },
-                  { value: 'debugging', label: 'I get stuck on bugs', desc: 'I can write code, but I struggle to find and fix errors when they happen' },
-                  { value: 'advanced', label: 'I want to do more', desc: "I'm bored with the basics; I want to learn better ways to structure my code" },
-                ].map((option) => {
+                {(() => {
+                  const level = answers.pythonLevel || 'level-1';
+                  const levelNum = parseInt(level.replace('level-', ''), 10) || 1;
+                  const allChallenges = [
+                    // Beginner (Level 1-2)
+                    { value: 'syntax', label: "I don't know the words", desc: 'I know what I want to do, but I forget the Python syntax/commands', maxLevel: 2 },
+                    { value: 'blank-page', label: "I don't know where to start", desc: 'I stare at the empty screen and have no idea what to type first', maxLevel: 3 },
+                    { value: 'errors', label: "Error messages confuse me", desc: 'When Python shows red text, I panic and don\'t know how to read it', maxLevel: 2 },
+                    // Shared
+                    { value: 'planning', label: "I don't know the steps", desc: 'I struggle to break a big problem into smaller pieces', minLevel: 2, maxLevel: 4 },
+                    { value: 'debugging', label: 'I get stuck on bugs', desc: 'I can write code, but finding and fixing errors takes forever', minLevel: 2 },
+                    // Intermediate (Level 3-4)
+                    { value: 'combining', label: "Combining concepts is hard", desc: 'I know loops and functions separately, but using them together trips me up', minLevel: 3, maxLevel: 4 },
+                    { value: 'messy-code', label: "My code works but it's messy", desc: 'I get it working but the code is hard to read or full of repeated lines', minLevel: 3 },
+                    // Advanced (Level 4-5)
+                    { value: 'real-world', label: 'I want to build real apps', desc: 'I want to work with APIs, databases, or build projects that feel like real software', minLevel: 5 },
+                    { value: 'architecture', label: 'I want to plan bigger projects', desc: 'I can code features, but I struggle to design a whole program from scratch', minLevel: 4 },
+                  ];
+                  return allChallenges 
+                    .filter(c => levelNum >= (c.minLevel || 1) && levelNum <= (c.maxLevel || 99));
+                })().map((option) => {
                   const isChecked = answers.biggestChallenges?.includes(option.value) ?? false;
                   return (
                     <label
@@ -321,7 +351,7 @@ export function OnboardingScreen({ user, onComplete }: Props) {
             </div>
           )}
 
-          {/* Step 5: Learning Mode / Guidance Preference */}
+          {/* Step 5: Learning Mode / Guidance Preference — adapted to Python level */}
           {step === 5 && (
             <div className="space-y-6">
               <div>
@@ -334,11 +364,17 @@ export function OnboardingScreen({ user, onComplete }: Props) {
                 onValueChange={(value: string) => setAnswers({ ...answers, learningMode: value })}
               >
                 <div className="space-y-3">
-                  {[
-                    { value: 'guided', label: 'Hold my hand', desc: 'Detailed instructions for every single line of code' },
-                    { value: 'roadmap', label: 'Give me the roadmap', desc: "High-level steps, I'll figure out the syntax myself" },
-                    { value: 'challenge', label: 'Challenge me', desc: "Just tell me the logic, I'll write the code and ask for hints only when stuck" },
-                  ].map((option) => (
+                  {(() => {
+                    const level = answers.pythonLevel || 'level-1';
+                    const levelNum = parseInt(level.replace('level-', ''), 10) || 1;
+                    const allModes = [
+                      { value: 'guided', label: 'Hold my hand', desc: 'Detailed instructions for every single line of code', maxLevel: 4 },
+                      { value: 'roadmap', label: 'Give me the roadmap', desc: "High-level steps, I'll figure out the syntax myself", minLevel: 1 },
+                      { value: 'challenge', label: 'Challenge me', desc: "Just tell me the logic, I'll write the code and ask for hints only when stuck", minLevel: 3 },
+                    ];
+                    return allModes
+                      .filter(m => levelNum >= (m.minLevel || 1) && levelNum <= (m.maxLevel || 99));
+                  })().map((option) => (
                     <label
                       key={option.value}
                       className="flex items-start space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-teal-500 cursor-pointer transition-colors"

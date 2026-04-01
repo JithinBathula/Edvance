@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight, oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { usePyodide } from '../hooks/usePyodide';
 import { Play, Square, Loader2, GripHorizontal } from 'lucide-react';
 
@@ -24,7 +24,7 @@ del __ctx_s, __ctx_i, __ctx_b, __ctx_sv
 ${snippet}`;
 }
 
-export function RunnableCodeBlock({ code, contextCode }: { code: string; contextCode?: string }) {
+export function RunnableCodeBlock({ code, contextCode, theme = 'dark' }: { code: string; contextCode?: string; theme?: 'light' | 'dark' }) {
   const { runCode, stopCode, output, isRunning, status, inputPrompt, submitInput } = usePyodide();
   const [inputValue, setInputValue] = useState('');
   const [hasRun, setHasRun] = useState(false);
@@ -33,6 +33,8 @@ export function RunnableCodeBlock({ code, contextCode }: { code: string; context
   const dragging = useRef(false);
   const dragStartY = useRef(0);
   const dragStartH = useRef(0);
+
+  const isDark = theme === 'dark';
 
   // Stop execution on unmount (user collapsed Part B while running)
   const stopRef = useRef(stopCode);
@@ -87,10 +89,10 @@ export function RunnableCodeBlock({ code, contextCode }: { code: string; context
   const pyodideLoading = status === 'loading' || status === 'idle';
 
   return (
-    <div className="rounded-lg border border-gray-200 overflow-hidden mb-4">
+    <div className={`rounded-lg border overflow-hidden mb-4 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-b border-gray-200">
-        <span className="text-xs font-medium text-gray-500">Python</span>
+      <div className={`flex items-center justify-between px-3 py-1.5 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Python</span>
         {isRunning ? (
           <button onClick={stopCode} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
             <Square className="w-3 h-3" /> Stop
@@ -105,8 +107,9 @@ export function RunnableCodeBlock({ code, contextCode }: { code: string; context
       {/* Syntax-highlighted code */}
       <SyntaxHighlighter
         language="python"
-        style={oneLight}
-        customStyle={{ margin: 0, padding: '1rem', fontSize: '0.8125rem', lineHeight: '1.6', background: '#f9fafb', borderRadius: 0 }}
+        style={isDark ? oneDark : oneLight}
+        customStyle={{ margin: 0, padding: '1rem', fontSize: '0.8125rem', lineHeight: '1.6', background: isDark ? '#1e293b' : '#f9fafb', borderRadius: 0, overflowX: 'hidden' }}
+        wrapLongLines={true}
       >
         {code}
       </SyntaxHighlighter>

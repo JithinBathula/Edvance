@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import math
 from typing import Any, Dict, List, Sequence, Optional
 
 from dotenv import load_dotenv
@@ -300,6 +301,20 @@ class CurriculumPlanner:
                         already_built_lines.append(stripped)
         already_built_features = "\n".join(already_built_lines) if already_built_lines else "This is the first milestone — nothing has been built yet."
 
+        # Calculate max tasks per milestone based on duration
+        duration_lower = (estimated_duration or "").lower()
+        if "30" in duration_lower or "60 min" in duration_lower:
+            total_target = 6
+        elif "1" in duration_lower and "hour" in duration_lower or "1-2" in duration_lower:
+            total_target = 10
+        elif "3" in duration_lower or "5" in duration_lower and "hour" in duration_lower:
+            total_target = 20
+        elif "6" in duration_lower or "12" in duration_lower:
+            total_target = 30
+        else:
+            total_target = total_milestones * 4  # default ~4 per milestone
+        max_tasks_this_milestone = max(2, math.ceil(total_target / max(total_milestones, 1)))
+
         messages = [
             {"role": "system", "content": prompt_bank.task_generation_system_prompt},
             {
@@ -315,6 +330,7 @@ class CurriculumPlanner:
                     description=milestone.description,
                     estimated_duration=estimated_duration,
                     total_milestones=total_milestones,
+                    max_tasks_this_milestone=max_tasks_this_milestone,
                     base_url=os.getenv("BASE_URL", ""),
                     blueprint_json=blueprint_json,
                     previous_milestones_summary=summary_text,
@@ -328,7 +344,7 @@ class CurriculumPlanner:
             m = Milestone.model_validate_json(content)
             # Validate instruction_theory format
             for task in m.tasks:
-                required_sections = ["**Part A: Explanation**", "**Part B: Try It Out**", "**Part C: Your Task**"]
+                required_sections = ["**Task Description**", "**Your Task**", "**Example**"]
                 missing = [s for s in required_sections if s not in task.instruction_theory]
                 if missing:
                     logger.warning("Task %s missing instruction_theory sections: %s", task.task_id, missing)

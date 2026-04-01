@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { WorkspaceTour } from './WorkspaceTour';
 import codyUrl from '../assets/cody.svg';
 
@@ -79,10 +81,21 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
         return <RunnableCodeBlock code={codeText} contextCode={contextCode} />;
       }
     }
+    // Extract code text and language for syntax highlighting
+    const codeText = String(children?.props?.children || '').replace(/\n$/, '');
+    const langClass: string = children?.props?.className || '';
+    const lang = langClass.replace('language-', '') || 'python';
     return (
-      <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
-        {children}
-      </pre>
+      <div className="rounded-lg overflow-hidden my-2">
+        <SyntaxHighlighter
+          language={lang}
+          style={oneDark}
+          customStyle={{ margin: 0, padding: '0.75rem 1rem', fontSize: '0.8125rem', lineHeight: '1.6', background: '#1e293b', borderRadius: '0.5rem', overflowX: 'hidden' }}
+          wrapLongLines={true}
+        >
+          {codeText}
+        </SyntaxHighlighter>
+      </div>
     );
   },
   ul: ({ children }: any) => (
@@ -159,15 +172,11 @@ function splitIntoParts(text: string): { intro: string; keyConcepts: string; tas
   };
 
   const intro       = introMatch    ? sliceBetween(introMatch, nextMatch('intro')) : sliceBetween(null, all[0]?.match ?? null);
-  // Key Concepts + Try It Out combined into one collapsible section
-  let keyConcepts = kcMatch ? sliceBetween(kcMatch, nextMatch('kc')) : '';
-  const tryItContent = tryItMatch ? sliceBetween(tryItMatch, nextMatch('tryIt')) : '';
-  if (tryItContent) {
-    keyConcepts = keyConcepts + (keyConcepts ? '\n\n' : '') + '**Try It Out**\n\n' + tryItContent;
-  }
+  const keyConcepts = kcMatch ? sliceBetween(kcMatch, nextMatch('kc')) : '';
+  const example     = tryItMatch ? sliceBetween(tryItMatch, nextMatch('tryIt')) : '';
   const taskSteps   = yourTaskMatch ? sliceBetween(yourTaskMatch, nextMatch('task')) : '';
 
-  return { intro, keyConcepts, taskSteps, example: '' };
+  return { intro, keyConcepts, taskSteps, example };
 }
 
 // Component to format task description: Task Description always visible, Example collapsible
@@ -179,12 +188,12 @@ function FormattedDescription({
   contextCode?: string;
 }) {
   const { intro, keyConcepts, taskSteps, example } = splitIntoParts(text);
-  const [tryItOpen, setTryItOpen] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
   const [conceptsOpen, setConceptsOpen] = useState(true);
 
   // Reset when task changes
   useEffect(() => {
-    setTryItOpen(false);
+    setExampleOpen(false);
     setConceptsOpen(true);
   }, [text]);
 
@@ -212,6 +221,15 @@ function FormattedDescription({
           font-size: inherit !important;
           border: none !important;
         }
+        .task-content pre {
+          overflow-x: hidden !important;
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+        }
+        .task-content pre code {
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+        }
         .task-ol {
           counter-reset: task-counter;
           list-style: none;
@@ -219,41 +237,45 @@ function FormattedDescription({
           margin: 0;
           display: flex;
           flex-direction: column;
-          gap: 0.625rem;
+          gap: 0.5rem;
         }
         .task-ol > li {
           counter-increment: task-counter;
           position: relative;
-          padding: 0.875rem 1rem 0.875rem 3rem;
+          padding-left: 1.75rem;
           color: #374151;
           font-size: 15px;
           line-height: 1.6;
-          background: #fafafa;
-          border-radius: 0.75rem;
-          border: 1px solid #f0f0f0;
         }
         .task-ol > li::before {
-          content: counter(task-counter);
+          content: counter(task-counter) ".";
           position: absolute;
-          left: 0.75rem;
-          top: 0.875rem;
-          width: 1.5rem;
-          height: 1.5rem;
-          background: #f97316;
-          color: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          left: 0;
           font-weight: 700;
-          font-size: 12px;
+          color: #ea580c;
+          font-size: 15px;
+        }
+        .task-ol ul {
+          list-style-type: disc;
+          margin-left: 0.5rem;
+          margin-top: 0.375rem;
+          margin-bottom: 0.25rem;
+          padding-left: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .task-ol ul li {
+          color: #374151;
+          font-size: 15px;
+          line-height: 1.6;
         }
         .section-label {
-          font-size: 11px;
-          font-weight: 600;
+          font-size: 12px;
+          font-weight: 800;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #6b7280;
           margin-bottom: 0.75rem;
           padding-bottom: 0.5rem;
           border-bottom: 1px solid #f3f4f6;
@@ -269,8 +291,7 @@ function FormattedDescription({
 
       {/* Intro paragraph — always visible */}
       {intro && (
-        <div className="task-content mb-5">
-          <div className="section-label">Explanation</div>
+        <div className="task-content mb-4">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {intro}
           </ReactMarkdown>
@@ -285,7 +306,7 @@ function FormattedDescription({
             className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-amber-50 transition-colors"
           >
             <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 flex-1">Key Concepts</span>
+            <span className="text-sm font-semibold text-amber-700 flex-1">Key Concepts</span>
             <ChevronDown
               className={`w-4 h-4 text-amber-400 transition-transform duration-200 ${conceptsOpen ? '-rotate-180' : ''}`}
             />
@@ -305,14 +326,60 @@ function FormattedDescription({
       {/* Task steps — always visible */}
       {taskSteps && (
         <div className="task-content mb-5">
-          <div className="section-label">Your Task</div>
+          <p className="font-bold text-lg text-gray-900 mb-3">Your Task:</p>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {(() => {
+              // Pre-process: split inline sub-items onto separate lines
+              // "1. Do X: - item1 - item2" → "1. Do X:\n   - item1\n   - item2"
+              // Uses " - " (space-hyphen-space) as delimiter, but NOT " — " (em-dash)
+              const rawLines = taskSteps.split('\n');
+              const lines: string[] = [];
+              for (const line of rawLines) {
+                // Split on " - " (hyphen only, not em-dash —)
+                const parts = line.split(/ - (?=[`"'\w])/);
+                if (parts.length >= 3) {
+                  lines.push(parts[0].replace(/:\s*$/, ':'));
+                  for (let j = 1; j < parts.length; j++) {
+                    lines.push(`   - ${parts[j]}`);
+                  }
+                } else {
+                  lines.push(line);
+                }
+              }
+
+              // Two-pass approach:
+              // Pass 1: identify which top-level numbered items exist (lines starting with \d+. at column 0)
+              // Pass 2: indent everything else under the last top-level item
+
+              // Find top-level list item line indices
+              // A top-level item is a `\d+. ` line at column 0 that is NOT inside a code fence
+              const topLevelIndices = new Set<number>();
+              let scanFence = false;
+              for (let i = 0; i < lines.length; i++) {
+                if (/^```/.test(lines[i])) { scanFence = !scanFence; continue; }
+                if (scanFence) continue;
+                if (/^\d+\. /.test(lines[i])) {
+                  topLevelIndices.add(i);
+                }
+              }
+
               let n = 0;
               let inFence = false;
-              return taskSteps.split('\n').map(line => {
-                if (/^```/.test(line)) { inFence = !inFence; return line; }
-                if (!inFence) return line.replace(/^(\d+)\. /, () => `${++n}. `);
+              let insideListItem = false;
+              return lines.map((line, i) => {
+                if (/^```/.test(line)) {
+                  inFence = !inFence;
+                  return insideListItem ? '    ' + line : line;
+                }
+                if (!inFence && topLevelIndices.has(i)) {
+                  insideListItem = true;
+                  return line.replace(/^\d+\. /, () => `${++n}. `);
+                }
+                // Indent non-top-level content under the current list item
+                // but only if not already indented (e.g. sub-items like "   - item")
+                if (insideListItem && line.trim() !== '' && !/^\s{2,}/.test(line)) {
+                  return '    ' + line;
+                }
                 return line;
               }).join('\n');
             })()}
@@ -320,7 +387,30 @@ function FormattedDescription({
         </div>
       )}
 
-      {/* Try It Out is now inside Key Concepts */}
+      {/* Example — separate collapsible card */}
+      {example && (
+        <div className="border border-teal-200 rounded-lg mb-5 overflow-hidden">
+          <button
+            onClick={() => setExampleOpen(prev => !prev)}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-teal-50 transition-colors"
+          >
+            <Code2 className="w-4 h-4 text-teal-600 shrink-0" />
+            <span className="text-sm font-bold text-teal-700 flex-1">Example</span>
+            <ChevronDown
+              className={`w-4 h-4 text-teal-400 transition-transform duration-200 ${exampleOpen ? '-rotate-180' : ''}`}
+            />
+          </button>
+          {exampleOpen && (
+            <div className="px-4 pb-3 pt-1 border-t border-teal-100 bg-teal-50/30">
+              <div className="task-content">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={interactiveComponents}>
+                  {example}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Fallback: no sections detected */}
       {!intro && !keyConcepts && !taskSteps && !example && (
