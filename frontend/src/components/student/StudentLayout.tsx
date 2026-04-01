@@ -23,6 +23,7 @@ interface StudentLayoutProps {
     user: User;
     onLogout: () => void;
     onRestart?: (() => void) | null;
+    headerActions?: ReactNode;
 }
 
 type LightStats = {
@@ -36,7 +37,7 @@ const navItems: { icon: typeof Home; label: NavTab }[] = [
     { icon: Users, label: 'Classes' },
 ];
 
-export function StudentLayout({ children, user, onLogout, onRestart }: StudentLayoutProps) {
+export function StudentLayout({ children, user, onLogout, onRestart, headerActions }: StudentLayoutProps) {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -176,7 +177,7 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5" data-tour="dashboard-sidebar-top">
                     {navItems.map((item, i) => {
                         const isActive = activeTab === item.label;
                         return (
@@ -199,7 +200,7 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
 
                 <div className="flex-1" />
 
-                <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
+                <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3" data-tour="dashboard-sidebar-bottom">
                     {[
                         { icon: Settings, label: 'Settings' as const, onClick: handleSettingsClick },
                         { icon: LogOut, label: 'Log Out' as const, onClick: onLogout },
@@ -279,6 +280,7 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-3 text-sm text-slate-500">
+                            {headerActions}
                             {onRestart && (
                                 <>
                                     <button

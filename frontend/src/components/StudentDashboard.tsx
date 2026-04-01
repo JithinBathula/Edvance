@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../App';
@@ -6,6 +6,7 @@ import { BACKEND_URL } from '../utils/constants';
 import { authFetch } from '../utils/authFetch';
 import { toast } from 'sonner';
 import { StudentLayout } from './student/StudentLayout';
+import { StudentDashboardTour } from './StudentDashboardTour';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import {
@@ -96,6 +97,8 @@ type Props = {
 const chartConfig = {
     xp: { label: 'XP Earned', color: '#0d9488' },
 } satisfies ChartConfig;
+
+const DASHBOARD_TOUR_STORAGE_KEY = 'edvance_student_dashboard_tour_completed';
 
 /* ───────────── Helpers ───────────── */
 
@@ -280,9 +283,11 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
     const [startingAssignment, setStartingAssignment] = useState<string | null>(null);
+    const [showTour, setShowTour] = useState(false);
     const dashboardFetchInFlightRef = useRef(false);
     const dashboardRetryTimersRef = useRef<number[]>([]);
     const isMountedRef = useRef(true);
+    const canStartTour = !loading && !!data;
 
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
 
@@ -295,6 +300,22 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
             dashboardRetryTimersRef.current = [];
         };
     }, [user.id]);
+
+    useEffect(() => {
+        if (loading || !data) return;
+
+        const dbDone = user.onboarding?.student_dashboard_tour_completed === true;
+        if (dbDone) {
+            localStorage.setItem(DASHBOARD_TOUR_STORAGE_KEY, 'true');
+            return;
+        }
+
+        const localDone = localStorage.getItem(DASHBOARD_TOUR_STORAGE_KEY) === 'true';
+        if (!localDone && window.innerWidth >= 768) {
+            const timer = window.setTimeout(() => setShowTour(true), 1200);
+            return () => window.clearTimeout(timer);
+        }
+    }, [data, loading, user.onboarding]);
 
     const fetchDashboard = async (retries = 2) => {
         if (dashboardFetchInFlightRef.current) return;
@@ -358,6 +379,27 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         }
     };
 
+    const handleTourComplete = useCallback(async () => {
+        setShowTour(false);
+        localStorage.setItem(DASHBOARD_TOUR_STORAGE_KEY, 'true');
+
+        const nextOnboarding = {
+            ...(user.onboarding || {}),
+            student_dashboard_tour_completed: true,
+        };
+
+        try {
+            await authFetch('/users/onboarding', {
+                method: 'POST',
+                body: JSON.stringify({
+                    onboardingData: nextOnboarding,
+                }),
+            });
+        } catch (err) {
+            console.error('Failed to persist dashboard tour completion:', err);
+        }
+    }, [user.onboarding]);
+
     /* ── Content inside layout ── */
     const renderContent = () => {
         /* Loading */
@@ -407,7 +449,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                     {/* Quick Stats Top Row */}
                     <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-4 gap-3" data-tour="dashboard-top-stats">
                             {[
                                 {
                                     value: stats.total_projects,
@@ -538,6 +580,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     whileTap={{ scale: 0.99 }}
                                     onClick={() => navigate('/custom-project')}
                                     className="cursor-pointer"
+                                    data-tour="dashboard-create-project"
                                 >
                                     <Card className="p-4 border-slate-100 hover:shadow-md transition-shadow border-dashed">
                                         <div className="flex items-center gap-4">
@@ -675,7 +718,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                         {/* Profile Card */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-                            <Card className="p-5 border-slate-100">
+                            <Card className="p-5 border-slate-100" data-tour="dashboard-profile-card">
                                 <div className="flex items-center gap-3">
                                     <motion.div
                                         initial={{ scale: 0 }}
@@ -815,36 +858,6 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                             <WeakConceptsCard weakConcepts={weak_concepts ?? []} />
                         </motion.div>
 
-                        {/* XP Chart */}
-                        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
-                            <Card className="p-4 border-slate-100">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-1.5">
-                                        <TrendingUp className="w-4 h-4 text-teal-600" />
-                                        <span className="font-bold text-sm text-slate-800">XP History</span>
-                                    </div>
-                                    <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded font-medium">30d</span>
-                                </div>
-                                <div className="h-28 w-full">
-                                    <ChartContainer config={chartConfig} className="h-full w-full">
-                                        <BarChart data={xp_history} barCategoryGap="25%">
-                                            <defs>
-                                                <linearGradient id="xpGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.7} />
-                                                    <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.3} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                            <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                                            <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={22} />
-                                            <ChartTooltip content={<ChartTooltipContent />} />
-                                            <Bar dataKey="xp" fill="url(#xpGrad)" radius={[3, 3, 0, 0]} />
-                                        </BarChart>
-                                    </ChartContainer>
-                                </div>
-                            </Card>
-                        </motion.div>
-
                         {/* Skills */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
                             <Card className="p-4 border-slate-100">
@@ -888,8 +901,38 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     };
 
     return (
-        <StudentLayout user={user} onLogout={onLogout}>
-            {renderContent()}
-        </StudentLayout>
+        <>
+            <StudentLayout
+                user={user}
+                onLogout={onLogout}
+                headerActions={
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (canStartTour) setShowTour(true);
+                        }}
+                        disabled={!canStartTour}
+                        className={`flex items-center gap-1.5 text-sm transition-colors bg-transparent border-none ${
+                            canStartTour
+                                ? 'text-teal-600 hover:text-teal-700 cursor-pointer'
+                                : 'text-slate-300 cursor-not-allowed'
+                        }`}
+                        title="Take a tour"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        <span className="font-medium">Tour</span>
+                    </button>
+                }
+            >
+                {renderContent()}
+            </StudentLayout>
+            {showTour && (
+                <StudentDashboardTour
+                    isOpen={showTour}
+                    onComplete={handleTourComplete}
+                    onSkip={handleTourComplete}
+                />
+            )}
+        </>
     );
 }
