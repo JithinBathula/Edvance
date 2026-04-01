@@ -480,9 +480,9 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 },
                                 {
                                     value: `${stats.completed_projects}/${stats.total_projects || 0}`,
-                                    label: 'Completed',
+                                    label: 'Completed Projects',
                                     note: `${overallPercent}% overall`,
-                                    trend: `${totalTasks - doneTasks} pending`,
+                                    trend: `${totalTasks - doneTasks} pending tasks`,
                                     progress: overallPercent,
                                     color: 'text-emerald-700',
                                     barColor: 'bg-emerald-600'
