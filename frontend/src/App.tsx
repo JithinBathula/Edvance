@@ -38,6 +38,7 @@ export type OnboardingData = {
   learningMode: string;          // hold-my-hand, roadmap, challenge-me
   theme?: string;                // Project theme: finance, gaming, etc.
   workspace_tour_completed?: boolean;
+  student_dashboard_tour_completed?: boolean;
 };
 
 export type User = {
@@ -334,7 +335,13 @@ export default function App() {
 
   const handleProfileUpdate = (onboardingData: OnboardingData) => {
     if (user) {
-      const updatedUser = { ...user, onboarding: onboardingData };
+      const updatedUser = {
+        ...user,
+        onboarding: {
+          ...(user.onboarding || {}),
+          ...onboardingData,
+        },
+      };
       setUser(updatedUser);
       localStorage.setItem('edvance_user', JSON.stringify(updatedUser));
     }

@@ -329,6 +329,7 @@ function FormattedDescription({
           <p className="font-bold text-lg text-gray-900 mb-3">Your Task:</p>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {(() => {
+<<<<<<< HEAD
               // Pre-process: split inline sub-items onto separate lines
               // "1. Do X: - item1 - item2" → "1. Do X:\n   - item1\n   - item2"
               // Uses " - " (space-hyphen-space) as delimiter, but NOT " — " (em-dash)
@@ -378,6 +379,28 @@ function FormattedDescription({
                 // Indent non-top-level content under the current list item
                 // but only if not already indented (e.g. sub-items like "   - item")
                 if (insideListItem && line.trim() !== '' && !/^\s{2,}/.test(line)) {
+=======
+              // Renumber list items AND indent code blocks/non-list lines
+              // under the preceding list item so the markdown parser treats
+              // the whole thing as one continuous ordered list.
+              let n = 0;
+              let inFence = false;
+              let seenListItem = false;
+              return taskSteps.split('\n').map(line => {
+                if (/^```/.test(line)) {
+                  inFence = !inFence;
+                  return seenListItem ? '    ' + line : line;
+                }
+                if (!inFence && /^\d+\. /.test(line)) {
+                  seenListItem = true;
+                  return line.replace(/^\d+\. /, () => `${++n}. `);
+                }
+                // Indent non-list-item lines inside the preceding list item
+                if (seenListItem && !inFence && line.trim() !== '') {
+                  return '    ' + line;
+                }
+                if (seenListItem && inFence) {
+>>>>>>> staging
                   return '    ' + line;
                 }
                 return line;
@@ -853,10 +876,12 @@ export function ProjectWorkspace({
   };
 
   const handleCompleteTask = async () => {
-    // flush any pending debounced changes from the editor FIRST
+    // Get the latest files directly from the editor (React state may be stale)
+    const latestFiles = editorRef.current?.getLatestFiles?.() || projectFiles;
     editorRef.current?.flushPendingFileChanges?.();
+
     // Format all files for evaluation
-    const code = projectFiles
+    const code = latestFiles
       .map(f => `# === ${f.name} ===\n${f.content || ''}`)
       .join('\n\n');
 
@@ -865,7 +890,7 @@ export function ProjectWorkspace({
 
     try {
       // Save files BEFORE submitting so storage is always up-to-date
-      await saveFiles(projectFiles);
+      await saveFiles(latestFiles);
 
       const response = await authFetch('/submission/evaluate', {
         method: 'POST',
@@ -884,7 +909,7 @@ export function ProjectWorkspace({
       }
 
       if (data.is_correct) {
-        await saveFiles(projectFiles);
+        await saveFiles(latestFiles);
 
         const newCompleted = Array.from(new Set([...completedTasks, safeCurrentTask.id]));
         setCompletedTasks(newCompleted);

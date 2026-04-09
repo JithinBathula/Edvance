@@ -32,16 +32,99 @@ type IncomingMessage = RunMessage | InputResponseMessage;
 // Pending input resolve function
 let inputResolve: ((value: string) => void) | null = null;
 
+const OUTPUT_FLUSH_MS = 32;
+const OUTPUT_BATCH_SIZE = 2048;
+const OUTPUT_MAX_CHARS = 20_000;
+
+let stdoutBuffer = '';
+let stderrBuffer = '';
+let stdoutFlushTimer: ReturnType<typeof setTimeout> | null = null;
+let stderrFlushTimer: ReturnType<typeof setTimeout> | null = null;
+let totalOutputChars = 0;
+let outputLimitReached = false;
+
 function postStatus(status: 'loading' | 'ready' | 'running' | 'done') {
   self.postMessage({ type: 'status', status });
 }
 
+function flushStdout() {
+  if (stdoutFlushTimer) {
+    clearTimeout(stdoutFlushTimer);
+    stdoutFlushTimer = null;
+  }
+  if (!stdoutBuffer) return;
+  self.postMessage({ type: 'stdout', text: stdoutBuffer });
+  stdoutBuffer = '';
+}
+
+function flushStderr() {
+  if (stderrFlushTimer) {
+    clearTimeout(stderrFlushTimer);
+    stderrFlushTimer = null;
+  }
+  if (!stderrBuffer) return;
+  self.postMessage({ type: 'stderr', text: stderrBuffer });
+  stderrBuffer = '';
+}
+
+function flushOutputBuffers() {
+  flushStdout();
+  flushStderr();
+}
+
+function resetOutputBuffers() {
+  flushOutputBuffers();
+  totalOutputChars = 0;
+  outputLimitReached = false;
+}
+
+function notifyOutputLimit() {
+  if (outputLimitReached) return;
+  outputLimitReached = true;
+  stderrBuffer += '\nOutput limit reached. Execution stopped.\n';
+  flushOutputBuffers();
+  self.postMessage({ type: 'outputLimit' });
+}
+
+function queueOutput(kind: 'stdout' | 'stderr', text: string) {
+  if (!text || outputLimitReached) return;
+
+  const remaining = OUTPUT_MAX_CHARS - totalOutputChars;
+  if (remaining <= 0) {
+    notifyOutputLimit();
+    return;
+  }
+
+  const chunk = text.length > remaining ? text.slice(0, remaining) : text;
+  totalOutputChars += chunk.length;
+
+  if (kind === 'stdout') {
+    stdoutBuffer += chunk;
+    if (stdoutBuffer.length >= OUTPUT_BATCH_SIZE) {
+      flushStdout();
+    } else if (!stdoutFlushTimer) {
+      stdoutFlushTimer = setTimeout(flushStdout, OUTPUT_FLUSH_MS);
+    }
+  } else {
+    stderrBuffer += chunk;
+    if (stderrBuffer.length >= OUTPUT_BATCH_SIZE) {
+      flushStderr();
+    } else if (!stderrFlushTimer) {
+      stderrFlushTimer = setTimeout(flushStderr, OUTPUT_FLUSH_MS);
+    }
+  }
+
+  if (chunk.length < text.length) {
+    notifyOutputLimit();
+  }
+}
+
 function postStdout(text: string) {
-  self.postMessage({ type: 'stdout', text });
+  queueOutput('stdout', text);
 }
 
 function postStderr(text: string) {
-  self.postMessage({ type: 'stderr', text });
+  queueOutput('stderr', text);
 }
 
 function postInputRequest(prompt: string) {
@@ -161,6 +244,7 @@ await pyodide.runPythonAsync(openaiShimCode);
 
 async function runCode(files: Array<{ name: string; content: string }>, entryFile: string, authToken?: string) {
   try {
+    resetOutputBuffers();
     const py = await loadPyodideRuntime();
 
     postStatus('running');
@@ -423,28 +507,34 @@ if '' not in sys.path:
     );
 
     if (executionError === '__SYSTEM_EXIT__') {
+      flushOutputBuffers();
       postResult(true);
       return;
     }
 
     if (typeof executionError === 'string' && executionError.trim()) {
       postStderr(executionError);
+      flushOutputBuffers();
       postResult(false, executionError);
       return;
     }
 
+    flushOutputBuffers();
     postResult(true);
   } catch (err: any) {
     const message = err?.message || String(err);
     // SystemExit is normal (sys.exit()) — not an error
     if (message.includes('SystemExit')) {
+      flushOutputBuffers();
       postResult(true);
       return;
     }
     const cleaned = normalizePythonError(err);
     postStderr(cleaned);
+    flushOutputBuffers();
     postResult(false, cleaned);
   } finally {
+    flushOutputBuffers();
     postStatus('done');
   }
 }

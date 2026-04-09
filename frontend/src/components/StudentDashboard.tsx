@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../App';
@@ -6,6 +6,7 @@ import { BACKEND_URL } from '../utils/constants';
 import { authFetch } from '../utils/authFetch';
 import { toast } from 'sonner';
 import { StudentLayout } from './student/StudentLayout';
+import { StudentDashboardTour } from './StudentDashboardTour';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import {
@@ -96,6 +97,9 @@ type Props = {
 const chartConfig = {
     xp: { label: 'XP Earned', color: '#0d9488' },
 } satisfies ChartConfig;
+
+const DASHBOARD_TOUR_STORAGE_KEY = 'edvance_student_dashboard_tour_completed';
+const PROJECTS_PER_PAGE = 10;
 
 /* ───────────── Helpers ───────────── */
 
@@ -279,10 +283,14 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
+    const [currentPage, setCurrentPage] = useState(1);
     const [startingAssignment, setStartingAssignment] = useState<string | null>(null);
+    const [showTour, setShowTour] = useState(false);
     const dashboardFetchInFlightRef = useRef(false);
     const dashboardRetryTimersRef = useRef<number[]>([]);
     const isMountedRef = useRef(true);
+    const projectsSectionRef = useRef<HTMLDivElement | null>(null);
+    const canStartTour = !loading && !!data;
 
     const todayTip = TIPS[new Date().getDate() % TIPS.length];
 
@@ -295,6 +303,26 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
             dashboardRetryTimersRef.current = [];
         };
     }, [user.id]);
+
+    useEffect(() => {
+        if (loading || !data) return;
+
+        const dbDone = user.onboarding?.student_dashboard_tour_completed === true;
+        if (dbDone) {
+            localStorage.setItem(DASHBOARD_TOUR_STORAGE_KEY, 'true');
+            return;
+        }
+
+        const localDone = localStorage.getItem(DASHBOARD_TOUR_STORAGE_KEY) === 'true';
+        if (!localDone && window.innerWidth >= 768) {
+            const timer = window.setTimeout(() => setShowTour(true), 1200);
+            return () => window.clearTimeout(timer);
+        }
+    }, [data, loading, user.onboarding]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter]);
 
     const fetchDashboard = async (retries = 2) => {
         if (dashboardFetchInFlightRef.current) return;
@@ -358,6 +386,34 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         }
     };
 
+    const handleTourComplete = useCallback(async () => {
+        setShowTour(false);
+        localStorage.setItem(DASHBOARD_TOUR_STORAGE_KEY, 'true');
+
+        const nextOnboarding = {
+            ...(user.onboarding || {}),
+            student_dashboard_tour_completed: true,
+        };
+
+        try {
+            await authFetch('/users/onboarding', {
+                method: 'POST',
+                body: JSON.stringify({
+                    onboardingData: nextOnboarding,
+                }),
+            });
+        } catch (err) {
+            console.error('Failed to persist dashboard tour completion:', err);
+        }
+    }, [user.onboarding]);
+
+    const changeProjectsPage = (nextPage: number) => {
+        setCurrentPage(nextPage);
+        window.requestAnimationFrame(() => {
+            projectsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
+
     /* ── Content inside layout ── */
     const renderContent = () => {
         /* Loading */
@@ -394,6 +450,12 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         const filteredProjects = filter === 'all' ? allProjects
             : filter === 'in_progress' ? in_progress_projects
                 : completed_projects;
+        const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE));
+        const activePage = Math.min(currentPage, totalPages);
+        const paginatedProjects = filteredProjects.slice(
+            (activePage - 1) * PROJECTS_PER_PAGE,
+            activePage * PROJECTS_PER_PAGE,
+        );
 
         const filterTabs = [
             { key: 'in_progress' as const, label: 'In Progress', count: in_progress_projects.length },
@@ -407,7 +469,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                     {/* Quick Stats Top Row */}
                     <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-4 gap-3" data-tour="dashboard-top-stats">
                             {[
                                 {
                                     value: stats.total_projects,
@@ -438,9 +500,9 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                 },
                                 {
                                     value: `${stats.completed_projects}/${stats.total_projects || 0}`,
-                                    label: 'Completed',
+                                    label: 'Completed Projects',
                                     note: `${overallPercent}% overall`,
-                                    trend: `${totalTasks - doneTasks} pending`,
+                                    trend: `${totalTasks - doneTasks} pending tasks`,
                                     progress: overallPercent,
                                     color: 'text-emerald-700',
                                     barColor: 'bg-emerald-600'
@@ -480,7 +542,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                     <div className="grid grid-cols-12 gap-4">
 
                     {/* ══════ LEFT COLUMN (8 cols) — Projects ══════ */}
-                    <div className="col-span-8 flex flex-col gap-4">
+                    <div ref={projectsSectionRef} className="col-span-8 flex flex-col gap-4">
 
                         {/* Filter Tabs + Title */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
@@ -538,6 +600,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     whileTap={{ scale: 0.99 }}
                                     onClick={() => navigate('/custom-project')}
                                     className="cursor-pointer"
+                                    data-tour="dashboard-create-project"
                                 >
                                     <Card className="p-4 border-slate-100 hover:shadow-md transition-shadow border-dashed">
                                         <div className="flex items-center gap-4">
@@ -560,9 +623,10 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                     </Card>
                                 </motion.div>
 
-                                {filteredProjects.length > 0 ? filteredProjects.map((project, i) => {
-                                    const color = PROJECT_COLORS[i % PROJECT_COLORS.length];
-                                    const emoji = PROJECT_EMOJIS[i % PROJECT_EMOJIS.length];
+                                {filteredProjects.length > 0 ? paginatedProjects.map((project, i) => {
+                                    const projectIndex = (activePage - 1) * PROJECTS_PER_PAGE + i;
+                                    const color = PROJECT_COLORS[projectIndex % PROJECT_COLORS.length];
+                                    const emoji = PROJECT_EMOJIS[projectIndex % PROJECT_EMOJIS.length];
                                     const isCompleted = project.completed_at != null;
                                     const sourceLabel = project.classroom_name
                                         ? `Class: ${project.classroom_name}`
@@ -666,6 +730,35 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                                         )}
                                     </Card>
                                 )}
+
+                                {filteredProjects.length > PROJECTS_PER_PAGE && (
+                                    <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                                        <p className="text-sm text-slate-500">
+                                            Showing {(activePage - 1) * PROJECTS_PER_PAGE + 1}-{Math.min(activePage * PROJECTS_PER_PAGE, filteredProjects.length)} of {filteredProjects.length}
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => changeProjectsPage(Math.max(activePage - 1, 1))}
+                                                disabled={activePage === 1}
+                                            >
+                                                Previous
+                                            </Button>
+                                            <span className="text-sm font-medium text-slate-600">
+                                                Page {activePage} of {totalPages}
+                                            </span>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => changeProjectsPage(Math.min(activePage + 1, totalPages))}
+                                                disabled={activePage === totalPages}
+                                            >
+                                                Next
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </motion.div>
                         </AnimatePresence>
                     </div>
@@ -675,7 +768,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
 
                         {/* Profile Card */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-                            <Card className="p-5 border-slate-100">
+                            <Card className="p-5 border-slate-100" data-tour="dashboard-profile-card">
                                 <div className="flex items-center gap-3">
                                     <motion.div
                                         initial={{ scale: 0 }}
@@ -815,7 +908,11 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                             <WeakConceptsCard weakConcepts={weak_concepts ?? []} />
                         </motion.div>
 
+<<<<<<< HEAD
                         {/* Skills Learned */}
+=======
+                        {/* Skills */}
+>>>>>>> staging
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
                             <Card className="p-4 border-slate-100">
                                 <div className="flex items-center gap-1.5 mb-3">
@@ -858,8 +955,38 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
     };
 
     return (
-        <StudentLayout user={user} onLogout={onLogout}>
-            {renderContent()}
-        </StudentLayout>
+        <>
+            <StudentLayout
+                user={user}
+                onLogout={onLogout}
+                headerActions={
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (canStartTour) setShowTour(true);
+                        }}
+                        disabled={!canStartTour}
+                        className={`flex items-center gap-1.5 text-sm transition-colors bg-transparent border-none ${
+                            canStartTour
+                                ? 'text-teal-600 hover:text-teal-700 cursor-pointer'
+                                : 'text-slate-300 cursor-not-allowed'
+                        }`}
+                        title="Take a tour"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        <span className="font-medium">Tour</span>
+                    </button>
+                }
+            >
+                {renderContent()}
+            </StudentLayout>
+            {showTour && (
+                <StudentDashboardTour
+                    isOpen={showTour}
+                    onComplete={handleTourComplete}
+                    onSkip={handleTourComplete}
+                />
+            )}
+        </>
     );
 }

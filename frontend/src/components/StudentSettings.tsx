@@ -39,6 +39,9 @@ interface StudentSettingsPanelProps {
   onProfileUpdate?: (data: OnboardingData) => void;
 }
 
+const WORKSPACE_TOUR_STORAGE_KEY = 'edvance_workspace_tour_completed';
+const DASHBOARD_TOUR_STORAGE_KEY = 'edvance_student_dashboard_tour_completed';
+
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.4 } }),
@@ -129,13 +132,23 @@ export function StudentSettingsPanel({ user, onLogout, onProfilePictureUpdate, o
   const handleSavePreferences = async () => {
     setSavingPreferences(true);
     try {
+      const onboardingData = {
+        ...(user.onboarding || {}),
+        ...answers,
+        ...(localStorage.getItem(WORKSPACE_TOUR_STORAGE_KEY) === 'true'
+          ? { workspace_tour_completed: true }
+          : {}),
+        ...(localStorage.getItem(DASHBOARD_TOUR_STORAGE_KEY) === 'true'
+          ? { student_dashboard_tour_completed: true }
+          : {}),
+      };
       const response = await authFetch('/users/onboarding', {
         method: 'POST',
-        body: JSON.stringify({ onboardingData: answers }),
+        body: JSON.stringify({ onboardingData }),
       });
       const data = await response.json();
       if (data.success) {
-        onProfileUpdate?.(answers);
+        onProfileUpdate?.(onboardingData);
         toast.success('Learning preferences saved');
       } else {
         toast.error(data.error || 'Failed to save preferences');
