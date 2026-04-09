@@ -7,7 +7,6 @@ import edvanceLogoSrc from '../../assets/edvance-logo.svg';
 import {
     Home,
     Users,
-    BookOpen,
     Settings,
     LogOut,
     Flame,
@@ -17,13 +16,14 @@ import {
     RotateCcw,
 } from 'lucide-react';
 
-type NavTab = 'Home' | 'Classes' | 'Projects' | 'Settings';
+type NavTab = 'Home' | 'Classes' | 'Settings';
 
 interface StudentLayoutProps {
     children: ReactNode;
     user: User;
     onLogout: () => void;
     onRestart?: (() => void) | null;
+    headerActions?: ReactNode;
 }
 
 type LightStats = {
@@ -35,10 +35,9 @@ type LightStats = {
 const navItems: { icon: typeof Home; label: NavTab }[] = [
     { icon: Home, label: 'Home' },
     { icon: Users, label: 'Classes' },
-    { icon: BookOpen, label: 'Projects' },
 ];
 
-export function StudentLayout({ children, user, onLogout, onRestart }: StudentLayoutProps) {
+export function StudentLayout({ children, user, onLogout, onRestart, headerActions }: StudentLayoutProps) {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -47,7 +46,6 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
         const p = location.pathname;
         if (p === '/student-dashboard') return 'Home';
         if (p === '/student/classes') return 'Classes';
-        if (p === '/student/projects') return 'Projects';
         if (p === '/student/settings') return 'Settings';
         return null;
     })();
@@ -134,7 +132,6 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
     const navRoutes: Record<NavTab, string> = {
         Home: '/student-dashboard',
         Classes: '/student/classes',
-        Projects: '/student/projects',
         Settings: '/student/settings',
     };
 
@@ -180,7 +177,7 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5" data-tour="dashboard-sidebar-top">
                     {navItems.map((item, i) => {
                         const isActive = activeTab === item.label;
                         return (
@@ -203,7 +200,7 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
 
                 <div className="flex-1" />
 
-                <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
+                <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3" data-tour="dashboard-sidebar-bottom">
                     {[
                         { icon: Settings, label: 'Settings' as const, onClick: handleSettingsClick },
                         { icon: LogOut, label: 'Log Out' as const, onClick: onLogout },
@@ -283,6 +280,7 @@ export function StudentLayout({ children, user, onLogout, onRestart }: StudentLa
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-3 text-sm text-slate-500">
+                            {headerActions}
                             {onRestart && (
                                 <>
                                     <button
