@@ -429,10 +429,6 @@ def build_assistant_user_prompt(
         + (chat_history or "No previous messages.") + "\n\n"
         "## Student's Message\n"
         + user_message + "\n\n"
-<<<<<<< HEAD
-        "Respond to the student's message. Be SHORT and DIRECT — 1-3 sentences, max 60 words. "
-        "Check safety guardrails first. NEVER give the complete solution or full working code for the task — hints and partial snippets only (max 3 lines of code)."
-=======
         "## Reply Pattern\n"
         + response_pattern + "\n\n"
         "Respond as Cody. Follow diagnose -> explain -> direct -> check. "
@@ -442,5 +438,4 @@ def build_assistant_user_prompt(
         "and keep each paragraph to at most 2 sentences by splitting longer replies into 2 short paragraphs with the same content. "
         "and if the student asks what would happen, use one concrete contrast or mini-trace. "
         "Never ask the student to paste code you already have."
->>>>>>> staging
     )

@@ -351,7 +351,6 @@ TASK GENERATION RULES:
    - Ask yourself: "Can I write a test that verifies this task does the right thing with specific inputs?" If no, the task is too shallow — combine it with the next one
    
 2. **instruction_theory — The Main Teaching Content:**
-<<<<<<< HEAD
    This is what the student reads. It MUST follow the Learn → Try → Do structure.
    Format it with markdown. Use **bold** for emphasis, `backticks` for code.
 
@@ -363,10 +362,6 @@ TASK GENERATION RULES:
 
    Do NOT use ## markdown headers instead. Do NOT rename these sections. Do NOT skip any section.
    If a concept is already known, sections can be shortened, but all headings MUST still appear.
-=======
-   This is what the student reads. It MUST follow the Task Description → Example structure.
-   Format it with markdown. Use **bold** for emphasis, `backticks` for code, and clear headings.
->>>>>>> staging
 
    STRUCTURE — output these exact section headings in this exact order:
 
