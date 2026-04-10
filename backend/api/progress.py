@@ -77,7 +77,7 @@ def get_project_full(project_id: str):
                     'codingRequirements': task.get('coding_requirements', []),
                     'hints': task.get('hints', []),
                     'starterCode': task.get('starter_code') or '# Write your code here\n',
-                    'testSpec': task.get('test_specification', {}),
+                    'testSpec': {k: v for k, v in task.get('test_specification', {}).items() if k != 'test_cases'},
                     'feedback': prog.get('feedback') if prog else None,
                 }
                 tasks.append(task_obj)

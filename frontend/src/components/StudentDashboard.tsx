@@ -908,7 +908,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
                             <WeakConceptsCard weakConcepts={weak_concepts ?? []} />
                         </motion.div>
 
-                        {/* Skills */}
+                        {/* Skills Learned */}
                         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={6}>
                             <Card className="p-4 border-slate-100">
                                 <div className="flex items-center gap-1.5 mb-3">

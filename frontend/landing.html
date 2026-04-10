@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edvance - AI-Powered Learning Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .gradient-text {
+      background: linear-gradient(135deg, #0d9488, #14b8a6, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gradient-text-teal {
+      background: linear-gradient(135deg, #0d9488, #14b8a6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { scrollbar-width: none; }
+    /* Animated underline */
+    .animated-underline {
+      position: relative;
+      display: inline;
+    }
+    .animated-underline::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 2px;
+      width: 0;
+      height: 4px;
+      background: linear-gradient(135deg, #ef4444, #f97316);
+      border-radius: 2px;
+      animation: underline-grow 1.2s ease forwards 0.5s;
+    }
+    @keyframes underline-grow {
+      to { width: 100%; }
+    }
+    /* Introducing popup */
+    @keyframes pop-in {
+      0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+      60% { opacity: 1; transform: scale(1.05) translateY(-4px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .introducing-pop {
+      animation: pop-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+    }
+    /* Hover effects */
+    .feature-card { transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s; }
+    .feature-card:hover { transform: translateY(-6px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.04); }
+    .project-card { transition: transform 0.3s, box-shadow 0.3s; }
+    .project-card:hover { transform: translateY(-6px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); }
+    .project-card:hover .project-img { transform: scale(1.03); }
+    .project-img { transition: transform 0.3s; }
+    .nav-scrolled { backdrop-filter: blur(16px); background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(229,231,235,0.6); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .step-btn { transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s; }
+    .step-btn.active { background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); ring: 1px solid #99f6e4; }
+    .student-row:hover { background: #f8fafc; }
+    .cody-bounce { animation: codyBounce 2s ease-in-out infinite; }
+    @keyframes codyBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    .floating-token { animation: float 6s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(6px, -18px) rotate(4deg); } 50% { transform: translate(-5px, 4px) rotate(-3deg); } 75% { transform: translate(7px, -12px) rotate(2deg); } }
+  </style>
+</head>
+<body class="bg-white text-slate-800">
+
+  <!-- ========== NAVBAR ========== -->
+  <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
+    <div class="w-full px-6 lg:px-10 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2">
+        <img src="src/assets/edvance-logo.svg" alt="Edvance" width="36" height="36" class="object-contain" />
+        <span class="text-xl font-bold" style="color:#1B5E6B">edvance</span>
+      </a>
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#features" class="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors">Features</a>
+        <a href="#projects" class="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors">Projects</a>
+        <a href="#how-it-works" class="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors">How It Works</a>
+        <a href="#for-teachers" class="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors">For Teachers</a>
+      </div>
+      <div class="hidden md:flex items-center gap-3">
+        <a href="https://waitlister.me/p/edvance" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors rounded-md">Log In</a>
+        <a href="https://waitlister.me/p/edvance" class="px-4 py-2 text-sm font-medium text-white rounded-md shadow-md flex items-center gap-2" style="background:linear-gradient(to right,#14b8a6,#0d9488); box-shadow:0 4px 14px rgba(20,184,166,0.2);">
+          Get Started <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+      </div>
+      <button id="mobile-toggle" class="md:hidden p-2 text-slate-600 hover:text-teal-600 transition-colors">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========== HERO SECTION ========== -->
+  <section class="relative min-h-screen flex items-center overflow-hidden" style="background:linear-gradient(135deg,#cffafe 0%,#f0fdfa 35%,#ffffff 60%,#fef3c7 100%)">
+    <!-- Dot pattern -->
+    <div class="absolute inset-0 opacity-[0.03]" style="background-image:radial-gradient(circle,#0d9488 1px,transparent 1px);background-size:32px 32px"></div>
+    <!-- Glow orbs -->
+    <div class="absolute top-0 -left-40 w-[460px] h-[460px] rounded-full opacity-20" style="background:radial-gradient(circle,rgba(45,212,191,0.16) 0%,rgba(45,212,191,0) 70%)"></div>
+    <div class="absolute -bottom-20 -right-40 w-[520px] h-[520px] rounded-full opacity-15" style="background:radial-gradient(circle,rgba(252,211,77,0.12) 0%,rgba(252,211,77,0) 70%)"></div>
+
+    <!-- Floating code tokens -->
+    <div class="hidden lg:block absolute font-mono font-bold select-none pointer-events-none text-teal-600/25 text-4xl top-[10%] left-[5%] floating-token">{ }</div>
+    <div class="hidden md:block absolute font-mono font-bold select-none pointer-events-none text-amber-500/20 text-3xl top-[18%] right-[8%] floating-token" style="animation-delay:1.5s">< /></div>
+    <div class="hidden lg:block absolute font-mono font-bold select-none pointer-events-none text-teal-700/20 text-2xl bottom-[32%] left-[3%] floating-token" style="animation-delay:0.8s">def</div>
+    <div class="hidden lg:block absolute font-mono font-bold select-none pointer-events-none text-teal-500/20 text-3xl bottom-[15%] right-[5%] floating-token" style="animation-delay:2s">=></div>
+    <div class="hidden xl:block absolute font-mono font-bold select-none pointer-events-none text-amber-500/[0.18] text-2xl top-[52%] left-[10%] floating-token" style="animation-delay:1.2s">( )</div>
+    <div class="hidden md:block absolute font-mono font-bold select-none pointer-events-none text-teal-600/[0.22] text-3xl top-[6%] right-[20%] floating-token" style="animation-delay:0.5s">[ ]</div>
+    <div class="hidden xl:block absolute font-mono font-bold select-none pointer-events-none text-teal-700/[0.15] text-xl bottom-[22%] right-[28%] floating-token" style="animation-delay:1.8s">print</div>
+    <div class="hidden lg:block absolute font-mono font-bold select-none pointer-events-none text-teal-500/20 text-4xl top-[40%] left-[2%] floating-token" style="animation-delay:0.3s">#</div>
+    <div class="hidden md:block absolute font-mono font-bold select-none pointer-events-none text-amber-600/[0.18] text-2xl top-[70%] left-[8%] floating-token" style="animation-delay:2.5s">if</div>
+    <div class="hidden xl:block absolute font-mono font-bold select-none pointer-events-none text-teal-700/[0.15] text-lg top-[75%] right-[35%] floating-token" style="animation-delay:3.2s">return</div>
+
+    <div class="relative w-full px-6 lg:px-16 xl:px-24 py-12 pt-24">
+      <div class="max-w-6xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
+        <!-- Left column: text -->
+        <div>
+          <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-500/10 text-teal-700 text-sm font-medium mb-6 border border-teal-500/10">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            AI-Powered Learning Platform
+          </span>
+
+          <h1 class="text-5xl sm:text-[3.375rem] font-bold text-slate-800 leading-[1.08] tracking-tight">
+            Coding is hard.<br />
+            <span class="gradient-text">You shouldn't do it alone.</span>
+          </h1>
+
+          <p class="mt-8 text-lg sm:text-xl text-slate-500 leading-relaxed max-w-xl">
+            Don't struggle in silence. Edvance gives you an AI partner that helps you debug, plan,
+            and learn in real-time. Turn &ldquo;I give up&rdquo; into &ldquo;I did it.&rdquo;
+          </p>
+
+          <div class="mt-12 flex flex-wrap gap-4">
+            <a href="https://waitlister.me/p/edvance" class="px-8 py-3.5 text-base font-medium text-white rounded-xl shadow-lg flex items-center gap-2 no-underline" style="background:linear-gradient(to right,#14b8a6,#0d9488); box-shadow:0 10px 25px rgba(20,184,166,0.25);">
+              Start Your First Project <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </a>
+            <a href="https://waitlister.me/p/edvance" class="px-8 py-3.5 text-base font-medium text-slate-600 rounded-xl border border-slate-200 hover:border-teal-400 hover:text-teal-600 transition-colors no-underline">
+              Log In
+            </a>
+          </div>
+
+          <div class="mt-12 flex items-center gap-8 text-sm text-slate-400">
+            <span class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
+                <i data-lucide="zap" class="w-3.5 h-3.5 text-teal-600"></i>
+              </div>
+              AI-Powered
+            </span>
+            <span class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <i data-lucide="rocket" class="w-3.5 h-3.5 text-amber-600"></i>
+              </div>
+              Real Projects
+            </span>
+            <span class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center">
+                <i data-lucide="terminal" class="w-3.5 h-3.5 text-teal-600"></i>
+              </div>
+              Built-in IDE
+            </span>
+          </div>
+        </div>
+
+        <!-- Right column: Hero Visual -->
+        <div class="hidden lg:block">
+          <div class="relative w-full">
+            <div class="absolute -inset-6 bg-gradient-to-r from-red-400/10 to-teal-400/15 rounded-3xl blur-3xl"></div>
+            <div class="relative flex flex-col gap-6">
+
+              <!-- Terminal error demo -->
+              <div class="relative">
+                <div class="absolute -inset-3 bg-red-500/15 rounded-3xl blur-xl"></div>
+                <div class="absolute -inset-6 bg-red-400/10 rounded-3xl blur-2xl"></div>
+                <div class="relative bg-[#0f172a] rounded-2xl shadow-2xl border border-red-500/20 overflow-hidden" style="box-shadow:0 25px 50px -12px rgba(127,29,29,0.2)">
+                  <div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/5 bg-[#1e293b]">
+                    <div class="flex gap-1.5">
+                      <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></div>
+                      <div class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></div>
+                      <div class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></div>
+                    </div>
+                    <span class="ml-2 text-[10px] text-white/40 font-mono">terminal</span>
+                  </div>
+                  <div class="p-4 font-mono text-xs leading-relaxed">
+                    <div><span class="text-slate-500">$ python main.py</span></div>
+                    <div class="mt-2"><span class="text-slate-500">File "main.py", line 12</span></div>
+                    <div><span class="text-white/60">    expenses = [250 400 375]</span></div>
+                    <div><span class="text-white/40">                    ^^^</span></div>
+                    <div class="mt-1">
+                      <span class="text-red-400 font-bold">SyntaxError:</span>
+                      <span class="text-red-300"> invalid syntax. Perhaps you forgot a comma?</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cody chat bubble -->
+              <div class="relative bg-white rounded-2xl shadow-xl border border-teal-200/60 p-5 ml-4">
+                <div class="absolute -top-2 left-10 w-4 h-4 bg-white border-l border-t border-teal-200/60 rotate-45"></div>
+                <div class="relative">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="shrink-0 cody-bounce">
+                      <img src="src/assets/cody.svg" alt="Cody" width="40" height="40" />
+                    </div>
+                    <span class="text-lg font-bold" style="color:#1B5E6B">Cody</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 font-medium">AI Helper</span>
+                  </div>
+                  <p class="text-sm text-slate-600 leading-relaxed">
+                    Take a look at <span class="font-semibold text-teal-700">line 12</span> - the error says "invalid syntax." What do you think is missing between those numbers in the list?
+                  </p>
+                  <div id="cody-response" class="hidden mt-2.5 bg-slate-50 rounded-lg px-3 py-2 text-xs text-slate-500 italic border border-slate-100"></div>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <button onclick="toggleResponse('explain')" id="btn-explain" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors cursor-pointer">
+                      <i data-lucide="zap" class="w-3 h-3"></i>
+                      Explain this error
+                    </button>
+                    <button onclick="toggleResponse('hint')" id="btn-hint" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer">
+                      Give me a hint
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <p class="text-center text-base text-slate-600 font-medium mt-2">Real-time help, right when you need it.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PROBLEM SECTION ========== -->
+  <section class="py-20 px-6 lg:px-10">
+    <div class="max-w-4xl mx-auto text-center">
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium mb-4">
+        <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+        The Problem
+      </span>
+      <h2 class="text-4xl sm:text-5xl font-bold text-slate-800 leading-tight">
+        Students are <span class="animated-underline">losing</span> the ability to <span class="animated-underline" style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent">think critically</span>
+      </h2>
+      <p class="mt-5 text-lg text-slate-500 max-w-2xl mx-auto">
+        Not because of AI, but because of how they learn with it.
+      </p>
+
+      <!-- Stats row -->
+      <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+        <div class="text-center">
+          <p class="text-5xl font-bold" style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Only 29%</p>
+          <p class="mt-2 text-sm text-slate-500 leading-relaxed">of Gen-Z students cite STEM jobs as their first career choice, despite <span class="font-bold text-slate-700">75%</span> expressing academic interest</p>
+        </div>
+        <div class="text-center">
+          <p class="text-5xl font-bold" style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent">33%</p>
+          <p class="mt-2 text-sm text-slate-500 leading-relaxed">of Singaporeans said they did not pursue a career in science because they thought they were <span class="font-bold text-slate-700">&ldquo;not smart enough&rdquo;</span></p>
+        </div>
+      </div>
+
+      <!-- Problem cards -->
+      <div class="mt-14 grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
+        <div class="relative bg-white rounded-2xl border border-red-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-4">
+            <i data-lucide="copy" class="w-5 h-5 text-red-500"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-800 mb-2">Copy-paste dependency</h3>
+          <p class="text-sm text-slate-500 leading-relaxed">Students default to copying from AI instead of struggling through problems. They get answers without building understanding.</p>
+        </div>
+
+        <div class="relative bg-white rounded-2xl border border-amber-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
+            <i data-lucide="users" class="w-5 h-5 text-amber-500"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-800 mb-2">Not enough guidance</h3>
+          <p class="text-sm text-slate-500 leading-relaxed">There aren&rsquo;t enough teachers to guide every student through critical learning moments &mdash; so most face them alone, and quit.</p>
+        </div>
+
+        <div class="relative bg-white rounded-2xl border border-violet-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mb-4">
+            <i data-lucide="shield-off" class="w-5 h-5 text-violet-500"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-800 mb-2">Lost confidence</h3>
+          <p class="text-sm text-slate-500 leading-relaxed">Students who struggle alone start believing they&rsquo;re &ldquo;not smart enough&rdquo; for coding &mdash; it&rsquo;s not ability, it&rsquo;s the lack of the right support.</p>
+        </div>
+      </div>
+
+      <!-- Transition to features -->
+      <div class="mt-24 mb-8 text-center" id="introducing-section" style="opacity:0;transform:scale(0.8) translateY(30px);transition:opacity 0.8s cubic-bezier(0.16,1,0.3,1),transform 0.8s cubic-bezier(0.16,1,0.3,1)">
+        <p class="text-base font-semibold text-teal-600 tracking-widest uppercase mb-4">Introducing</p>
+        <h2 class="text-7xl sm:text-8xl lg:text-9xl font-black tracking-tight">
+          <span class="animated-underline" style="background:linear-gradient(135deg,#0d9488,#14b8a6,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Edvance</span>
+        </h2>
+        <p class="mt-4 text-xl text-slate-400">AI-powered learning, done right.</p>
+        <div class="mt-8">
+          <i data-lucide="chevron-down" class="w-8 h-8 text-teal-400 mx-auto" style="animation: bounce-down 1.5s ease infinite"></i>
+        </div>
+      </div>
+      <style>
+        @keyframes bounce-down {
+          0%, 100% { transform: translateY(0); opacity: 0.5; }
+          50% { transform: translateY(8px); opacity: 1; }
+        }
+      </style>
+      <script>
+        // Trigger pop-in when scrolled into view
+        var introEl = document.getElementById('introducing-section');
+        var introObserver = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              introEl.style.opacity = '1';
+              introEl.style.transform = 'scale(1) translateY(0)';
+              introObserver.disconnect();
+            }
+          });
+        }, { threshold: 0.3 });
+        introObserver.observe(introEl);
+      </script>
+    </div>
+  </section>
+
+  <!-- ========== FEATURES SECTION ========== -->
+  <section id="features" class="py-16 px-6 lg:px-10">
+    <div class="w-full">
+      <div class="text-center mb-10 max-w-3xl mx-auto">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">Features</span>
+        <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+          Everything You Need to <span class="gradient-text">Master Coding</span>
+        </h2>
+        <p class="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
+          From AI-powered guidance to real-time code execution, Edvance gives you all the tools to become a confident programmer.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-6xl mx-auto">
+        <!-- Feature 1: AI Project Guide -->
+        <div class="feature-card group relative overflow-hidden bg-white rounded-2xl border border-gray-100 hover:border-teal-200 p-7 cursor-default">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300"></div>
+          <div class="relative">
+            <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+              <i data-lucide="brain" class="w-6 h-6 text-teal-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">AI Project Guide</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">Get personalized AI guidance that adapts to your skill level. Like having a tutor available 24/7.</p>
+          </div>
+        </div>
+
+        <!-- Feature 2: Real Code Editor -->
+        <div class="feature-card group relative overflow-hidden bg-white rounded-2xl border border-gray-100 hover:border-cyan-200 p-7 cursor-default">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300"></div>
+          <div class="relative">
+            <div class="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+              <i data-lucide="terminal" class="w-6 h-6 text-cyan-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Real Code Editor</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">Write, run, and debug code in a built-in IDE. No setup required — just start coding.</p>
+          </div>
+        </div>
+
+        <!-- Feature 3: Project-Based Learning -->
+        <div class="feature-card group relative overflow-hidden bg-white rounded-2xl border border-gray-100 hover:border-amber-200 p-7 cursor-default">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300"></div>
+          <div class="relative">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+              <i data-lucide="rocket" class="w-6 h-6 text-amber-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Project-Based Learning</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">Learn by building real projects, not toy exercises. Build a portfolio while you learn.</p>
+          </div>
+        </div>
+
+        <!-- Feature 4: Instant Feedback -->
+        <div class="feature-card group relative overflow-hidden bg-white rounded-2xl border border-gray-100 hover:border-orange-200 p-7 cursor-default">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300"></div>
+          <div class="relative">
+            <div class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+              <i data-lucide="zap" class="w-6 h-6 text-orange-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Instant Feedback</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">Submit your code and get AI-powered feedback in seconds. Understand your mistakes and improve.</p>
+          </div>
+        </div>
+
+        <!-- Feature 5: Classroom Integration -->
+        <div class="feature-card group relative overflow-hidden bg-white rounded-2xl border border-gray-100 hover:border-teal-200 p-7 cursor-default">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300"></div>
+          <div class="relative">
+            <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+              <i data-lucide="users" class="w-6 h-6 text-teal-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Classroom Integration</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">Teachers can create assignments, manage classrooms, and track student progress in real-time.</p>
+          </div>
+        </div>
+
+        <!-- Feature 6: XP & Progress -->
+        <div class="feature-card group relative overflow-hidden bg-white rounded-2xl border border-gray-100 hover:border-amber-200 p-7 cursor-default">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-40 group-hover:opacity-75 transition-opacity duration-300"></div>
+          <div class="relative">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+              <i data-lucide="star" class="w-6 h-6 text-amber-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">XP & Progress</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">Earn XP, level up, and track your coding journey with detailed analytics and milestones.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== STUDENT PROJECTS SECTION ========== -->
+  <section id="projects" class="py-16 overflow-hidden" style="background:linear-gradient(180deg,#f0fdfa 0%,#ffffff 50%,#fffbeb 100%)">
+    <div class="px-6 lg:px-10 mb-10 max-w-6xl mx-auto">
+      <div class="flex items-end justify-between">
+        <div>
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-medium mb-4">
+            <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
+            Student Projects
+          </span>
+          <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+            Real Projects Built by <span class="gradient-text">Our Students</span>
+          </h2>
+          <p class="mt-4 text-lg text-slate-500 max-w-2xl">
+            From terminal games to AI-powered apps, see the kind of Python projects you'll build on Edvance.
+          </p>
+        </div>
+        <div class="hidden sm:flex gap-2">
+          <button onclick="document.getElementById('projects-scroll').scrollBy({left:-400,behavior:'smooth'})" class="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-slate-500 hover:border-teal-400 hover:text-teal-600 transition-colors">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <button onclick="document.getElementById('projects-scroll').scrollBy({left:400,behavior:'smooth'})" class="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-slate-500 hover:border-teal-400 hover:text-teal-600 transition-colors">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="projects-scroll" class="flex gap-6 px-6 lg:px-10 pb-4 overflow-x-auto overflow-y-hidden hide-scrollbar max-w-6xl mx-auto">
+
+      <!-- Project Card: Expense Tracker -->
+      <div class="project-card flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm cursor-default group">
+        <div class="h-[200px] bg-slate-100 overflow-hidden">
+          <img src="public/projects/expense-tracker.jpg" alt="Expense Tracker" loading="lazy" class="project-img w-full h-full object-cover" />
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">&#x1F4B0;</span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">Expense Tracker</h3>
+                <p class="text-xs text-slate-400 mt-0.5">11 tasks</p>
+              </div>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style="background-color:rgba(245,158,11,0.08);color:#f59e0b">+110 XP</span>
+          </div>
+          <p class="text-sm text-slate-500 leading-relaxed mb-4">Create a menu-driven app to track expenses with categories, totals, and spending analysis.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Dictionaries</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Functions</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">File I/O</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card: Text Similarity Checker -->
+      <div class="project-card flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm cursor-default group">
+        <div class="h-[200px] bg-slate-100 overflow-hidden">
+          <img src="public/projects/text-similarity.jpg" alt="Text Similarity Checker" loading="lazy" class="project-img w-full h-full object-cover" />
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">&#x1F4CA;</span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">Text Similarity Checker</h3>
+                <p class="text-xs text-slate-400 mt-0.5">17 tasks</p>
+              </div>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style="background-color:rgba(124,58,237,0.08);color:#7c3aed">+170 XP</span>
+          </div>
+          <p class="text-sm text-slate-500 leading-relaxed mb-4">Compare two pieces of text using NLP techniques to determine how similar they are.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">AI/NLP</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Strings</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Algorithms</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card: AI Chatbot -->
+      <div class="project-card flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm cursor-default group">
+        <div class="h-[200px] bg-slate-100 overflow-hidden">
+          <img src="public/projects/ai-chatbot.jpg" alt="AI Chatbot" loading="lazy" class="project-img w-full h-full object-cover" />
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">&#x1F916;</span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">AI Chatbot</h3>
+                <p class="text-xs text-slate-400 mt-0.5">20 tasks</p>
+              </div>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style="background-color:rgba(8,145,178,0.08);color:#0891b2">+200 XP</span>
+          </div>
+          <p class="text-sm text-slate-500 leading-relaxed mb-4">Build a rule-based chatbot that understands patterns and responds intelligently to user queries.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">AI</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Regex</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">OOP</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card: Terminal Hangman -->
+      <div class="project-card flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm cursor-default group">
+        <div class="h-[200px] bg-slate-100 overflow-hidden">
+          <img src="public/projects/hangman.jpg" alt="Terminal Hangman" loading="lazy" class="project-img w-full h-full object-cover" />
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">&#x1F3AE;</span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">Terminal Hangman</h3>
+                <p class="text-xs text-slate-400 mt-0.5">14 tasks</p>
+              </div>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style="background-color:rgba(13,148,136,0.08);color:#0d9488">+140 XP</span>
+          </div>
+          <p class="text-sm text-slate-500 leading-relaxed mb-4">Build a classic word-guessing game where players try to reveal a hidden word one letter at a time.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Loops</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Conditionals</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Lists</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card: Number Guessing AI -->
+      <div class="project-card flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm cursor-default group">
+        <div class="h-[200px] bg-slate-100 overflow-hidden">
+          <img src="public/projects/number-guessing.jpg" alt="Number Guessing AI" loading="lazy" class="project-img w-full h-full object-cover" />
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">&#x1F3B2;</span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">Number Guessing AI</h3>
+                <p class="text-xs text-slate-400 mt-0.5">12 tasks</p>
+              </div>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style="background-color:rgba(219,39,119,0.08);color:#db2777">+130 XP</span>
+          </div>
+          <p class="text-sm text-slate-500 leading-relaxed mb-4">Create a game where the computer uses binary search to guess your number in minimal attempts.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Algorithms</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Binary Search</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Logic</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card: Stock Price Analyzer -->
+      <div class="project-card flex-shrink-0 w-[340px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm cursor-default group">
+        <div class="h-[200px] bg-slate-100 overflow-hidden">
+          <img src="public/projects/stock-analyzer.jpg" alt="Stock Price Analyzer" loading="lazy" class="project-img w-full h-full object-cover" />
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">&#x1F4C8;</span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">Stock Price Analyzer</h3>
+                <p class="text-xs text-slate-400 mt-0.5">16 tasks</p>
+              </div>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full" style="background-color:rgba(5,150,105,0.08);color:#059669">+180 XP</span>
+          </div>
+          <p class="text-sm text-slate-500 leading-relaxed mb-4">Analyze historical stock data, calculate moving averages, and detect trends using Python.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Data Analysis</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Statistics</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Visualization</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========== HOW IT WORKS SECTION ========== -->
+  <section id="how-it-works" class="py-16 px-6 lg:px-10" style="background:linear-gradient(180deg,#ffffff 0%,#f0fdfa 50%,#ffffff 100%)">
+    <div class="w-full max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">How It Works</span>
+        <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+          Four Steps to <span class="gradient-text">Start Building</span>
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-[0.85fr_1.65fr] gap-8 md:gap-10 items-center">
+        <!-- Steps list -->
+        <div class="flex flex-col" id="steps-list">
+
+          <!-- Step 01 -->
+          <button onclick="setStep(0)" id="step-0" class="step-btn w-full flex items-center gap-4 px-5 py-3 rounded-2xl text-left transition-all duration-300 bg-white shadow-lg ring-1 ring-teal-200">
+            <div data-step-icon class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 bg-gradient-to-br from-teal-500 to-teal-600 shadow-md">
+              <i data-lucide="sparkles" class="w-5 h-5" style="color:white"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <span data-step-label class="text-xs font-bold text-teal-600">STEP 01</span>
+              <h3 data-step-title class="text-sm font-semibold mt-0.5 text-slate-800">Describe Your Project</h3>
+              <p id="step-0-desc" class="text-sm text-slate-500 mt-1 leading-relaxed" style="max-height:120px;opacity:1;overflow:hidden;transition:max-height 0.3s ease,opacity 0.3s ease">Chat with our requirements agent to define what you want to build — your goals, skill level, and preferences.</p>
+            </div>
+          </button>
+          <div data-connector class="flex flex-col items-center py-0.5">
+            <div data-line class="w-[2px] h-4 bg-gray-200" style="background-image:repeating-linear-gradient(to bottom,#e5e7eb 0px,#e5e7eb 4px,transparent 4px,transparent 8px)"></div>
+            <i data-lucide="chevron-down" class="w-4 h-4 -mt-0.5 text-gray-300"></i>
+          </div>
+
+          <!-- Step 02 -->
+          <button onclick="setStep(1)" id="step-1" class="step-btn w-full flex items-center gap-4 px-5 py-3 rounded-2xl text-left transition-all duration-300 bg-white/40 hover:bg-white/70" style="transform:scale(0.97)">
+            <div data-step-icon class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 bg-gray-100">
+              <i data-lucide="brain" class="w-5 h-5" style="color:#9ca3af"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <span data-step-label class="text-xs font-bold text-gray-400">STEP 02</span>
+              <h3 data-step-title class="text-sm font-semibold mt-0.5 text-slate-400">Let AI Create Your Project</h3>
+              <p id="step-1-desc" class="text-sm text-slate-500 mt-1 leading-relaxed" style="max-height:0;opacity:0;overflow:hidden;transition:max-height 0.3s ease,opacity 0.3s ease"></p>
+            </div>
+          </button>
+          <div data-connector class="flex flex-col items-center py-0.5">
+            <div data-line class="w-[2px] h-4 bg-gray-200" style="background-image:repeating-linear-gradient(to bottom,#e5e7eb 0px,#e5e7eb 4px,transparent 4px,transparent 8px)"></div>
+            <i data-lucide="chevron-down" class="w-4 h-4 -mt-0.5 text-gray-300"></i>
+          </div>
+
+          <!-- Step 03 -->
+          <button onclick="setStep(2)" id="step-2" class="step-btn w-full flex items-center gap-4 px-5 py-3 rounded-2xl text-left transition-all duration-300 bg-white/40 hover:bg-white/70" style="transform:scale(0.97)">
+            <div data-step-icon class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 bg-gray-100">
+              <i data-lucide="terminal" class="w-5 h-5" style="color:#9ca3af"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <span data-step-label class="text-xs font-bold text-gray-400">STEP 03</span>
+              <h3 data-step-title class="text-sm font-semibold mt-0.5 text-slate-400">Code with AI Guidance</h3>
+              <p id="step-2-desc" class="text-sm text-slate-500 mt-1 leading-relaxed" style="max-height:0;opacity:0;overflow:hidden;transition:max-height 0.3s ease,opacity 0.3s ease"></p>
+            </div>
+          </button>
+          <div data-connector class="flex flex-col items-center py-0.5">
+            <div data-line class="w-[2px] h-4 bg-gray-200" style="background-image:repeating-linear-gradient(to bottom,#e5e7eb 0px,#e5e7eb 4px,transparent 4px,transparent 8px)"></div>
+            <i data-lucide="chevron-down" class="w-4 h-4 -mt-0.5 text-gray-300"></i>
+          </div>
+
+          <!-- Step 04 -->
+          <button onclick="setStep(3)" id="step-3" class="step-btn w-full flex items-center gap-4 px-5 py-3 rounded-2xl text-left transition-all duration-300 bg-white/40 hover:bg-white/70" style="transform:scale(0.97)">
+            <div data-step-icon class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 bg-gray-100">
+              <i data-lucide="rocket" class="w-5 h-5" style="color:#9ca3af"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <span data-step-label class="text-xs font-bold text-gray-400">STEP 04</span>
+              <h3 data-step-title class="text-sm font-semibold mt-0.5 text-slate-400">Submit & Level Up</h3>
+              <p id="step-3-desc" class="text-sm text-slate-500 mt-1 leading-relaxed" style="max-height:0;opacity:0;overflow:hidden;transition:max-height 0.3s ease,opacity 0.3s ease"></p>
+            </div>
+          </button>
+
+        </div>
+
+        <!-- GIF display -->
+        <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-gray-200 shadow-sm aspect-video">
+          <img id="step-gif" src="public/steps/step-01.gif" alt="Step demo" class="absolute inset-0 w-full h-full object-contain" loading="lazy" />
+          <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+            <button onclick="setStep(0)" id="dot-0" class="rounded-full transition-all duration-300 w-6 h-2 bg-teal-500"></button>
+            <button onclick="setStep(1)" id="dot-1" class="rounded-full transition-all duration-300 w-2 h-2 bg-white/70 hover:bg-white"></button>
+            <button onclick="setStep(2)" id="dot-2" class="rounded-full transition-all duration-300 w-2 h-2 bg-white/70 hover:bg-white"></button>
+            <button onclick="setStep(3)" id="dot-3" class="rounded-full transition-all duration-300 w-2 h-2 bg-white/70 hover:bg-white"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOR TEACHERS SECTION ========== -->
+  <section id="for-teachers" class="py-16 px-6 lg:px-10" style="background:linear-gradient(180deg,#fffbeb 0%,#ffffff 50%,#ffffff 100%)">
+    <div class="w-full max-w-7xl mx-auto">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <!-- Left: text -->
+        <div>
+          <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-50 text-teal-600 text-sm font-medium mb-6">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            For Educators
+          </span>
+          <h2 class="text-4xl sm:text-5xl font-bold text-slate-800 leading-tight">
+            Powerful Tools for <span class="gradient-text-teal">Educators</span>
+          </h2>
+          <p class="mt-4 text-lg text-slate-500 leading-relaxed">
+            Create classrooms, assign projects, and track every student's progress in real-time. Focus on teaching while AI handles the heavy lifting.
+          </p>
+          <ul class="mt-8 space-y-4">
+            <li class="flex items-center gap-3 text-slate-600">
+              <div class="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <span>Create and manage virtual classrooms</span>
+            </li>
+            <li class="flex items-center gap-3 text-slate-600">
+              <div class="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <span>Assign customized coding projects</span>
+            </li>
+            <li class="flex items-center gap-3 text-slate-600">
+              <div class="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <span>Real-time student progress tracking</span>
+            </li>
+            <li class="flex items-center gap-3 text-slate-600">
+              <div class="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <span>AI-assisted grading and feedback</span>
+            </li>
+            <li class="flex items-center gap-3 text-slate-600">
+              <div class="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <span>Detailed analytics and reports</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Right: classroom dashboard mock -->
+        <div>
+          <div class="relative">
+            <div class="absolute -inset-4 bg-gradient-to-br from-teal-200/30 to-amber-100/30 rounded-3xl blur-2xl"></div>
+            <div class="relative bg-white rounded-2xl shadow-xl border border-gray-200/60 overflow-hidden">
+              <!-- Header -->
+              <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-teal-50/80 to-white">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center">
+                    <i data-lucide="users" class="w-4 h-4 text-white"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">Python Fundamentals</p>
+                    <p class="text-[11px] text-slate-400">28 students enrolled</p>
+                  </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-600 text-[11px] font-semibold">Active</span>
+              </div>
+
+              <!-- Stats row -->
+              <div class="grid grid-cols-3 gap-px bg-gray-100 border-b border-gray-100">
+                <div class="bg-white px-4 py-3 text-center">
+                  <p class="text-lg font-bold text-teal-600">77%</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">Avg Progress</p>
+                </div>
+                <div class="bg-white px-4 py-3 text-center">
+                  <p class="text-lg font-bold text-amber-600">12/28</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">Completed</p>
+                </div>
+                <div class="bg-white px-4 py-3 text-center">
+                  <p class="text-lg font-bold text-teal-600">+8%</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">This Week</p>
+                </div>
+              </div>
+
+              <!-- Student rows -->
+              <div class="p-4 space-y-2">
+                <!-- Sarah K. -->
+                <div class="student-row flex items-center gap-3 p-2.5 rounded-lg transition-colors">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-[11px] font-bold text-teal-700">SK</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-sm font-medium text-slate-700">Sarah K.</p>
+                      <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" style="background-color:rgba(13,148,136,0.08);color:#0d9488">On Track</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full" style="background-color:#0d9488;width:85%"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-semibold text-slate-400 tabular-nums w-8 text-right">85%</span>
+                </div>
+
+                <!-- James L. -->
+                <div class="student-row flex items-center gap-3 p-2.5 rounded-lg transition-colors">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-[11px] font-bold text-teal-700">JL</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-sm font-medium text-slate-700">James L.</p>
+                      <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" style="background-color:rgba(245,158,11,0.08);color:#f59e0b">In Progress</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full" style="background-color:#f59e0b;width:72%"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-semibold text-slate-400 tabular-nums w-8 text-right">72%</span>
+                </div>
+
+                <!-- Aisha M. -->
+                <div class="student-row flex items-center gap-3 p-2.5 rounded-lg transition-colors">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-[11px] font-bold text-teal-700">AM</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-sm font-medium text-slate-700">Aisha M.</p>
+                      <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" style="background-color:rgba(13,148,136,0.08);color:#0d9488">Ahead</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full" style="background-color:#0d9488;width:93%"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-semibold text-slate-400 tabular-nums w-8 text-right">93%</span>
+                </div>
+
+                <!-- Wei T. -->
+                <div class="student-row flex items-center gap-3 p-2.5 rounded-lg transition-colors">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center text-[11px] font-bold text-teal-700">WT</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-sm font-medium text-slate-700">Wei T.</p>
+                      <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" style="background-color:rgba(249,115,22,0.08);color:#f97316">Needs Help</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full" style="background-color:#f97316;width:58%"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-semibold text-slate-400 tabular-nums w-8 text-right">58%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== STATS SECTION ========== -->
+  <section class="py-14 px-6 lg:px-10 relative overflow-hidden" style="background:linear-gradient(135deg,#134e4a 0%,#0f766e 50%,#115e59 100%)">
+    <div class="absolute top-0 left-0 w-[400px] h-[400px] rounded-full -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(circle,rgba(45,212,191,0.1) 0%,rgba(45,212,191,0) 70%)"></div>
+    <div class="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full translate-x-1/3 translate-y-1/3" style="background:radial-gradient(circle,rgba(251,191,36,0.05) 0%,rgba(251,191,36,0) 70%)"></div>
+    <div class="absolute inset-0 opacity-[0.03]" style="background-image:radial-gradient(circle,white 1px,transparent 1px);background-size:40px 40px"></div>
+
+    <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center relative">
+      <div>
+        <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="rocket" class="w-6 h-6 text-teal-300"></i>
+        </div>
+        <div class="text-4xl md:text-5xl font-black text-white" data-counter="5">5+</div>
+        <p class="text-teal-200/60 mt-2 text-sm font-medium">Python Levels</p>
+      </div>
+      <div>
+        <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="book-open" class="w-6 h-6 text-teal-300"></i>
+        </div>
+        <div class="text-4xl md:text-5xl font-black text-white" data-counter="20">20+</div>
+        <p class="text-teal-200/60 mt-2 text-sm font-medium">Real-World Projects</p>
+      </div>
+      <div>
+        <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="brain" class="w-6 h-6 text-teal-300"></i>
+        </div>
+        <div class="text-4xl md:text-5xl font-black text-white" data-counter="50">50+</div>
+        <p class="text-teal-200/60 mt-2 text-sm font-medium">Coding Concepts</p>
+      </div>
+      <div>
+        <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="zap" class="w-6 h-6 text-teal-300"></i>
+        </div>
+        <div class="text-4xl md:text-5xl font-black text-white">24/7</div>
+        <p class="text-teal-200/60 mt-2 text-sm font-medium">AI Assistance</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CTA SECTION ========== -->
+  <section class="py-16 px-6 lg:px-10">
+    <div class="max-w-5xl mx-auto">
+      <div class="relative">
+        <div class="absolute -inset-8 bg-gradient-to-r from-teal-100/40 to-amber-100/30 rounded-[2rem] blur-3xl"></div>
+        <div class="relative rounded-3xl overflow-hidden" style="background:linear-gradient(135deg,#f0fdfa 0%,#ffffff 50%,#fffbeb 100%)">
+          <div class="absolute inset-0 opacity-[0.02]" style="background-image:radial-gradient(circle,#0d9488 1px,transparent 1px);background-size:24px 24px"></div>
+          <div class="relative p-10 md:p-14 text-center">
+            <div class="w-20 h-20 flex items-center justify-center mx-auto mb-8">
+              <img src="src/assets/edvance-logo.svg" alt="Edvance" width="72" height="72" class="object-contain" />
+            </div>
+            <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+              Ready to Start Your <span class="gradient-text">Coding Journey</span>?
+            </h2>
+            <p class="mt-5 text-lg text-slate-500 max-w-xl mx-auto">
+              Start building real Python projects with AI guidance. No setup needed; just jump in and code.
+            </p>
+            <div class="mt-10">
+              <a href="https://waitlister.me/p/edvance" class="inline-flex px-10 py-4 text-lg font-medium text-white rounded-xl shadow-lg items-center gap-2 mx-auto no-underline" style="background:linear-gradient(to right,#14b8a6,#0d9488); box-shadow:0 10px 25px rgba(20,184,166,0.25);">
+                Get Started for Free <i data-lucide="arrow-right" class="w-5 h-5"></i>
+              </a>
+            </div>
+            <p class="mt-4 text-sm text-slate-400">No credit card required</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TESTIMONIALS + TEAM + COLLABORATORS ========== -->
+  <section class="py-20 px-6 lg:px-10" style="background:linear-gradient(180deg,#f0fdfa 0%,#ffffff 100%)">
+    <div class="w-full max-w-6xl mx-auto">
+
+      <!-- Testimonials -->
+      <div class="text-center mb-12">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">What Students Say</span>
+        <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+          Loved by <span class="gradient-text">Students</span>
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col">
+          <div class="flex gap-1 mb-4">
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-auto">&ldquo;Edvance built a pipeline for my project perfectly — it let me know how many steps I needed to complete the task. The quick survey before jumping in helped the system design what fits my level.&rdquo;</p>
+          <div class="flex items-center gap-3 mt-6">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold text-sm">AK</div>
+            <div>
+              <p class="font-semibold text-slate-800 text-sm">Aditya K.</p>
+              <p class="text-xs text-slate-400">Computer Science &amp; Design, SUTD</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col">
+          <div class="flex gap-1 mb-4">
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-auto">&ldquo;I was surprised at how well it guided me through the process. Much more thorough than expected — it&rsquo;s able to see my progress and give good advice along the way.&rdquo;</p>
+          <div class="flex items-center gap-3 mt-6">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm">TB</div>
+            <div>
+              <p class="font-semibold text-slate-800 text-sm">Tanya B.</p>
+              <p class="text-xs text-slate-400">Engineering Systems &amp; Design, SUTD</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col">
+          <div class="flex gap-1 mb-4">
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-auto">&ldquo;Edvance breaks down complex tasks into simple steps. The project-based approach really helped me understand coding concepts better than isolated exercises.&rdquo;</p>
+          <div class="flex items-center gap-3 mt-6">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">YS</div>
+            <div>
+              <p class="font-semibold text-slate-800 text-sm">Bryan Chia</p>
+              <p class="text-xs text-slate-400">Computer Science &amp; Design, SUTD</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collaborators -->
+      <div class="text-center mb-10">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">Collaborators</span>
+        <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+          Trusted by <span class="gradient-text">Schools</span>
+        </h2>
+      </div>
+
+      <div class="flex flex-wrap justify-center gap-6 mb-20">
+        <div class="flex items-center gap-3 px-6 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <img src="public/logos/uwcsea.jpg" alt="UWCSEA" class="w-12 h-12 object-contain" />
+          <div>
+            <p class="font-semibold text-slate-800 text-sm">UWCSEA</p>
+            <p class="text-xs text-slate-400">United World College of South East Asia</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 px-6 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <img src="public/logos/temasekjc1.jpg" alt="Temasek Junior College" class="w-12 h-12 object-contain" />
+          <div>
+            <p class="font-semibold text-slate-800 text-sm">Temasek Junior College</p>
+            <p class="text-xs text-slate-400">TJC</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 px-6 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <img src="public/logos/peps.jpg" alt="Princess Elizabeth Primary School" class="w-12 h-12 object-contain" />
+          <div>
+            <p class="font-semibold text-slate-800 text-sm">Princess Elizabeth Primary School</p>
+            <p class="text-xs text-slate-400">Singapore</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meet the Team -->
+      <div class="text-center mb-12">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-xs font-medium mb-4">Our Team</span>
+        <h2 class="text-4xl sm:text-5xl font-bold text-slate-800">
+          Meet the <span class="gradient-text">Team</span>
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center shadow-sm hover:shadow-md transition-shadow">
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-600 mb-3 tracking-wider">EDVANCE.</span>
+          <div class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-teal-200 bg-teal-50 flex items-center justify-center">
+            <span class="text-2xl font-bold text-teal-600">AK</span>
+          </div>
+          <p class="text-slate-800 font-bold text-sm">Koo Rou Zhen</p>
+          <p class="text-slate-400 text-xs mt-1">Computer Science &amp; Design (CSD)</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center shadow-sm hover:shadow-md transition-shadow">
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-600 mb-3 tracking-wider">EDVANCE.</span>
+          <div class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-violet-200 bg-violet-50 flex items-center justify-center">
+            <span class="text-2xl font-bold text-violet-600">TB</span>
+          </div>
+          <p class="text-slate-800 font-bold text-sm">Le Duy</p>
+          <p class="text-slate-400 text-xs mt-1">Engineering Systems &amp; Design (ESD)</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center shadow-sm hover:shadow-md transition-shadow">
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-600 mb-3 tracking-wider">EDVANCE.</span>
+          <div class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-amber-200 bg-amber-50 flex items-center justify-center">
+            <span class="text-2xl font-bold text-amber-600">YS</span>
+          </div>
+          <p class="text-slate-800 font-bold text-sm">Priyanshi Saraogi</p>
+          <p class="text-slate-400 text-xs mt-1">Computer Science &amp; Design (CSD)</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center shadow-sm hover:shadow-md transition-shadow">
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-600 mb-3 tracking-wider">EDVANCE.</span>
+          <div class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-cyan-200 bg-cyan-50 flex items-center justify-center">
+            <span class="text-2xl font-bold text-cyan-600">LS</span>
+          </div>
+          <p class="text-slate-800 font-bold text-sm">Ng Wan Qing</p>
+          <p class="text-slate-400 text-xs mt-1">Engineering Product &amp; Design (EPD)</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center shadow-sm hover:shadow-md transition-shadow">
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-600 mb-3 tracking-wider">EDVANCE.</span>
+          <div class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-orange-200 bg-orange-50 flex items-center justify-center">
+            <span class="text-2xl font-bold text-orange-600">LT</span>
+          </div>
+          <p class="text-slate-800 font-bold text-sm">Jithin Bathula</p>
+          <p class="text-slate-400 text-xs mt-1">Computer Science &amp; Design (CSD)</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer style="background:linear-gradient(180deg,#0f172a 0%,#0c4a4e 100%)">
+    <div class="w-full px-6 lg:px-10 py-12">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto">
+        <div class="md:col-span-2">
+          <div class="flex items-center gap-2 mb-4">
+            <img src="src/assets/edvance-logo.svg" alt="Edvance" width="36" height="36" class="object-contain" />
+            <span class="text-xl font-bold text-teal-200">edvance</span>
+          </div>
+          <p class="text-slate-400 text-sm leading-relaxed max-w-sm">
+            AI-powered project-based learning platform that helps students master coding through hands-on experience.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Product</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#features" class="text-sm text-slate-400 hover:text-teal-300 transition-colors">Features</a></li>
+            <li><a href="#projects" class="text-sm text-slate-400 hover:text-teal-300 transition-colors">Student Projects</a></li>
+            <li><a href="#how-it-works" class="text-sm text-slate-400 hover:text-teal-300 transition-colors">How It Works</a></li>
+            <li><a href="#for-teachers" class="text-sm text-slate-400 hover:text-teal-300 transition-colors">For Teachers</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Get Started</h4>
+          <ul class="space-y-2.5">
+            <li><a href="https://waitlister.me/p/edvance" class="text-sm text-slate-400 hover:text-teal-300 transition-colors">Sign Up</a></li>
+            <li><a href="https://waitlister.me/p/edvance" class="text-sm text-slate-400 hover:text-teal-300 transition-colors">Log In</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-12 pt-8 border-t border-white/10 text-center max-w-7xl mx-auto">
+        <p class="text-sm text-slate-500">&copy; 2026 Edvance. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Navbar scroll effect
+    window.addEventListener('scroll', function() {
+      var nav = document.getElementById('navbar');
+      if (window.scrollY > 20) {
+        nav.classList.add('nav-scrolled');
+        nav.classList.remove('bg-transparent');
+      } else {
+        nav.classList.remove('nav-scrolled');
+        nav.classList.add('bg-transparent');
+      }
+    }, { passive: true });
+
+    // Cody response toggle
+    var currentResponse = 'none';
+    var responses = {
+      explain: 'Explanation: This error happens because Python needs commas between list items. In your list, the numbers run together without separators, so Python cannot parse it as a valid list.',
+      hint: 'Hint: Check what character should go between each number in a Python list. It appears after each item except the last one.'
+    };
+
+    function toggleResponse(type) {
+      var el = document.getElementById('cody-response');
+      var btnExplain = document.getElementById('btn-explain');
+      var btnHint = document.getElementById('btn-hint');
+
+      if (currentResponse === type) {
+        currentResponse = 'none';
+        el.classList.add('hidden');
+        el.textContent = '';
+        btnExplain.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors cursor-pointer';
+        btnHint.className = 'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer';
+        return;
+      }
+
+      currentResponse = type;
+      el.textContent = responses[type];
+      el.classList.remove('hidden');
+
+      if (type === 'explain') {
+        btnExplain.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-500 text-white shadow-sm cursor-pointer';
+        btnHint.className = 'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer';
+      } else {
+        btnHint.className = 'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-white shadow-sm cursor-pointer';
+        btnExplain.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors cursor-pointer';
+      }
+    }
+
+    // How It Works step switcher
+    var currentStep = 0;
+    var stepGifs = ['public/steps/step-01.gif', 'public/steps/step-02.gif', 'public/steps/step-03.gif', 'public/steps/step-04.gif'];
+    var stepColors = [
+      'from-teal-500 to-teal-600',
+      'from-violet-500 to-purple-600',
+      'from-cyan-500 to-teal-500',
+      'from-amber-500 to-orange-500'
+    ];
+    var stepDescs = [
+      'Chat with our requirements agent to define what you want to build \u2014 your goals, skill level, and preferences.',
+      'Our AI generates a personalized project plan with milestones, tasks, and a structured learning path just for you.',
+      'Write real code in our built-in editor. Get hints, explanations, and instant feedback as you progress through each task.',
+      'Submit your completed tasks, earn XP, unlock achievements, and build your portfolio project by project.'
+    ];
+    var stepDurations = [14900, 11200, 11700, 8800];
+    var stepTimer = null;
+
+    function setStep(idx) {
+      currentStep = idx;
+
+      // Update GIF with fade
+      var gif = document.getElementById('step-gif');
+      gif.style.transition = 'opacity 0.3s ease';
+      gif.style.opacity = '0.05';
+      setTimeout(function() {
+        gif.src = stepGifs[idx];
+        gif.onload = function() { gif.style.opacity = '1'; };
+        // Fallback if cached (onload won't fire)
+        setTimeout(function() { gif.style.opacity = '1'; }, 100);
+      }, 150);
+
+      // Update dots
+      for (var d = 0; d < 4; d++) {
+        var dot = document.getElementById('dot-' + d);
+        dot.className = d === idx
+          ? 'rounded-full transition-all duration-300 w-6 h-2 bg-teal-500'
+          : 'rounded-full transition-all duration-300 w-2 h-2 bg-white/70 hover:bg-white';
+      }
+
+      // Update step buttons
+      for (var s = 0; s < 4; s++) {
+        var btn = document.getElementById('step-' + s);
+        var desc = document.getElementById('step-' + s + '-desc');
+        var iconDiv = btn.querySelector('[data-step-icon]');
+        var stepLabel = btn.querySelector('[data-step-label]');
+        var title = btn.querySelector('[data-step-title]');
+        var iconSvg = iconDiv ? iconDiv.querySelector('svg, i') : null;
+        var isPast = s < idx;
+
+        if (s === idx) {
+          btn.className = 'step-btn w-full flex items-center gap-4 px-5 py-3 rounded-2xl text-left transition-all duration-300 bg-white shadow-lg ring-1 ring-teal-200';
+          btn.style.transform = 'scale(1)';
+          if (iconDiv) iconDiv.className = 'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 bg-gradient-to-br ' + stepColors[s] + ' shadow-md';
+          if (iconDiv) iconDiv.setAttribute('data-step-icon', '');
+          if (iconSvg) iconSvg.style.color = 'white';
+          if (stepLabel) { stepLabel.className = 'text-xs font-bold text-teal-600'; stepLabel.setAttribute('data-step-label', ''); }
+          if (title) { title.className = 'text-sm font-semibold mt-0.5 text-slate-800'; title.setAttribute('data-step-title', ''); }
+          desc.style.maxHeight = '120px';
+          desc.style.opacity = '1';
+          desc.style.overflow = 'hidden';
+          desc.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
+          desc.textContent = stepDescs[s];
+        } else {
+          btn.className = 'step-btn w-full flex items-center gap-4 px-5 py-3 rounded-2xl text-left transition-all duration-300 bg-white/40 hover:bg-white/70';
+          btn.style.transform = 'scale(0.97)';
+          if (iconDiv) iconDiv.className = 'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ' + (isPast ? 'bg-teal-50' : 'bg-gray-100');
+          if (iconDiv) iconDiv.setAttribute('data-step-icon', '');
+          if (iconSvg) iconSvg.style.color = isPast ? '#2dd4bf' : '#9ca3af';
+          if (stepLabel) { stepLabel.className = 'text-xs font-bold ' + (isPast ? 'text-teal-600' : 'text-gray-400'); stepLabel.setAttribute('data-step-label', ''); }
+          if (title) { title.className = 'text-sm font-semibold mt-0.5 ' + (isPast ? 'text-slate-600' : 'text-slate-400'); title.setAttribute('data-step-title', ''); }
+          desc.style.maxHeight = '0';
+          desc.style.opacity = '0';
+          desc.style.overflow = 'hidden';
+          desc.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
+        }
+      }
+
+      // Update connector lines
+      var connectors = document.querySelectorAll('[data-connector]');
+      connectors.forEach(function(conn, ci) {
+        var line = conn.querySelector('[data-line]');
+        var chevron = conn.querySelector('svg');
+        if (ci < idx) {
+          if (line) { line.style.backgroundColor = '#5eead4'; line.style.backgroundImage = 'none'; }
+          if (chevron) chevron.style.color = '#2dd4bf';
+        } else {
+          if (line) { line.style.backgroundColor = ''; line.style.backgroundImage = 'repeating-linear-gradient(to bottom,#e5e7eb 0px,#e5e7eb 4px,transparent 4px,transparent 8px)'; }
+          if (chevron) chevron.style.color = '#d1d5db';
+        }
+      });
+
+      // Reset auto-advance
+      clearTimeout(stepTimer);
+      stepTimer = setTimeout(function() {
+        setStep((currentStep + 1) % 4);
+      }, stepDurations[idx]);
+    }
+
+    // Start auto-advance
+    stepTimer = setTimeout(function() {
+      setStep(1);
+    }, stepDurations[0]);
+  </script>
+
+</body>
+</html>

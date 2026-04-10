@@ -57,7 +57,8 @@ class SubmissionEvaluator:
         user_code: str,
         task_instructions: str,
         test_specification: Dict[str, Any],
-        coding_requirements: list | None = None
+        coding_requirements: list | None = None,
+        test_run = None,
     ) -> SubmissionResult:
         """
         Evaluate a code submission against task requirements.
@@ -78,6 +79,16 @@ class SubmissionEvaluator:
         else:
             coding_req_text = "No specific coding requirements provided."
 
+        # Only pass test results to LLM when all tests passed
+        test_results_text = ""
+        if test_run is not None and test_run.all_passed:
+            lines = []
+            for r in test_run.results:
+                line = f"  PASSED: {r.input_expr}"
+                lines.append(line)
+            test_results_text = "\n".join(lines)
+
+            
         messages = [
             {"role": "system", "content": prompts.submission_system_prompt},
             {
@@ -87,6 +98,7 @@ class SubmissionEvaluator:
                     coding_requirements=coding_req_text,
                     test_specification=test_spec_text,
                     user_code=user_code,
+                    test_results_text = test_results_text
                 )
             }
         ]

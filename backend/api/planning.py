@@ -1,6 +1,7 @@
 import logging
 import traceback
-
+import json
+import os
 from flask import Blueprint, jsonify, request, g
 from pydantic import ValidationError
 
@@ -222,7 +223,6 @@ def generate_curriculum():
                             milestone_position = idx + 1
                             print(f"[BG] Generating milestone {milestone_position}/{len(outline.milestones)}: {milestone_outline.subheading_title}")
 
-
                             milestone_obj = planner.generate_tasks_for_milestone(
                                 project_title=outline.project_title,
                                 project_brief=outline.project_brief,
@@ -237,7 +237,6 @@ def generate_curriculum():
                                 previous_milestones_summary=accumulated_summary,
                             )
                             print(f"[BG] Milestone {milestone_position} generated: {len(milestone_obj.tasks)} tasks")
-
 
                             # Accumulate this milestone's summary for the next iteration
                             new_summary = CurriculumPlanner._build_milestone_summary(milestone_obj, milestone_position)
@@ -273,16 +272,17 @@ def generate_curriculum():
                         print(f"[BG] FAILED: {bg_exc}")
                         logger.error("Background milestone generation failed: %s\n%s", bg_exc, traceback.format_exc())
 
+
                 bg_thread = Thread(target=generate_remaining_in_background, daemon=True)
                 bg_thread.start()
-                print(f"[BG] Background thread started")
+                logger.info("[BG] Background thread started")
 
-        import json
-        with open("last_generated_curriculum.json", "w") as f:
+        os.makedirs("logs", exist_ok=True)
+        with open("logs/last_generated_curriculum.json", "w") as f:
             json.dump(result, f, indent=2)
 
         return jsonify(result)
-        
+
     except (CurriculumGenerationError, ValidationError) as exc:
         return jsonify({"error": str(exc)}), 400
     except ValueError as exc:

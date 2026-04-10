@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import math
 from typing import Any, Dict, List, Sequence, Optional
 
 from dotenv import load_dotenv
@@ -300,6 +301,20 @@ class CurriculumPlanner:
                         already_built_lines.append(stripped)
         already_built_features = "\n".join(already_built_lines) if already_built_lines else "This is the first milestone — nothing has been built yet."
 
+        # Calculate max tasks per milestone based on duration
+        duration_lower = (estimated_duration or "").lower()
+        if "30" in duration_lower or "60 min" in duration_lower:
+            total_target = 6
+        elif "1" in duration_lower and "hour" in duration_lower or "1-2" in duration_lower:
+            total_target = 10
+        elif "3" in duration_lower or "5" in duration_lower and "hour" in duration_lower:
+            total_target = 20
+        elif "6" in duration_lower or "12" in duration_lower:
+            total_target = 30
+        else:
+            total_target = total_milestones * 4  # default ~4 per milestone
+        max_tasks_this_milestone = max(2, math.ceil(total_target / max(total_milestones, 1)))
+
         messages = [
             {"role": "system", "content": prompt_bank.task_generation_system_prompt},
             {
@@ -315,6 +330,7 @@ class CurriculumPlanner:
                     description=milestone.description,
                     estimated_duration=estimated_duration,
                     total_milestones=total_milestones,
+                    max_tasks_this_milestone=max_tasks_this_milestone,
                     base_url=os.getenv("BASE_URL", ""),
                     blueprint_json=blueprint_json,
                     previous_milestones_summary=summary_text,
@@ -328,7 +344,7 @@ class CurriculumPlanner:
             m = Milestone.model_validate_json(content)
             # Validate instruction_theory format
             for task in m.tasks:
-                required_sections = ["**Part A: Explanation**", "**Part B: Try It Out**", "**Part C: Your Task**"]
+                required_sections = ["**Task Description**", "**Your Task**", "**Example**"]
                 missing = [s for s in required_sections if s not in task.instruction_theory]
                 if missing:
                     logger.warning("Task %s missing instruction_theory sections: %s", task.task_id, missing)
@@ -532,8 +548,10 @@ IMPORTANT GUIDELINES:
 - If they created specific functions, reference them by name
 - Keep the learning objectives the same, just adapt the language to match their code
 - Make it feel like a natural continuation of THEIR code, not generic instructions
--Reference specific line numbers to guide where code should be added or changed (e.g., "Below your show_room() function on line 17, add a new function...") (e.g., "Update the while loop starting at line 25 to also handle...")
--When referencing line numbers, also describe WHAT is on that line so it's clear even if lines shift slightly
+-When telling students to ADD new code, say "After line X (where you have ...), add:" — never say "Update line X" when you mean "add below line X"
+-When telling students to CHANGE existing code, say "Change line X from ... to ..."
+-Always describe WHAT is on that line so it's clear even if lines shift slightly
+-Never assume students know the difference between "update" and "add after" — be explicit
 
 Return a JSON with the adapted task in this exact format:
 {{
@@ -544,8 +562,20 @@ Return a JSON with the adapted task in this exact format:
   "test_specification": {{
     "expected_state": "What should exist after this task",
     "verification_code": "Python code to verify correctness"
+    "test_cases": [
+      {{"input": "function_call(args)", "expected_output": "expected_value"}},
+      {{"input": "function_call(args)", "expected_output": "expected_value"}}
+    ]
   }}
 }}
+
+IMPORTANT for test_cases:
+- Adapt the function names in test case "input" fields to match the student's actual function/variable names
+- Keep the same test logic but use THEIR naming conventions
+- If the original test calls calculate() but the student named it calc(), update the test to call calc()
+- If the task involves a game loop or interactive loop with input(), set test_cases to an empty array [] — these cannot be tested automatically
+
+
 """
 
         messages = [

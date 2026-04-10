@@ -980,16 +980,9 @@ export const EditorIDE = forwardRef<EditorIDEHandle, Props>(function EditorIDE({
                   <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Enter input..."
+                    placeholder="Enter input... (press Enter to submit)"
                     autoFocus
                   />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white h-7 px-3"
-                  >
-                    Send
-                  </Button>
                 </form>
               )}
             </div>

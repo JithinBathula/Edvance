@@ -272,6 +272,10 @@ async function runCode(files: Array<{ name: string; content: string }>, entryFil
     (self as any)._pyodide_post_stderr = (text: string) => postStderr(text);
     (self as any)._pyodide_request_input = (prompt: string): Promise<string> => {
       return new Promise((resolve) => {
+        // Resolve any orphaned previous input request to avoid hanging
+        if (inputResolve) {
+          inputResolve('');
+        }
         inputResolve = resolve;
         postInputRequest(prompt);
       });

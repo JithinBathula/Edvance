@@ -71,19 +71,18 @@ def update_profile():
 @users_bp.route('/account', methods=['DELETE'])
 @require_auth
 def delete_account():
-    """Soft-delete the authenticated user's account."""
+    """Hard-delete the authenticated user's account."""
     try:
-        # Anonymize user record
-        supabase.table('users').update({
-            'name': 'Deleted User',
-            'email': None,
-            'onboarding': None,
-        }).eq('id', g.user_id).execute()
-
         # Deactivate all classrooms owned by this user (teacher case)
         supabase.table('classrooms').update({
             'is_active': False
         }).eq('teacher_id', g.user_id).execute()
+
+        # Delete app user record
+        supabase.table('users').delete().eq('id', g.user_id).execute()
+
+        # Delete from auth.users so the email can be reused
+        supabase.auth.admin.delete_user(g.user_id)
 
         return jsonify({'success': True}), 200
     except Exception as e:

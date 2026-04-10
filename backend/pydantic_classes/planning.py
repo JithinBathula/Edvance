@@ -5,10 +5,15 @@ from typing import List
 class CurriculumGenerationError(RuntimeError):
     """Raised when curriculum generation fails or violates the enforced schema."""
 
+class TestCase(BaseModel):
+    input: str
+    expected_output: str
 
 class TestSpecification(BaseModel):
     expected_state: str
     verification_code: str
+    test_cases: List[TestCase] = Field(default_factory=list)
+    input_mock: str | List[str] = Field(default="")
 
 
 class TaskItem(BaseModel):

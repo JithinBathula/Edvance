@@ -47,8 +47,22 @@ MILESTONE_SCHEMA = {
                         "properties": {
                             "expected_state": {"type": "string"},
                             "verification_code": {"type": "string"},
+                            "test_cases": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "input": {"type": "string"},
+                                        "expected_output": {"type": "string"},
+                                    },
+                                    "required": ["input", "expected_output"],
+                                    "additionalProperties": False,
+                                },
+                            },
+                            "input_mock": {"type": "string"},
+
                         },
-                        "required": ["expected_state", "verification_code"],
+                        "required": ["expected_state", "verification_code", "test_cases", "input_mock"],
                         "additionalProperties": False,
                     },
                 },

@@ -99,7 +99,12 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
 
             if (!response.ok) throw new Error('Failed to generate outline');
 
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch {
+                throw new Error('Received invalid response from server');
+            }
             setOutline(data);
             setPhase('show-outline');
         } catch (err) {
@@ -130,7 +135,12 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
 
             if (!response.ok) throw new Error('Failed to generate curriculum');
 
-            const curriculum = await response.json();
+            let curriculum;
+            try {
+                curriculum = await response.json();
+            } catch {
+                throw new Error('Received invalid response from server');
+            }
 
             if (isTeacher) {
                 // Teacher flow: first milestone returned, rest generating in background
@@ -187,7 +197,13 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
 
             try {
                 const response = await authFetch(`/progress/projects/${projectId}/full`);
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch {
+                    setPollingError('Received invalid response from server');
+                    return;
+                }
 
                 if (!data.success || !data.project) {
                     setPollingError('Temporary issue checking progress...');

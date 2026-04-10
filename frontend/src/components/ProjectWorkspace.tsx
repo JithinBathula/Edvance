@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { WorkspaceTour } from './WorkspaceTour';
 import codyUrl from '../assets/cody.svg';
 
@@ -79,10 +81,21 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
         return <RunnableCodeBlock code={codeText} contextCode={contextCode} />;
       }
     }
+    // Extract code text and language for syntax highlighting
+    const codeText = String(children?.props?.children || '').replace(/\n$/, '');
+    const langClass: string = children?.props?.className || '';
+    const lang = langClass.replace('language-', '') || 'python';
     return (
-      <pre className="code-block bg-gray-100 text-gray-900 p-4 rounded-lg text-sm font-mono mb-4 leading-relaxed border border-gray-200" style={{ overflowX: 'auto', whiteSpace: 'pre', maxWidth: '100%' }}>
-        {children}
-      </pre>
+      <div className="rounded-lg overflow-hidden my-2">
+        <SyntaxHighlighter
+          language={lang}
+          style={oneDark}
+          customStyle={{ margin: 0, padding: '0.75rem 1rem', fontSize: '0.8125rem', lineHeight: '1.6', background: '#1e293b', borderRadius: '0.5rem', overflowX: 'hidden' }}
+          wrapLongLines={true}
+        >
+          {codeText}
+        </SyntaxHighlighter>
+      </div>
     );
   },
   ul: ({ children }: any) => (
@@ -116,34 +129,52 @@ const markdownComponents = (interactive?: boolean, contextCode?: string) => ({
   hr: () => <hr className="my-4 border-gray-200" />,
 });
 
-// Case-insensitive, space-tolerant section marker finder
-function findMarker(text: string, label: string): RegExpExecArray | null {
-  return new RegExp(`\\*\\*\\s*${label}\\s*:?\\s*\\*\\*[^\\S\\n]*\\n+`, 'i').exec(text);
+// Case-insensitive, space-tolerant section marker finder — matches multiple label variants
+function findMarker(text: string, labels: string[]): RegExpExecArray | null {
+  for (const label of labels) {
+    const match = new RegExp(`\\*\\*\\s*(?:Part\\s+[A-C]:\\s*)?${label}\\s*:?\\s*\\*\\*[^\\S\\n]*\\n*`, 'i').exec(text);
+    if (match) return match;
+  }
+  return null;
 }
 
-// Split text into sections by **Task Description**, **Key Concepts**, **Your Task**, **Example** markers
+// Split text into sections by various marker formats
 function splitIntoParts(text: string): { intro: string; keyConcepts: string; taskSteps: string; example: string } {
-  const tdMatch       = findMarker(text, 'Task Description');
-  const kcMatch       = findMarker(text, 'Key Concepts');
-  const yourTaskMatch = findMarker(text, 'Your Task');
-  const exMatch       = findMarker(text, 'Example');
+  const introMatch    = findMarker(text, ['Task Description', 'Explanation']);
+  const kcMatch       = findMarker(text, ['Key Concepts']);
+  const tryItMatch    = findMarker(text, ['Try It Out', 'Try It', 'Example']);
+  const yourTaskMatch = findMarker(text, ['Your Task']);
 
   // No markers — old format, render as-is
-  if (!tdMatch && !kcMatch && !yourTaskMatch && !exMatch) {
+  if (!introMatch && !kcMatch && !tryItMatch && !yourTaskMatch) {
     return { intro: text, keyConcepts: '', taskSteps: '', example: '' };
   }
 
-  // Slice between two adjacent markers (end of `from` → start of `to`)
-  const between = (from: RegExpExecArray | null, to: RegExpExecArray | null): string => {
+  // Order markers by position in text
+  const all = [
+    { key: 'intro', match: introMatch },
+    { key: 'kc', match: kcMatch },
+    { key: 'tryIt', match: tryItMatch },
+    { key: 'task', match: yourTaskMatch },
+  ].filter(m => m.match !== null).sort((a, b) => a.match!.index - b.match!.index);
+
+  // Slice between two adjacent markers
+  const sliceBetween = (from: RegExpExecArray | null, to: RegExpExecArray | null): string => {
     const start = from ? from.index + from[0].length : 0;
     const end   = to ? to.index : text.length;
     return text.slice(start, end).trim();
   };
 
-  const intro       = between(tdMatch, kcMatch ?? yourTaskMatch ?? exMatch);
-  const keyConcepts = kcMatch       ? between(kcMatch, yourTaskMatch ?? exMatch) : '';
-  const taskSteps   = yourTaskMatch ? between(yourTaskMatch, exMatch) : '';
-  const example     = exMatch       ? text.slice(exMatch.index + exMatch[0].length).trim() : '';
+  const nextMatch = (key: string): RegExpExecArray | null => {
+    const idx = all.findIndex(m => m.key === key);
+    if (idx === -1 || idx + 1 >= all.length) return null;
+    return all[idx + 1].match;
+  };
+
+  const intro       = introMatch    ? sliceBetween(introMatch, nextMatch('intro')) : sliceBetween(null, all[0]?.match ?? null);
+  const keyConcepts = kcMatch ? sliceBetween(kcMatch, nextMatch('kc')) : '';
+  const example     = tryItMatch ? sliceBetween(tryItMatch, nextMatch('tryIt')) : '';
+  const taskSteps   = yourTaskMatch ? sliceBetween(yourTaskMatch, nextMatch('task')) : '';
 
   return { intro, keyConcepts, taskSteps, example };
 }
@@ -157,12 +188,12 @@ function FormattedDescription({
   contextCode?: string;
 }) {
   const { intro, keyConcepts, taskSteps, example } = splitIntoParts(text);
-  const [tryItOpen, setTryItOpen] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
   const [conceptsOpen, setConceptsOpen] = useState(true);
 
   // Reset when task changes
   useEffect(() => {
-    setTryItOpen(false);
+    setExampleOpen(false);
     setConceptsOpen(true);
   }, [text]);
 
@@ -181,23 +212,37 @@ function FormattedDescription({
           font-size: 0.875em;
           font-weight: 500;
         }
-        .task-content .code-block code {
+        .task-content .code-block code,
+        .task-content pre code {
           background: transparent !important;
           color: inherit !important;
           padding: 0 !important;
           font-weight: normal !important;
           font-size: inherit !important;
+          border: none !important;
+        }
+        .task-content pre {
+          overflow-x: hidden !important;
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+        }
+        .task-content pre code {
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
         }
         .task-ol {
           counter-reset: task-counter;
           list-style: none;
           padding: 0;
           margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
         }
         .task-ol > li {
           counter-increment: task-counter;
           position: relative;
-          padding-left: 2rem;
+          padding-left: 1.75rem;
           color: #374151;
           font-size: 15px;
           line-height: 1.6;
@@ -210,6 +255,31 @@ function FormattedDescription({
           color: #ea580c;
           font-size: 15px;
         }
+        .task-ol ul {
+          list-style-type: disc;
+          margin-left: 0.5rem;
+          margin-top: 0.375rem;
+          margin-bottom: 0.25rem;
+          padding-left: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .task-ol ul li {
+          color: #374151;
+          font-size: 15px;
+          line-height: 1.6;
+        }
+        .section-label {
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #6b7280;
+          margin-bottom: 0.75rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid #f3f4f6;
+        }
         .hint-lightbulb:hover {
           background: rgba(13, 148, 136, 0.15) !important;
           color: #0f766e !important;
@@ -221,7 +291,7 @@ function FormattedDescription({
 
       {/* Intro paragraph — always visible */}
       {intro && (
-        <div className="task-content mb-3">
+        <div className="task-content mb-4">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {intro}
           </ReactMarkdown>
@@ -230,13 +300,13 @@ function FormattedDescription({
 
       {/* Key Concepts — collapsible */}
       {keyConcepts && (
-        <div className="border border-amber-50 rounded-lg mb-3 overflow-hidden">
+        <div className="border border-amber-100 rounded-lg mb-5 overflow-hidden">
           <button
             onClick={() => setConceptsOpen(prev => !prev)}
             className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-amber-50 transition-colors"
           >
             <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-            <span className="font-semibold text-amber-700 text-[14px] flex-1">Key Concepts</span>
+            <span className="text-sm font-semibold text-amber-700 flex-1">Key Concepts</span>
             <ChevronDown
               className={`w-4 h-4 text-amber-400 transition-transform duration-200 ${conceptsOpen ? '-rotate-180' : ''}`}
             />
@@ -244,13 +314,9 @@ function FormattedDescription({
           {conceptsOpen && (
             <div className="px-4 pb-3 pt-1 border-t border-amber-100 bg-amber-50/30">
               <div className="task-content">
-                {keyConcepts.split('\n').filter(l => l.trim()).map((line, i) => (
-                  <div key={i}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{...plainComponents, p: ({children}: any) => <p className="text-gray-600 text-[15px] leading-relaxed mb-0">{children}</p>}}>
-                      {line.replace(/^- /, '')}
-                    </ReactMarkdown>
-                  </div>
-                ))}
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={interactiveComponents}>
+                  {keyConcepts}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -259,32 +325,59 @@ function FormattedDescription({
 
       {/* Task steps — always visible */}
       {taskSteps && (
-        <div className="task-content mb-4">
-          <div className="mb-3 mt-5">
-            <p className="font-bold text-lg text-gray-900">Your Task:</p>
-          </div>
+        <div className="task-content mb-5">
+          <p className="font-bold text-lg text-gray-900 mb-3">Your Task:</p>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={plainComponents}>
             {(() => {
-              // Renumber list items AND indent code blocks/non-list lines
-              // under the preceding list item so the markdown parser treats
-              // the whole thing as one continuous ordered list.
+              // Pre-process: split inline sub-items onto separate lines
+              // "1. Do X: - item1 - item2" → "1. Do X:\n   - item1\n   - item2"
+              // Uses " - " (space-hyphen-space) as delimiter, but NOT " — " (em-dash)
+              const rawLines = taskSteps.split('\n');
+              const lines: string[] = [];
+              for (const line of rawLines) {
+                // Split on " - " (hyphen only, not em-dash —)
+                const parts = line.split(/ - (?=[`"'\w])/);
+                if (parts.length >= 3) {
+                  lines.push(parts[0].replace(/:\s*$/, ':'));
+                  for (let j = 1; j < parts.length; j++) {
+                    lines.push(`   - ${parts[j]}`);
+                  }
+                } else {
+                  lines.push(line);
+                }
+              }
+
+              // Two-pass approach:
+              // Pass 1: identify which top-level numbered items exist (lines starting with \d+. at column 0)
+              // Pass 2: indent everything else under the last top-level item
+
+              // Find top-level list item line indices
+              // A top-level item is a `\d+. ` line at column 0 that is NOT inside a code fence
+              const topLevelIndices = new Set<number>();
+              let scanFence = false;
+              for (let i = 0; i < lines.length; i++) {
+                if (/^```/.test(lines[i])) { scanFence = !scanFence; continue; }
+                if (scanFence) continue;
+                if (/^\d+\. /.test(lines[i])) {
+                  topLevelIndices.add(i);
+                }
+              }
+
               let n = 0;
               let inFence = false;
-              let seenListItem = false;
-              return taskSteps.split('\n').map(line => {
+              let insideListItem = false;
+              return lines.map((line, i) => {
                 if (/^```/.test(line)) {
                   inFence = !inFence;
-                  return seenListItem ? '    ' + line : line;
+                  return insideListItem ? '    ' + line : line;
                 }
-                if (!inFence && /^\d+\. /.test(line)) {
-                  seenListItem = true;
+                if (!inFence && topLevelIndices.has(i)) {
+                  insideListItem = true;
                   return line.replace(/^\d+\. /, () => `${++n}. `);
                 }
-                // Indent non-list-item lines inside the preceding list item
-                if (seenListItem && !inFence && line.trim() !== '') {
-                  return '    ' + line;
-                }
-                if (seenListItem && inFence) {
+                // Indent non-top-level content under the current list item
+                // but only if not already indented (e.g. sub-items like "   - item")
+                if (insideListItem && line.trim() !== '' && !/^\s{2,}/.test(line)) {
                   return '    ' + line;
                 }
                 return line;
@@ -294,21 +387,21 @@ function FormattedDescription({
         </div>
       )}
 
-      {/* Example — collapsed by default */}
+      {/* Example — separate collapsible card */}
       {example && (
-        <div className="border border-teal-200 rounded-lg mb-4 overflow-hidden">
+        <div className="border border-teal-200 rounded-lg mb-5 overflow-hidden">
           <button
-            onClick={() => setTryItOpen(prev => !prev)}
-            className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-teal-50 transition-colors"
+            onClick={() => setExampleOpen(prev => !prev)}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-teal-50 transition-colors"
           >
             <Code2 className="w-4 h-4 text-teal-600 shrink-0" />
-            <span className="font-semibold text-teal-800 text-[15px] flex-1">Example</span>
+            <span className="text-sm font-bold text-teal-700 flex-1">Example</span>
             <ChevronDown
-              className={`w-4 h-4 text-teal-400 transition-transform duration-200 ${tryItOpen ? '-rotate-180' : ''}`}
+              className={`w-4 h-4 text-teal-400 transition-transform duration-200 ${exampleOpen ? '-rotate-180' : ''}`}
             />
           </button>
-          {tryItOpen && (
-            <div className="px-4 pb-4 pt-1 border-t border-teal-100 bg-teal-50/30">
+          {exampleOpen && (
+            <div className="px-4 pb-3 pt-1 border-t border-teal-100 bg-teal-50/30">
               <div className="task-content">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={interactiveComponents}>
                   {example}

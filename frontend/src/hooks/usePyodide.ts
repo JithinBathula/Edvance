@@ -118,7 +118,10 @@ export function usePyodide() {
 
   const runCode = useCallback(
     (files: Array<{ name: string; content: string }>, entryFile: string, authToken?: string) => {
-      if (!workerRef.current) return;
+      if (!workerRef.current) {
+        setOutput(prev => [...prev, { type: 'stderr', text: 'Python runtime is not ready. Please wait or refresh the page.\n' }]);
+        return;
+      }
       setOutput([]);
       setInputPrompt(null);
       setIsRunning(true);

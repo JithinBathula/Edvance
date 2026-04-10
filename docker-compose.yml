@@ -19,3 +19,5 @@ services:
       - PYTHONUNBUFFERED=1
     env_file:
       - ./backend/.env
+    volumes:
+        - ./backend/logs:/app/logs

@@ -243,6 +243,7 @@ CRITICAL RULES:
 - No argparse, sys.argv, or CLI argument parsing
 - Basic error handling is fine as part of a task, but never make an entire task just about try/except
 - Keep it simple — if a project is a calculator, it should feel like a calculator, not enterprise software
+- ALWAYS use fenced code blocks (```python) for ALL code snippets in instruction_theory. NEVER use indentation-based markdown code blocks (4 spaces). Fenced blocks keep multi-line code together as one block.
 - Every task MUST require the student to write or modify code that persists in the final program. Tasks with ONLY observational requirements ("the program should...", "data persists...") are not valid — fold verification into the previous task's final step. Throwaway test code (print statements that exist solely to demonstrate a value and would be deleted later) must NOT appear in coding_requirements — put demos in Part B instead.
 - Hints should be friendly and specific — no jargon, no "ensure proper implementation"
 - AVOID the `global` keyword — it confuses beginners and teaches bad habits:
@@ -328,16 +329,19 @@ Goal: {description}
 
 TASK GENERATION RULES:
 
-1. **Right Number of Tasks:**
+1. **Right Number of Tasks — HARD LIMIT:**
 
-   - 30-60 min → ~6 tasks TOTAL across all milestones
-   - 1-2 hours → ~10 tasks TOTAL across all milestones
-   - 3-5 hours → ~20 tasks TOTAL across all milestones
-   - 6-12 hours → ~30 tasks TOTAL across all milestones
-   This milestone is {milestone_position} of {total_milestones}.
-   Divide the target evenly across milestones. This milestone is {milestone_position} of {total_milestones},
-   so aim for roughly (total target / {total_milestones}) tasks in THIS milestone.
-   If no duration is provided, default to 3-5 tasks per milestone.
+   ESTIMATED DURATION: {estimated_duration}
+   THIS IS MILESTONE: {milestone_position} of {total_milestones}
+
+   Task count by duration (STRICT — do NOT exceed these):
+   - 30-60 min → 6 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+   - 1-2 hours → 10 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+   - 3-5 hours → 20 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+   - 6-12 hours → 30 tasks TOTAL → generate MAX {max_tasks_this_milestone} tasks for THIS milestone
+
+   YOU MUST generate NO MORE THAN {max_tasks_this_milestone} tasks for this milestone.
+   If no duration is provided, default to 3-4 tasks per milestone.
    
    **TASK QUALITY — Every task must produce real, MEANINGFUL, testable functionality:**
    - Each task must result in a function, calculation, condition, loop, or data structure that does something — not just display static text
@@ -347,8 +351,17 @@ TASK GENERATION RULES:
    - Ask yourself: "Can I write a test that verifies this task does the right thing with specific inputs?" If no, the task is too shallow — combine it with the next one
    
 2. **instruction_theory — The Main Teaching Content:**
-   This is what the student reads. It MUST follow the Task Description → Example structure.
-   Format it with markdown. Use **bold** for emphasis, `backticks` for code, and clear headings.
+   This is what the student reads. It MUST follow the Learn → Try → Do structure.
+   Format it with markdown. Use **bold** for emphasis, `backticks` for code.
+
+   You MUST use these EXACT bold headings in every instruction_theory — no substitutions:
+   - **Task Description**
+   - **Key Concepts** (Beginner/Intermediate only — omit for Advanced Level 5+)
+   - **Your Task**
+   - **Example**
+
+   Do NOT use ## markdown headers instead. Do NOT rename these sections. Do NOT skip any section.
+   If a concept is already known, sections can be shortened, but all headings MUST still appear.
 
    STRUCTURE — output these exact section headings in this exact order:
 
@@ -368,6 +381,23 @@ TASK GENERATION RULES:
    - Use EXACT variable names and function names
    - Each step is one clear action
    - 2-5 steps max
+
+   *** CRITICAL FORMATTING RULE FOR YOUR TASK STEPS ***
+   When a step contains multiple sub-items (things to print, options to handle, fields to add),
+   you MUST put EACH sub-item on its OWN LINE as a markdown bullet indented under the step.
+   NEVER list sub-items inline separated by dashes on one long line.
+
+   WRONG (all on one line):
+   1. Create a function that: - Prints "Hello" - Prints "World" - Returns True
+
+   CORRECT (each sub-item on its own line):
+   1. Create a function that:
+      - Prints `"Hello"`
+      - Prints `"World"`
+      - Returns `True`
+   2. Call the function to test it
+
+   Use \\n (newlines) in the JSON string to separate each sub-item onto its own line.
 
    **Example**
    - A small, self-contained code snippet they can run with the ▶ Run button
@@ -397,8 +427,9 @@ TASK GENERATION RULES:
    **Your Task**
 
    1. Create two variables: `num1 = 10` and `num2 = 5`
-   2. Calculate their sum and store it in a variable called `result`
-   3. Print: `The answer is: ` followed by `str(result)`
+   2. Calculate and print:
+      - Add them together and store it in a variable called `result`
+      - Print: `The answer is: ` followed by `str(result)`
 
    **Example**
 
@@ -462,11 +493,38 @@ TASK GENERATION RULES:
    - BAD: "Ensure proper type conversion" (vague, no example, no jargon without explanation)
 
 5. **test_specification:**
-   - expected_state: Plain language description of what the code does (e.g., "calculate(10, 5, 'add') returns 15")
-   - verification_code: A Python snippet that actually tests the logic — call a function with specific inputs and check the output
-   - GOOD: `assert calculate(10, 5, "add") == 15` or `result = calculate(10, 5, "add"); print(result == 15)`
-   - BAD: `print("Program runs")` — that tests nothing
-   - If the task uses `input()`, mock it or test the underlying function directly, not the print output
+   - expected_state: Plain language description of what should work (e.g., "The calculate function returns correct results for all operations")
+   - verification_code: Simple Python snippet (2-5 lines) to test the code works
+   - test_cases: Array of 3-5 hidden test cases that will be run against the student's code. Each test case has:
+     - input: A Python expression calling the student's function, e.g. "calculate(10, 5, 'add')"
+     - expected_output: The expected return value as a Python literal, e.g. "15"
+
+   RULES for test_cases:
+   - input MUST call a function defined in coding_requirements
+   - expected_output MUST be a valid Python literal (int, str, list, dict, bool, float)
+   - Include at least one basic case and one edge case
+   - Tests run via: result = eval(input); expected = eval(expected_output); assert result == expected
+   - Example:
+     "test_cases": [
+       {{"input": "calculate(10, 5, 'add')", "expected_output": "15"}},
+       {{"input": "calculate(10, 5, 'subtract')", "expected_output": "5"}},
+       {{"input": "calculate(10, 0, 'multiply')", "expected_output": "0"}}
+     ]
+   - You CAN generate test_cases for tasks with input() loops — use input_mock to simulate the user inputs (see below).
+   - Do NOT treat invalid inputs as passing cases. If a function should reject empty strings, bad types, or out-of-range values, the test case should expect an error or a rejection, not accept it as correct.
+   - expected_output MUST be a valid Python expression. Strings must include quotes: use "'hello'" not "hello" or 'hello'. Numbers are fine as-is: "50", "True", "[1,2,3]". Otherwise eval() will treat it as a variable name.
+   - If the task involves a loop with input(), add an "input_mock" field to test_specification. This can be:
+     - A single string: every input() call returns that value (e.g., "quit")
+     - A list of strings: each input() call returns the next value in order (e.g., ["3", "wrong", "quit"])
+     Use a list when the loop processes multiple inputs before exiting.
+   - When a task involves a loop with input(), ALWAYS design the task with TWO separate functions:
+     1. A **choice/action function** that handles the core logic for a single iteration (e.g., `process_choice(choice)`, `check_answer(answer)`)
+     2. A **loop function** that runs the while loop, calls input(), and delegates to the choice function (e.g., `run_game_loop()`, `main_loop()`)
+     Write test_cases that test BOTH:
+     - The choice function directly (e.g., `process_choice('add')`) — these don't need input_mock
+     - The loop function with input_mock to verify it exits correctly and returns the right result
+    - Test cases should check EXACT return values or structure, not just substring existence. Use == comparisons, not "in" checks. For example, test get_menu()[0] == "Add task" instead of "Add task" in get_menu().
+
 
 6. **Continuity Between Tasks:**
    - Task 1.2 should BUILD ON the code from 1.1 — don't start from scratch
@@ -487,7 +545,7 @@ RESPONSE FORMAT (JSON ONLY):
   "tasks": [
     {{
       "task_id": "{milestone_position}.1",
-      "instruction_theory": "<Task Description → Key Concepts (optional, based on level) → Your Task → Example, with markdown formatting>",
+      "instruction_theory": "<Task Description → Key Concepts (optional, based on level) → Your Task → Example, with markdown formatting. REMEMBER: sub-items in Your Task MUST each be on their own line as indented bullets, never inline>",
       "coding_requirements": [
         "<precise, testable requirement with exact names>"
       ],
@@ -497,6 +555,10 @@ RESPONSE FORMAT (JSON ONLY):
       "test_specification": {{
         "expected_state": "<what should work when done>",
         "verification_code": "<simple test code>"
+        "test_cases": [
+          {{"input": "<function_call_expression>", "expected_output": "<expected_return_value>"}},
+          {{"input": "<function_call_expression>", "expected_output": "<expected_return_value>"}}
+        ]
       }}
     }}
   ]
@@ -512,4 +574,7 @@ FINAL QUALITY CHECKLIST:
 - [ ] Did I avoid: installations, pip, argparse, excessive error handling?
 - [ ] Is my language appropriate for this student's age and level?
 - [ ] Would a student actually enjoy reading this and feel confident to try?
+- [ ] Does every task require creating/modifying a function (not just print)?
+- [ ] Do test_cases call functions from coding_requirements with valid inputs?
+- [ ] Are there 3-5 test_cases per task including edge cases?
 """

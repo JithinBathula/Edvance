@@ -28,20 +28,31 @@ RESPONSE GUIDELINES:
 
 You must return a JSON object with:
 - is_correct: boolean indicating if the code passes the requirements
-- feedback: string with your assessment"""
+- feedback: string with your assessment
+
+
+IMPORTANT — TEST RESULTS:
+When automated test results are provided, they are AUTHORITATIVE. Do NOT override them.
+- If tests PASSED: the code is correct. Give encouraging feedback about what they did well.
+- If tests FAILED: the code is incorrect. Explain what went wrong based on the test failures. Do NOT say the code is correct.
+- Your job is to EXPLAIN the test results in a friendly way, not to re-judge correctness.
+
+
+"""
 
 def build_submission_user_prompt(
     task_instructions: str,
     coding_requirements: str,
     test_specification: str,
     user_code: str,
+    test_results_text: str = ""
 ) -> str:
     """Build submission prompt with safe concatenation (no .format()).
 
     Using .format() breaks when student code contains curly braces
     (dicts, f-strings, sets), corrupting the prompt.
     """
-    return (
+    prompt = (
         "Evaluate this Python code submission:\n\n"
         "## Task Instructions\n"
         + task_instructions + "\n\n"
@@ -53,5 +64,14 @@ def build_submission_user_prompt(
         "```python\n"
         + (user_code or "# No code submitted") + "\n"
         "```\n\n"
-        "Remember: Focus on whether the LOGIC is correct. Be lenient on variable names, extra print statements, formatting, and style choices. Only mark as incorrect if the core functionality is wrong or missing. Return your evaluation as a JSON object."
     )
+
+    if test_results_text:
+        prompt += (
+            "## Automated Test Results (AUTHORITATIVE — do not override)\n"
+            + test_results_text + "\n\n"
+            "Base your is_correct on these test results. Explain the results in a friendly way.\n\n"
+        )
+
+    prompt += "Remember: Focus on whether the LOGIC is correct. Be lenient on variable names, extra print statements, formatting, and style choices. Only mark as incorrect if the core functionality is wrong or missing. Return your evaluation as a JSON object."
+    return prompt

@@ -286,7 +286,7 @@ def create_task(
     coding_requirements: List[str],
     hints: List[str],
     test_specification: Dict[str, Any],
-    starter_code: Optional[str] = None
+    starter_code: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new task within a milestone.
@@ -299,7 +299,7 @@ def create_task(
         "coding_requirements": coding_requirements,
         "hints": hints,
         "test_specification": test_specification,
-        "starter_code": starter_code
+        "starter_code": starter_code,
     }
     
     result = execute_with_retry(
