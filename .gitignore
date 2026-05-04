@@ -1,7 +1,7 @@
 .venv/
 .pnpm-store/
 
-edvance-backend.pem
+*.pem
 
 # Logs
 logs
@@ -150,5 +150,10 @@ backend/repos/
 
 .claude/
 
-# JSON files
-*.json
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
