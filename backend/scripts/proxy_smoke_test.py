@@ -5,7 +5,7 @@ Tests multi-turn conversation, streaming, and error handling.
 Usage:
   1. Start the backend:  python app.py
   2. Paste your Supabase JWT below (F12 → Application → Local Storage → sb-*-auth-token → access_token)
-  3. Run:  python test_proxy.py
+  3. Run:  python scripts/proxy_smoke_test.py   (from the backend/ directory)
 """
 from openai import OpenAI
 

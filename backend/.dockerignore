@@ -13,5 +13,6 @@ env
 *.egg-info
 .mypy_cache
 .pytest_cache
-test_proxy.py
+scripts
+tests
 node_modules
