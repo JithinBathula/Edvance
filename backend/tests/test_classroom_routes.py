@@ -64,10 +64,7 @@ class TestCreateAssignment:
         for p in patches:
             p.start()
         try:
-            # Set up the mock key
-            patches[0].start()  # already started, just get the mock
-            mock_jwks = patches[0]
-            # Need to configure the jwks mock
+            # Configure the jwks mock (patches are already started above)
             import api.middleware as mw
             mock_key = MagicMock()
             mock_key.key = "fake-key"

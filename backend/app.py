@@ -44,5 +44,3 @@ if __name__ == '__main__':
     print(f"Debug mode: {debug}")
     app.run(host='0.0.0.0', port=port, debug=debug)
 
-
-## TESTING FOR THE CI/CD - again

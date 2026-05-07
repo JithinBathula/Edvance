@@ -46,7 +46,9 @@ class TestBackgroundMilestoneGeneration:
             milestones=[milestone],
         )
 
-        mock_planner.generate_first_milestone_only.return_value = curriculum
+        from pydantic_classes.planning import ProjectBlueprint
+        blueprint = ProjectBlueprint(architecture_overview="single script", naming_conventions="snake_case")
+        mock_planner.generate_first_milestone_only.return_value = (curriculum, blueprint, "summary")
         mock_create_project.return_value = {"id": "proj-1", "vm_type": "python"}
         mock_create_milestone.return_value = {"id": "ms-1"}
         mock_create_task.return_value = {"id": "task-1"}
@@ -108,7 +110,9 @@ class TestBackgroundMilestoneGeneration:
             milestones=[milestone],
         )
 
-        mock_planner.generate_first_milestone_only.return_value = curriculum
+        from pydantic_classes.planning import ProjectBlueprint
+        blueprint = ProjectBlueprint(architecture_overview="single script", naming_conventions="snake_case")
+        mock_planner.generate_first_milestone_only.return_value = (curriculum, blueprint, "summary")
         # Make the background generation fail
         mock_planner.generate_tasks_for_milestone.side_effect = Exception("LLM timeout")
         mock_create_project.return_value = {"id": "proj-1", "vm_type": "python"}
