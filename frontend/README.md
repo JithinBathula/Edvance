@@ -1,13 +1,29 @@
+# Edvance frontend
 
-  # EdTech Website for Students
+React 18 + TypeScript + Vite single-page app for students, teachers, and the public landing page.
 
-  This is a code bundle for EdTech Website for Students. The original project is available at https://www.figma.com/design/bcnFdSly2oSjTwPZkOWm74/EdTech-Website-for-Students.
+## Setup
 
-  ## Running the code
+```bash
+npm install
+cp .env.example .env   # VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+npm run dev            # http://localhost:3000
+```
 
-  Run `npm i` to install the dependencies.
+## Scripts
 
-  Run `npm run dev` to start the development server.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the Vite dev server |
+| `npm test` | Run the Vitest unit tests in `src/__tests__/` |
+| `npm run build` | Production build into `build/` |
 
+## Structure
 
-  br
+- `src/components/` - screens and features. `student/`, `teacher/`, and `landing/` hold the role-specific UI; `ui/` holds Radix-based primitives.
+- `src/hooks/usePyodide.ts` and `src/workers/pyodide.worker.ts` - run student Python code in a web worker.
+- `src/workers/openaimod.ts` - a small `openai`-compatible shim injected into Pyodide so student code can call the backend AI proxy.
+- `src/utils/authFetch.ts` - wrapper around `fetch` that attaches the Supabase session token.
+- `landing.html` - a standalone static version of the landing page.
+
+The UI started from a Figma Make export; see `src/Attributions.md` for third-party credits.
