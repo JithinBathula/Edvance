@@ -83,7 +83,7 @@ Both suites run in GitHub Actions on every pull request.
 
 ## Deployment
 
-The backend ships as a Docker image. `.github/workflows/deploy-backend.yml` deploys it to an EC2 host over SSH on pushes to `main`; a staging variant deploys from `staging`. `backend/apprunner.yaml` and `backend/Procfile` are alternatives for AWS App Runner and Procfile-based hosts. The frontend and waitlist are built with AWS Amplify using `amplify.yml`.
+The backend ships as a Docker image (`backend/Dockerfile`). `backend/apprunner.yaml` and `backend/Procfile` cover AWS App Runner and Procfile-based hosts. The frontend and waitlist are built with AWS Amplify using `amplify.yml`.
 
 ## License
 
