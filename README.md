@@ -41,7 +41,7 @@ Backend documentation lives in [`backend/README.md`](backend/README.md) and [`ba
 
 - Node.js 20+
 - Python 3.11+
-- A Supabase project. Run [`backend/db/schema.sql`](backend/db/schema.sql) in the SQL editor and create a storage bucket named `code-repos`. Note that three tables the code uses (`chat_messages`, `requirement_sessions`, `student_concepts`) are not yet in that file; see [`backend/docs/architecture.md`](backend/docs/architecture.md).
+- A Supabase project. Run [`backend/db/schema.sql`](backend/db/schema.sql) in the SQL editor and create a storage bucket named `code-repos`.
 - An [OpenRouter](https://openrouter.ai) API key
 - Optionally a Gemini API key, for the student AI proxy
 

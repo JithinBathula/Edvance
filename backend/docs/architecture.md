@@ -119,7 +119,6 @@ auth.users (Supabase Auth)
                                    │     ├──< repo_files (project_id)
                                    │     └──  source_assignment_id ──► assignments
                                    ├──< user_progress (user_id) >── tasks (task_id)
-                                   ├──< code_versions (user_id) >── tasks (task_id)
                                    ├──< classrooms (teacher_id)
                                    │     ├──< classroom_members (classroom_id) >── users (student_id)
                                    │     └──< assignments (classroom_id, template_project_id → projects)
@@ -138,8 +137,10 @@ auth.users (Supabase Auth)
 | `milestones` | Project phases | `position` (ordering), `title`, `description` |
 | `tasks` | Individual coding steps | `task_id_slug`, `instruction_theory`, `coding_requirements` (array), `hints` (array), `test_specification` (JSONB), `starter_code` |
 | `user_progress` | Per-task tracking | `status`, `submitted_code`, `passed`, `feedback` (JSONB; includes `message` plus optional `teacher_feedback`, `teacher_feedback_at`, `teacher_name`), `started_at`, `completed_at`. Unique on `(user_id, task_id)` |
-| `code_versions` | Versioned code snapshots | Defined in the schema but not used by any current backend code |
 | `repo_files` | File metadata for storage | `storage_path`, `content_hash`, `size_bytes`, `language`. Unique on `(project_id, file_path)` |
+| `chat_messages` | AI tutor chat history | `user_id`, `project_id`, `role` (`user`/`assistant`), `content`, `task_number`, `created_at` |
+| `requirement_sessions` | Persisted requirements-agent sessions | `session_id` (unique), `user_id`, `project_idea`, `ready_to_plan`, `snapshot` (JSONB), `decision_log`, `tool_context`, `turn_count`, `last_updated` |
+| `student_concepts` | Concept mastery/struggle tracking | `user_id`, `concept`, `latest_signal`, `struggle_count`, `mastery_count`, `summary`, `last_source`, `last_task_number`, `last_project_id`, `first_seen_at`, `last_seen_at`. Unique on `(user_id, concept)` |
 | `classrooms` | Teacher classrooms | `teacher_id`, `join_code` (unique), `is_active` |
 | `classroom_members` | Student membership | Unique on `(classroom_id, student_id)` |
 | `assignments` | Template project assigned to a classroom | `template_project_id`, `classroom_id`, `teacher_id`, `due_date`, `is_active`. Unique on `(template_project_id, classroom_id)` |
@@ -147,16 +148,6 @@ auth.users (Supabase Auth)
 | `waitlist` | Landing-page signups (RLS: anon insert, service role read) | `email` (unique), `phone` |
 
 Functions and triggers in `schema.sql`: `handle_new_user()` (creates a `users` row on Supabase Auth signup), `update_updated_at_column()` (auto-updates `updated_at` on users, projects, user_progress, repo_files, classrooms, assignments), and `increment_xp(uid, amount)` (atomic XP increment used by the submission endpoint, with a non-atomic fallback in code if the RPC is missing).
-
-### Tables used by code but not in `schema.sql`
-
-`db/supabase_client.py` also reads and writes these tables; they must exist in the Supabase project but have no `CREATE TABLE` in the checked-in schema:
-
-| Table | Purpose | Columns used |
-|-------|---------|-------------|
-| `chat_messages` | AI tutor chat history | `user_id`, `project_id`, `role` (`user`/`assistant`), `content`, `task_number`, `created_at` |
-| `requirement_sessions` | Persisted requirements-agent sessions | `session_id`, `user_id`, `project_idea`, `ready_to_plan`, `snapshot` (JSONB), `decision_log`, `tool_context`, `turn_count`, `last_updated` |
-| `student_concepts` | Concept mastery/struggle tracking | `user_id`, `concept`, `latest_signal`, `struggle_count`, `mastery_count`, `summary`, `last_source`, `last_task_number`, `last_project_id`, `first_seen_at`, `last_seen_at` |
 
 The `projects.codesandbox_id`, `repo_path` and `repo_default_branch` columns remain in the schema from earlier designs and are not used by current code.
 

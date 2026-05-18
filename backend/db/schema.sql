@@ -139,24 +139,6 @@ CREATE INDEX IF NOT EXISTS idx_user_progress_task_id ON user_progress(task_id);
 CREATE INDEX IF NOT EXISTS idx_user_progress_status ON user_progress(status);
 
 -- =============================================================================
--- CODE_VERSIONS TABLE
--- Stores versioned code snapshots for each user-task pair
--- =============================================================================
-CREATE TABLE IF NOT EXISTS code_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    code TEXT NOT NULL,
-    version_number INTEGER NOT NULL DEFAULT 1,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, task_id, version_number)
-);
-
--- Indexes for code version queries
-CREATE INDEX IF NOT EXISTS idx_code_versions_user_task ON code_versions(user_id, task_id);
-CREATE INDEX IF NOT EXISTS idx_code_versions_version ON code_versions(user_id, task_id, version_number DESC);
-
--- =============================================================================
 -- HELPER FUNCTION: Update updated_at timestamp
 -- =============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -365,3 +347,65 @@ CREATE POLICY "Allow anonymous inserts" ON public.waitlist
 
 CREATE POLICY "Service role can read all" ON public.waitlist
     FOR SELECT TO service_role USING (true);
+
+-- =============================================================================
+-- CHAT_MESSAGES TABLE
+-- Conversation history between a student and the assistant (Cody) per project.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    task_number TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user_project
+    ON chat_messages(user_id, project_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_project ON chat_messages(project_id);
+
+-- =============================================================================
+-- REQUIREMENT_SESSIONS TABLE
+-- Persisted state for the requirement-gathering chat (one row per session).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS requirement_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id TEXT NOT NULL UNIQUE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_idea TEXT,
+    ready_to_plan BOOLEAN NOT NULL DEFAULT FALSE,
+    snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    decision_log JSONB NOT NULL DEFAULT '[]'::jsonb,
+    tool_context JSONB NOT NULL DEFAULT '{}'::jsonb,
+    turn_count INTEGER NOT NULL DEFAULT 0,
+    last_updated TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_requirement_sessions_user ON requirement_sessions(user_id);
+
+-- =============================================================================
+-- STUDENT_CONCEPTS TABLE
+-- Per-student concept mastery/struggle signals written by the concept tracker.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS student_concepts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    concept TEXT NOT NULL,
+    latest_signal TEXT NOT NULL CHECK (latest_signal IN ('struggle', 'mastery')),
+    struggle_count INTEGER NOT NULL DEFAULT 0,
+    mastery_count INTEGER NOT NULL DEFAULT 0,
+    last_source TEXT,
+    last_task_number TEXT,
+    last_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+    summary TEXT,
+    first_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, concept)
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_concepts_user ON student_concepts(user_id);
+CREATE INDEX IF NOT EXISTS idx_student_concepts_weak
+    ON student_concepts(user_id, latest_signal, struggle_count DESC);

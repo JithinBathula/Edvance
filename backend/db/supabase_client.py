@@ -622,7 +622,7 @@ def save_requirement_session(session_id: str, user_id: str, session: Dict[str, A
 
 
 def delete_requirement_session(session_id: str, user_id: str) -> bool:
-    execute_with_retry(
+    result = execute_with_retry(
         "delete_requirement_session",
         lambda: supabase.table("requirement_sessions")
         .delete()
