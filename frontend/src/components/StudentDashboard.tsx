@@ -328,7 +328,7 @@ export function StudentDashboard({ user, onBack, onSelectProject, onLogout }: Pr
         if (dashboardFetchInFlightRef.current) return;
         dashboardFetchInFlightRef.current = true;
         try {
-            const response = await fetch(`${BACKEND_URL}/dashboard/${user.id}`, { credentials: 'include' });
+            const response = await authFetch(`/dashboard/${user.id}`);
             const result = await response.json();
             if (result.success) {
                 if (isMountedRef.current) setData(result);

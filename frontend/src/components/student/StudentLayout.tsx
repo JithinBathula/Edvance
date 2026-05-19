@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../App';
 import { BACKEND_URL } from '../../utils/constants';
+import { authFetch } from '../../utils/authFetch';
 import edvanceLogoSrc from '../../assets/edvance-logo.svg';
 import {
     Home,
@@ -59,7 +60,7 @@ export function StudentLayout({ children, user, onLogout, onRestart, headerActio
         fetchInFlightRef.current = true;
         (async () => {
             try {
-                const res = await fetch(`${BACKEND_URL}/dashboard/${user.id}`, { credentials: 'include' });
+                const res = await authFetch(`/dashboard/${user.id}`);
                 const json = await res.json();
                 if (json.success) {
                     setStats({

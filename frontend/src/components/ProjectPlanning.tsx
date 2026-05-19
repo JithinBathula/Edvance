@@ -88,9 +88,8 @@ export function ProjectPlanning({ user, requirements, onProjectReady, onBack, co
         setError(null);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/planning/outline`, {
+            const response = await authFetch('/planning/outline', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session: requirements.session,
                     user_profile: userProfile,
