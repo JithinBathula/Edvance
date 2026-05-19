@@ -223,7 +223,7 @@ Retrieve the finalized requirements snapshot for one of the caller's sessions. R
 
 Generate a project outline (milestones without tasks) from a requirements snapshot.
 
-**Auth:** None (no decorator on this route)
+**Auth:** Bearer
 
 **Request:**
 ```json
@@ -375,7 +375,7 @@ Get a project with all milestones and tasks (nested and flattened) plus the call
 
 List completed task IDs for a project and user (used to hydrate frontend local state).
 
-**Auth:** Bearer (the `user_id` path parameter is used as given and is not checked against the caller)
+**Auth:** Bearer; `user_id` must match the caller, otherwise `403`
 
 **Response:** `200`
 ```json
@@ -701,7 +701,7 @@ Leave a classroom.
 
 Aggregated student dashboard data.
 
-**Auth:** None (no decorator on this route; `user_id` is taken from the path)
+**Auth:** Bearer; `user_id` must match the caller, otherwise `403`
 
 **Response:** `200`
 ```json

@@ -19,6 +19,7 @@ planner = CurriculumPlanner()
 
 
 @planning_bp.route("/outline", methods=["POST"])
+@require_auth
 def generate_outline():
     """Generate a project outline from either raw inputs or a requirements-agent session."""
     payload = request.get_json(silent=True) or {}

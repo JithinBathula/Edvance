@@ -118,10 +118,12 @@ def get_project_full(project_id: str):
 @require_auth
 def get_completed_tasks(project_id: str, user_id: str):
     """
-    Fetch completed task IDs for a specific project and user.
+    Fetch completed task IDs for a specific project and the authenticated user.
     Used to hydrate frontend localStorage from database.
     """
-  
+    if user_id != g.user_id:
+        return jsonify({'success': False, 'error': 'Forbidden'}), 403
+
     try:
         # Get all progress records for this project
         progress_records = get_user_progress_for_project(user_id, project_id)

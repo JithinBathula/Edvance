@@ -2,7 +2,8 @@
 Dashboard API routes.
 Provides aggregated dashboard data for student view.
 """
-from flask import Blueprint, jsonify
+from api.middleware import require_auth
+from flask import Blueprint, jsonify, g
 from datetime import datetime, timedelta
 import logging
 
@@ -103,11 +104,15 @@ def _build_unstarted_entry(sa):
 
 
 @dashboard_bp.route('/<user_id>', methods=['GET'])
+@require_auth
 def get_dashboard(user_id: str):
     """
-    Get aggregated dashboard data for a user.
+    Get aggregated dashboard data for the authenticated user.
     Uses bulk queries to minimize database round trips.
     """
+    if user_id != g.user_id:
+        return jsonify({'success': False, 'error': 'Forbidden'}), 403
+
     try:
         # Query 1: Get user info
         user = get_user_by_id(user_id)
