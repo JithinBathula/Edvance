@@ -32,9 +32,14 @@ class TestChatRouteSmoke:
 
 
 class TestPlanningOutlineSmoke:
-    def test_missing_session_400(self, client):
-        """POST /api/planning/outline with empty body → 400."""
+    def test_no_auth_401(self, client):
+        """POST /api/planning/outline without auth → 401."""
         response = client.post("/api/planning/outline", json={})
+        assert response.status_code == 401
+
+    def test_missing_session_400(self, client, mock_auth, auth_headers):
+        """POST /api/planning/outline with empty body → 400."""
+        response = client.post("/api/planning/outline", json={}, headers=auth_headers)
         assert response.status_code == 400
 
 
