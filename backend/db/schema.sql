@@ -1,6 +1,7 @@
 -- =============================================================================
 -- Edvance Database Schema
 -- Run this in the Supabase SQL Editor to create all required tables.
+-- Safe to re-run. Also create two Storage buckets: code-repos (private) and avatars (public).
 -- =============================================================================
 
 -- Enable UUID extension (usually enabled by default in Supabase)
@@ -44,6 +45,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -150,16 +152,19 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply trigger to tables with updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
 CREATE TRIGGER update_projects_updated_at
     BEFORE UPDATE ON projects
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_progress_updated_at ON user_progress;
 CREATE TRIGGER update_user_progress_updated_at
     BEFORE UPDATE ON user_progress
     FOR EACH ROW
@@ -204,6 +209,7 @@ CREATE INDEX IF NOT EXISTS idx_repo_files_project ON repo_files(project_id);
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS storage_type TEXT DEFAULT 'local';
 
 -- Trigger for repo_files updated_at
+DROP TRIGGER IF EXISTS update_repo_files_updated_at ON repo_files;
 CREATE TRIGGER update_repo_files_updated_at
     BEFORE UPDATE ON repo_files
     FOR EACH ROW
@@ -220,6 +226,8 @@ CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 -- Teacher settings (classroom defaults, preferences)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_settings JSONB DEFAULT '{}'::jsonb;
+-- Public URL of the avatar uploaded via POST /api/users/profile-picture (Storage bucket: avatars, public)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
 
 -- =============================================================================
 -- CLASSROOMS TABLE
@@ -239,6 +247,7 @@ CREATE TABLE IF NOT EXISTS classrooms (
 CREATE INDEX IF NOT EXISTS idx_classrooms_teacher_id ON classrooms(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_classrooms_join_code ON classrooms(join_code);
 
+DROP TRIGGER IF EXISTS update_classrooms_updated_at ON classrooms;
 CREATE TRIGGER update_classrooms_updated_at
     BEFORE UPDATE ON classrooms
     FOR EACH ROW
@@ -302,6 +311,7 @@ ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_source_assignment_id_fke
 ALTER TABLE projects ADD CONSTRAINT projects_source_assignment_id_fkey
     FOREIGN KEY (source_assignment_id) REFERENCES assignments(id) ON DELETE SET NULL;
 
+DROP TRIGGER IF EXISTS update_assignments_updated_at ON assignments;
 CREATE TRIGGER update_assignments_updated_at
     BEFORE UPDATE ON assignments
     FOR EACH ROW
@@ -334,6 +344,7 @@ CREATE TABLE IF NOT EXISTS public.waitlist (
 );
 
 -- Prevent duplicate email signups
+ALTER TABLE public.waitlist DROP CONSTRAINT IF EXISTS waitlist_email_unique;
 ALTER TABLE public.waitlist ADD CONSTRAINT waitlist_email_unique UNIQUE (email);
 
 -- Index for chronological queries
@@ -342,9 +353,11 @@ CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON public.waitlist (created_a
 -- Enable RLS: allow anonymous inserts only (frontend uses anon key)
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON public.waitlist;
 CREATE POLICY "Allow anonymous inserts" ON public.waitlist
     FOR INSERT TO anon WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Service role can read all" ON public.waitlist;
 CREATE POLICY "Service role can read all" ON public.waitlist
     FOR SELECT TO service_role USING (true);
 
