@@ -16,6 +16,7 @@ npm run dev            # http://localhost:3000
 |---|---|
 | `npm run dev` | Start the Vite dev server |
 | `npm test` | Run the Vitest unit tests in `src/__tests__/` |
+| `npm run typecheck` | Type-check with `tsc --noEmit` |
 | `npm run build` | Production build into `build/` |
 
 ## Structure
@@ -24,6 +25,7 @@ npm run dev            # http://localhost:3000
 - `src/hooks/usePyodide.ts` and `src/workers/pyodide.worker.ts` - run student Python code in a web worker.
 - `src/workers/openaimod.ts` - a small `openai`-compatible shim injected into Pyodide so student code can call the backend AI proxy.
 - `src/utils/authFetch.ts` - wrapper around `fetch` that attaches the Supabase session token.
+- `src/index.css` - Tailwind 4 entry point and global styles.
 - `landing.html` - a standalone static version of the landing page.
 
 The UI started from a Figma Make export; see `src/Attributions.md` for third-party credits.

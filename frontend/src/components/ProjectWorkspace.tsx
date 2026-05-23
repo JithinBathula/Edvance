@@ -33,7 +33,6 @@ import {
   Lightbulb,
   Code2,
 } from "lucide-react";
-import { BACKEND_URL } from '../utils/constants';
 import { RunnableCodeBlock } from './RunnableCodeBlock';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
