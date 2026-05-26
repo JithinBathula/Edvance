@@ -33,7 +33,7 @@ waitlist/   Standalone waitlist landing page (separate Vite app)
 .github/    CI and deploy workflows
 ```
 
-Backend documentation lives in [`backend/README.md`](backend/README.md) and [`backend/docs/`](backend/docs/) (architecture, agents, API reference).
+Documentation lives in [`docs/`](docs/README.md): getting started, architecture, environment variables, database, frontend, deployment, testing, security and troubleshooting. Backend internals (agents, API reference) are under [`backend/docs/`](backend/docs/).
 
 ## Getting started
 
@@ -41,7 +41,7 @@ Backend documentation lives in [`backend/README.md`](backend/README.md) and [`ba
 
 - Node.js 20+
 - Python 3.11+
-- A Supabase project. Run [`backend/db/schema.sql`](backend/db/schema.sql) in the SQL editor and create a storage bucket named `code-repos`.
+- A Supabase project. Run [`backend/db/schema.sql`](backend/db/schema.sql) in the SQL editor and create two storage buckets, `code-repos` (private) and `avatars` (public). See [docs/getting-started.md](docs/getting-started.md).
 - An [OpenRouter](https://openrouter.ai) API key
 - Optionally a Gemini API key, for the student AI proxy
 

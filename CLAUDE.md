@@ -16,6 +16,7 @@ frontend/src/
 ├── hooks/             # usePyodide
 ├── workers/           # pyodide.worker.ts, openai shim for student code
 ├── utils/             # authFetch, constants, supabase client, helpers
+├── index.css          # Tailwind 4 entry (@import "tailwindcss")
 ├── types/             # TypeScript types
 └── __tests__/         # Vitest unit tests
 
@@ -51,7 +52,7 @@ backend/
 cd backend && pip install -r requirements.txt && python app.py   # port 8000
 cd backend && pytest
 cd frontend && npm install && npm run dev                        # port 3000
-cd frontend && npm test && npm run build
+cd frontend && npm run typecheck && npm test && npm run build
 ```
 
 ## Conventions
