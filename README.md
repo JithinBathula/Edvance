@@ -4,14 +4,27 @@ Edvance is an AI-powered platform for learning programming by building real proj
 
 The repo contains a React frontend, a Flask backend, and a small standalone waitlist site.
 
+<p align="center">
+  <img src="frontend/public/steps/step-03.gif" alt="Writing and running code in the Edvance workspace with AI guidance" width="800">
+</p>
+
 ## How it works
 
-1. **Requirements chat.** A student chats with an agent (GPT 5.2 via OpenRouter) that helps them scope a project idea, runs a quality check, and hands off when the idea is ready.
-2. **Curriculum planning.** A planning agent (Claude Opus 4.5) generates an outline and then milestones of tasks. The first milestone is returned immediately and the rest are generated in a background thread.
-3. **Build in the browser.** The workspace uses a Monaco editor and runs Python in a Pyodide web worker, so there is nothing to install. Project files are stored in Supabase Storage.
-4. **Submit and get feedback.** Submissions run against hidden test cases, then a Claude Sonnet 4 agent evaluates the code and returns feedback. A concept tracker records which skills the student has shown.
-5. **Ask Cody.** A tutoring agent is available in the workspace for hints that don't give away the solution.
-6. **Teacher tools.** Teachers manage classrooms with join codes, create assignments from template projects, and see per-student analytics.
+**1. Describe your project.** A student chats with a requirements agent (GPT 5.2 via OpenRouter) that helps them scope the idea, runs a quality check, and hands off when it is ready.
+
+<img src="frontend/public/steps/step-01.gif" alt="Requirements chat" width="640">
+
+**2. Let AI plan it.** A planning agent (Claude Opus 4.5) generates an outline, then milestones of tasks. The first milestone comes back immediately and the rest are generated in a background thread.
+
+<img src="frontend/public/steps/step-02.gif" alt="Generated curriculum with milestones and tasks" width="640">
+
+**3. Code with AI guidance.** The workspace uses a Monaco editor and runs Python in a Pyodide web worker, so there is nothing to install. Cody, a tutoring agent, gives hints that don't give away the solution. Project files are stored in Supabase Storage.
+
+**4. Submit and level up.** Submissions run against hidden test cases, then a Claude Sonnet 4 agent evaluates the code and returns feedback. Students earn XP, and a concept tracker records which skills they have shown.
+
+<img src="frontend/public/steps/step-04.gif" alt="Submitting a task and earning XP" width="640">
+
+**Teacher tools.** Teachers manage classrooms with join codes, create assignments from template projects, and see per-student analytics.
 
 Student projects that use an LLM call a built-in proxy that forwards to Gemini, so students never need their own API keys.
 
