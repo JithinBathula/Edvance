@@ -5,7 +5,7 @@ Edvance is an AI-powered platform for learning programming by building real proj
 The repo contains a React frontend, a Flask backend, and a small standalone waitlist site.
 
 <p align="center">
-  <img src="frontend/public/steps/step-03.gif" alt="Writing and running code in the Edvance workspace with AI guidance" width="800">
+  <img src="docs/screenshots/landing.jpg" alt="Edvance landing page: Coding is hard. You shouldn't do it alone." width="900">
 </p>
 
 ## How it works
@@ -19,6 +19,8 @@ The repo contains a React frontend, a Flask backend, and a small standalone wait
 <img src="frontend/public/steps/step-02.gif" alt="Generated curriculum with milestones and tasks" width="640">
 
 **3. Code with AI guidance.** The workspace uses a Monaco editor and runs Python in a Pyodide web worker, so there is nothing to install. Cody, a tutoring agent, gives hints that don't give away the solution. Project files are stored in Supabase Storage.
+
+<img src="frontend/public/steps/step-03.gif" alt="Writing and running code in the workspace with Cody's help" width="640">
 
 **4. Submit and level up.** Submissions run against hidden test cases, then a Claude Sonnet 4 agent evaluates the code and returns feedback. Students earn XP, and a concept tracker records which skills they have shown.
 
