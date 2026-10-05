@@ -28,6 +28,13 @@ The repo contains a React frontend, a Flask backend, and a small standalone wait
 
 **Teacher tools.** Teachers manage classrooms with join codes, create assignments from template projects, and see per-student analytics.
 
+<table>
+  <tr>
+    <td><img src="docs/screenshots/teacher-dashboard.png" alt="Teacher dashboard with classrooms and recent activity"></td>
+    <td><img src="docs/screenshots/teacher-analytics.png" alt="Classroom analytics: progress distribution, activity timeline, AI tutor usage, XP leaderboard"></td>
+  </tr>
+</table>
+
 Student projects that use an LLM call a built-in proxy that forwards to Gemini, so students never need their own API keys.
 
 ## Tech stack
